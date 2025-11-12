@@ -41,6 +41,50 @@ class _DonationPageState extends State<DonationPage> {
     'Needs Repair',
   ];
 
+    void _submitDonation() {
+    if (_formKey.currentState!.validate()) {
+      if (selectedImages.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please add at least one image')),
+        );
+        return;
+      }
+
+      final donationData = {
+        'itemName': _itemNameController.text,
+        'equipmentType': selectedEquipmentType,
+        'description': _descriptionController.text,
+        'condition': selectedCondition,
+        'quantity': int.parse(_quantityController.text),
+        'location': _locationController.text,
+        'images': selectedImages,
+        'status': 'pending_approval',
+        'submittedAt': DateTime.now(),
+      };
+
+      print('Donation Data: $donationData');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Donation submitted successfully! Awaiting admin approval.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      _formKey.currentState!.reset();
+      setState(() {
+        selectedImages.clear();
+        selectedEquipmentType = null;
+        selectedCondition = null;
+        _itemNameController.clear();
+        _descriptionController.clear();
+        _locationController.clear();
+        _quantityController.clear();
+      });
+    }
+  }
+
+
   @override
     Widget build(BuildContext context) {
       return Scaffold(
