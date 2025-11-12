@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'donation.dart';
 
-final ColorScheme colorScheme = ColorScheme.fromSeed(seedColor: Colors.blue);
+// Define a color scheme using a seed color
 
+final ColorScheme colorScheme = ColorScheme.fromSeed(seedColor: Colors.blue);
 final _AppColors appColors = const _AppColors();
 
 class _AppColors extends ThemeExtension<_AppColors> {
   final Color? brand;
-
   const _AppColors({this.brand});
 
   @override
@@ -45,6 +45,7 @@ class MyApp extends StatelessWidget {
           foregroundColor: colorScheme.onPrimary,
           elevation: 0,
         ),
+        // customize elevated button theme
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -53,6 +54,7 @@ class MyApp extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
           ),
         ),
+        // customize input decoration theme
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.grey.shade50,
@@ -60,7 +62,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
       debugShowCheckedModeBanner: false,
-      home: const DonationPage(),
+      home: const MyHomePage(),
     );
   }
 }
@@ -73,15 +75,79 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  
   @override
   Widget build(BuildContext context) {
-    
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: const Text('Campus Management'),
       ),
-      body: Scaffold()
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              child: const Center(
+                child: Text(
+                  'App Features',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.login),
+              title: const Text('Authentication & Role Management', style: TextStyle(fontSize: 14),),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.inventory),
+              title: const Text('Inventory Management', style: TextStyle(fontSize: 14),),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_month),
+              title: const Text('Reservation & Rental', style: TextStyle(fontSize: 14),),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.volunteer_activism),
+              title: const Text('Donation Management', style: TextStyle(fontSize: 14),),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const DonationPage()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.bar_chart),
+              title: const Text('Tracking & Reports', style: TextStyle(fontSize: 14),),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
+      body: Center(
+        child: Text(
+          'Welcome to Campus Events Management App!',
+          style: Theme.of(context).textTheme.titleLarge,
+          textAlign: TextAlign.center,
+        ),
+      ),
     );
   }
 }
