@@ -84,6 +84,30 @@ class _DonationPageState extends State<DonationPage> {
     }
   }
 
+    Future<void> _pickImages() async {
+    final pickedFiles = await _imagePicker.pickMultiImage();
+    if (pickedFiles.isNotEmpty) {
+      setState(() {
+        selectedImages = pickedFiles.map((file) => File(file.path)).toList();
+      });
+    }
+  }
+
+  Future<void> _pickImageFromCamera() async {
+    final pickedFile = await _imagePicker.pickImage(source: ImageSource.camera);
+    if (pickedFile != null) {
+      setState(() {
+        selectedImages.add(File(pickedFile.path));
+      });
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      selectedImages.removeAt(index);
+    });
+  }
+
 
   @override
     Widget build(BuildContext context) {
