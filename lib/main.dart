@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:project444/signup.dart';
+import 'login.dart';
 import 'donation.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 // Define a color scheme using a seed color
 
@@ -18,13 +22,14 @@ class _AppColors extends ThemeExtension<_AppColors> {
   @override
   _AppColors lerp(ThemeExtension<_AppColors>? other, double t) {
     if (other is! _AppColors) return this;
-    return _AppColors(
-      brand: Color.lerp(brand, other.brand, t),
-    );
+    return _AppColors(brand: Color.lerp(brand, other.brand, t));
   }
 }
 
-void main() {
+// firebse initilizaton takes time to connect to firebase services that is why it is async
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
   runApp(const MyApp());
 }
 
@@ -48,7 +53,9 @@ class MyApp extends StatelessWidget {
         // customize elevated button theme
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             backgroundColor: colorScheme.primary,
             foregroundColor: colorScheme.onPrimary,
             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
@@ -62,7 +69,8 @@ class MyApp extends StatelessWidget {
         ),
       ),
       debugShowCheckedModeBanner: false,
-      home: const MyHomePage(),
+      // home: const MyHomePage(),
+      home: const LoginPage(),
     );
   }
 }
@@ -78,9 +86,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Campus Management'),
-      ),
+      appBar: AppBar(title: const Text('Campus Management')),
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -102,28 +108,40 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             ListTile(
               leading: const Icon(Icons.login),
-              title: const Text('Authentication & Role Management', style: TextStyle(fontSize: 14),),
+              title: const Text(
+                'Authentication & Role Management',
+                style: TextStyle(fontSize: 14),
+              ),
               onTap: () {
                 Navigator.pop(context);
               },
             ),
             ListTile(
               leading: const Icon(Icons.inventory),
-              title: const Text('Inventory Management', style: TextStyle(fontSize: 14),),
+              title: const Text(
+                'Inventory Management',
+                style: TextStyle(fontSize: 14),
+              ),
               onTap: () {
                 Navigator.pop(context);
               },
             ),
             ListTile(
               leading: const Icon(Icons.calendar_month),
-              title: const Text('Reservation & Rental', style: TextStyle(fontSize: 14),),
+              title: const Text(
+                'Reservation & Rental',
+                style: TextStyle(fontSize: 14),
+              ),
               onTap: () {
                 Navigator.pop(context);
               },
             ),
             ListTile(
               leading: const Icon(Icons.volunteer_activism),
-              title: const Text('Donation Management', style: TextStyle(fontSize: 14),),
+              title: const Text(
+                'Donation Management',
+                style: TextStyle(fontSize: 14),
+              ),
               onTap: () {
                 Navigator.push(
                   context,
@@ -133,7 +151,10 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             ListTile(
               leading: const Icon(Icons.bar_chart),
-              title: const Text('Tracking & Reports', style: TextStyle(fontSize: 14),),
+              title: const Text(
+                'Tracking & Reports',
+                style: TextStyle(fontSize: 14),
+              ),
               onTap: () {
                 Navigator.pop(context);
               },
