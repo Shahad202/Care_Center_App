@@ -1,6 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'auth.dart';
 import 'signup.dart';
+import 'donation.dart';
+import 'reservation.dart';
+import 'main.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -103,22 +108,52 @@ class _LoginPageState extends State<LoginPage> {
       // form is invalid, dont proceed
       return;
     }
-
+    
     setState(() => _isLoading = true);
 
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    final user  = await _authService.signIn(email, password);
+
+    try {
+    final user  = await _authService.signIn(email: email, password:password);
 
     setState(() => _isLoading = false);
 
     if (user != null){
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login Successful!')),
-      );
-    } else {
+
+      // get users date from the firestore 
+      final doc = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(user.uid)
+      .get();
+
+
+    if (doc.exists){
+      final name= doc['name'];
+      final role = doc['role'];
+
+
+       ScaffoldMessenger.of(context).showSnackBar(
+         SnackBar(content: Text('Welcome, $name!')));
+
+        // Navigate based on role:
+        if (role == 'Admin'){
+          Navigator.pushReplacement(context, MaterialPageRoute(builder:  (_) => AdminPage()));
+        } else if (role == 'Donor'){
+          Navigator.pushReplacement(context, MaterialPageRoute(builder:  (_) => DonationPage()));
+        } else if (role == 'Renter'){
+          Navigator.pushReplacement(context, MaterialPageRoute(builder:  (_) => RenterPage()));
+        }
+      }
+    }  
+  } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login failed. check creditials.')));
-    }
+    
   }
+}
+
 }

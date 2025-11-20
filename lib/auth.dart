@@ -8,7 +8,7 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
 // register a new user with email and password
-  Future<User?> signUp({required String email,required String password, required name, required contact, required role}) async {
+  Future<User?> signUp({required String email,required String password, required String name, required String contact, required String role}) async {
     try {
         UserCredential result = await _auth.createUserWithEmailAndPassword(
           email: email,
@@ -16,7 +16,7 @@ class AuthService {
       User? user = result.user;
       
       if (user !=null){
-        // create afirestore document for the new user
+        // create a firestore document for the new user
         await FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)  // use the uid as the doc id
@@ -34,15 +34,15 @@ class AuthService {
   }
 
 // Sign in an existing user
-Future<User?> signIn(String email, String password) async {
+Future<User?> signIn({required String email, required String password}) async {
   try{
       UserCredential result = await _auth.signInWithEmailAndPassword(
         email: email, 
-        password: password);
+        password: password
+        );
       return result.user;
-  } catch (e){
-    print('Sign In Error:');
-    print(e);
+  } on FirebaseAuthException catch (e){
+    print('Sign In Error: ${e.message}');
     rethrow;
   }
 }
@@ -50,6 +50,20 @@ Future<User?> signIn(String email, String password) async {
 // Sign out the current user
 Future<void> signOut() async {
   await _auth.signOut();
+}
+
+// Get user role from firestore
+Future<String?> getUserRole(String uid) async {
+  try {
+    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    if (doc.exists) {
+      return doc['role'];
+    }
+  return null;
+  } catch (e) {
+    print("Get role error: $e");
+    return null;
+  }
 }
 
 // Get the current user to use their info
