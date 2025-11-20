@@ -37,6 +37,7 @@ bool _isLoading = false;
   }
 
 
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       // resizeToAvoidBottomInset: true,
@@ -132,7 +133,7 @@ bool _isLoading = false;
         
                  // Role Selction
                  DropdownButtonFormField<String>(
-                  value: _selectedRole,
+                  initialValue: _selectedRole,
                   items: ['Admin', 'Renter', 'Donor']
                   .map((role) => DropdownMenuItem(
                     value: role,
