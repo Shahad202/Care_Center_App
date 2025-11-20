@@ -157,16 +157,16 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.login),
-              title: const Text(
-                'Authentication & Role Management',
-                style: TextStyle(fontSize: 14),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
+            // ListTile(
+            //   leading: const Icon(Icons.login),
+            //   title: const Text(
+            //     'Authentication & Role Management',
+            //     style: TextStyle(fontSize: 14),
+            //   ),
+            //   onTap: () {
+            //     Navigator.pop(context);
+            //   },
+            // ),
             ListTile(
               leading: const Icon(Icons.inventory),
               title: const Text(
@@ -221,13 +221,17 @@ class _MyHomePageState extends State<MyHomePage> {
             Text(
               'Welcome to Care Center Management App!',
               style: Theme.of(context).textTheme.headlineSmall,
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 10,),
 
-            Text('Please login to access the below features.', 
-            style: Theme.of(context).textTheme.bodyMedium,
+            Center(
+              child: Text(
+                'Please login to access the below features.', 
+                style: Theme.of(context).textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
             ),
-
             const SizedBox(height: 10,),
 
             // tiles that show Features
@@ -248,7 +252,8 @@ class _MyHomePageState extends State<MyHomePage> {
                 )
             
           ],
-        ),)
+        ),
+      )
     );
   }
 }
