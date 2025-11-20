@@ -270,7 +270,7 @@ class _DonationPageState extends State<DonationPage> {
               _buildFormLabel('Equipment Type'),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: selectedEquipmentType,
+                initialValue: selectedEquipmentType,
                 hint: const Text('Select equipment type'),
                 items: equipmentTypes.map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
                 onChanged: (value) => setState(() => selectedEquipmentType = value),
@@ -291,7 +291,7 @@ class _DonationPageState extends State<DonationPage> {
                   ),
                 ),
                 child: DropdownButtonFormField<String>(
-                  value: selectedCondition,
+                  initialValue: selectedCondition,
                   hint: const Text('Select condition'),
                   items: conditionStatus.map((c) {
                     final color = _getConditionColor(c);
