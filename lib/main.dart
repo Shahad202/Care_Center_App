@@ -5,6 +5,7 @@ import 'donation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'reservation.dart';
+import 'donor_page.dart';
 
 // Define a color scheme using a seed color
 
@@ -72,12 +73,10 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: '/home',
       routes: {
-        '/login': (context) => const LoginPage(),
-        '/signup': (context) => const SignupPage(),
-        '/admin': (context) => const AdminPage(),
-        '/donation': (context) => const DonationPage(),
-        '/renter': (context) => const RenterPage(),
-        '/home': (context) => const MyHomePage(),
+        '/home': (c) => const MyHomePage(),
+        '/donation': (c) => const DonorPage(),
+        '/login': (c) => const LoginPage(),
+        '/signup': (c) => const SignupPage(),
       }
     );
   }
@@ -196,7 +195,7 @@ class _MyHomePageState extends State<MyHomePage> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const DonationPage()),
+                  MaterialPageRoute(builder: (context) => const DonorPage()),
                 );
               },
             ),

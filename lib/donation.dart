@@ -87,7 +87,7 @@ class _DonationPageState extends State<DonationPage> {
   void _submitDonation() {
     FocusScope.of(context).unfocus();
     if (!_submitted) {
-      setState(() => _submitted = true); // تفعيل عرض الأخطاء بعد أول محاولة
+      setState(() => _submitted = true);
     }
     if (!_formKey.currentState!.validate()) return;
     if (selectedImages.isEmpty) {
@@ -105,8 +105,13 @@ class _DonationPageState extends State<DonationPage> {
           filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
           child: DonationSubmittedDialog(
             onDone: () {
-              Navigator.pop(context);
+              Navigator.pop(context); // إغلاق الحوار
               _resetForm();
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/home',
+                (route) => false, // إزالة جميع الصفحات السابقة
+              );
             },
           ),
         ),
@@ -182,94 +187,6 @@ class _DonationPageState extends State<DonationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Care Center'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginPage())),
-            child: const Text('Login', style: TextStyle(color: Colors.white)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SignupPage())),
-            child: const Text('Sign Up', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              child: const Center(
-                child: Text(
-                  'App Features',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-            // ListTile(
-            //   leading: const Icon(Icons.login),
-            //   title: const Text(
-            //     'Authentication & Role Management',
-            //     style: TextStyle(fontSize: 14),
-            //   ),
-            //   onTap: () {
-            //     Navigator.pop(context);
-            //   },
-            // ),
-            ListTile(
-              leading: const Icon(Icons.inventory),
-              title: const Text(
-                'Inventory Management',
-                style: TextStyle(fontSize: 14),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.calendar_month),
-              title: const Text(
-                'Reservation & Rental',
-                style: TextStyle(fontSize: 14),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.volunteer_activism),
-              title: const Text(
-                'Donation Management',
-                style: TextStyle(fontSize: 14),
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const DonationPage()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.bar_chart),
-              title: const Text(
-                'Tracking & Reports',
-                style: TextStyle(fontSize: 14),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -580,33 +497,77 @@ class _DonationPageState extends State<DonationPage> {
                   ],
                 ),
               const SizedBox(height: 28),
-              SizedBox(
-                width: double.infinity,
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
+              Row(
+                children: [
+                  // Cancel Button
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: ElevatedButton(
-                    onPressed: _submitDonation,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context); // الرجوع إلى DonorPage
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey.shade100,
+                          foregroundColor: Colors.grey.shade800,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            side: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
                     ),
-                    child: const Text(
-                      'Submit Donation',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
+                  ),
+                  const SizedBox(width: 12),
+                  // Submit Button
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ElevatedButton(
+                        onPressed: _submitDonation,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          'Submit Donation',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
               const SizedBox(height: 16),
               Container(
