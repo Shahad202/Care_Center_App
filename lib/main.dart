@@ -31,7 +31,16 @@ class _AppColors extends ThemeExtension<_AppColors> {
 // firebse initilizaton takes time to connect to firebase services that is why it is async
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    try {
+      await Firebase.initializeApp();
+    } catch (_) {
+    }
+  }
   runApp(const MyApp());
 }
 

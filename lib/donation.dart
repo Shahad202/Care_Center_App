@@ -8,6 +8,9 @@ import 'firebase_options.dart';
 import 'reservation.dart';
 import 'login.dart'; // Add this import for LoginPage
 import 'signup.dart'; // Add this import for SignupPage
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart'; // NEW
 
 class DonationPage extends StatefulWidget {
   const DonationPage({super.key});
@@ -17,6 +20,7 @@ class DonationPage extends StatefulWidget {
 }
 
 class _DonationPageState extends State<DonationPage> {
+  bool _isSubmitting = false;
   final _formKey = GlobalKey<FormState>();
   bool _submitted = false; // جديد: لتعقب محاولة الإرسال
   final ImagePicker _imagePicker = ImagePicker();
@@ -84,39 +88,131 @@ class _DonationPageState extends State<DonationPage> {
     super.dispose();
   }
 
-  void _submitDonation() {
-    FocusScope.of(context).unfocus();
-    if (!_submitted) {
-      setState(() => _submitted = true);
-    }
-    if (!_formKey.currentState!.validate()) return;
-    if (selectedImages.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add at least one image')),
+  // NEW: upload images to Firebase Storage and return download URLs
+  Future<List<String>> _uploadImages(String uid) async {
+    final storage = FirebaseStorage.instance;
+    final List<String> urls = [];
+    for (int i = 0; i < selectedImages.length; i++) {
+      final file = selectedImages[i];
+      final path = 'donations/$uid/${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+      final ref = storage.ref().child(path);
+      await ref.putFile(
+        file,
+        SettableMetadata(contentType: 'image/jpeg'),
       );
-      return;
+      final url = await ref.getDownloadURL();
+      urls.add(url);
     }
-    showGeneralDialog(
+    return urls;
+  }
+
+  // NEW: simple loading dialog while uploading
+  Future<void> _showUploadingDialog(String message) {
+    return showDialog(
       context: context,
-      barrierColor: Colors.black54,
       barrierDismissible: false,
-      pageBuilder: (_, __, ___) => Center(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-          child: DonationSubmittedDialog(
-            onDone: () {
-              Navigator.pop(context); // إغلاق الحوار
-              _resetForm();
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/home',
-                (route) => false, // إزالة جميع الصفحات السابقة
-              );
-            },
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 26,
+                height: 26,
+                child: CircularProgressIndicator(strokeWidth: 3),
+              ),
+              const SizedBox(width: 14),
+              Flexible(
+                child: Text(
+                  message,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
+  }
+
+  // REPLACE: submit now uploads images to Storage then writes Firestore
+  Future<void> _submitDonation() async {
+    FocusScope.of(context).unfocus();
+    if (!_submitted) setState(() => _submitted = true);
+    if (_isSubmitting) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please login before donating')),
+      );
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
+      return;
+    }
+
+    if (!_formKey.currentState!.validate()) return;
+    if (selectedImages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Add at least one image')));
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      await _showUploadingDialog('Uploading photos...');
+      final imageUrls = await _uploadImages(user.uid);
+      if (mounted) Navigator.pop(context);
+
+      final docRef = FirebaseFirestore.instance.collection('donations').doc();
+      final donationId = docRef.id;
+
+      await docRef.set({
+        'donationId': donationId,
+        'itemName': _itemNameController.text.trim(),
+        'itemType': selectedEquipmentType,
+        'condition': selectedCondition,
+        'description': _descriptionController.text.trim(),
+        'quantity': int.parse(_quantityController.text.trim()),
+        'location': _locationController.text.trim(),
+        'imageUrls': imageUrls,
+        'status': 'pending',
+        'submittedAt': Timestamp.now(),
+        'donorId': user.uid,
+      });
+
+      showGeneralDialog(
+        context: context,
+        barrierColor: Colors.black54,
+        barrierDismissible: false,
+        pageBuilder: (_, __, ___) => Center(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+            child: DonationSubmittedDialog(
+              onDone: () {
+                Navigator.pop(context);
+                _resetForm();
+                setState(() => _isSubmitting = false);
+                Navigator.pushNamedAndRemoveUntil(context, '/home', (r) => false);
+              },
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      // close loading dialog if still open
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Upload failed: $e')),
+      );
+    }
   }
 
   void _resetForm() {
@@ -186,6 +282,7 @@ class _DonationPageState extends State<DonationPage> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser;
     return Scaffold(
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -193,7 +290,7 @@ class _DonationPageState extends State<DonationPage> {
           key: _formKey,
           autovalidateMode: _submitted
               ? AutovalidateMode.onUserInteraction
-              : AutovalidateMode.disabled, // إيقاف التحقق المسبق
+              : AutovalidateMode.disabled,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -248,6 +345,33 @@ class _DonationPageState extends State<DonationPage> {
                 ),
               ),
               const SizedBox(height: 28),
+              if (currentUser == null)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.lock, color: Colors.orange.shade700),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'You must login before submitting a donation.',
+                          style: TextStyle(
+                              color: Colors.orange.shade800, fontWeight: FontWeight.w600, fontSize: 12),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginPage())),
+                        child: const Text('Login'),
+                      ),
+                    ],
+                  ),
+                ),
               _buildFormLabel('Item Name'),
               const SizedBox(height: 8),
               TextFormField(
@@ -513,9 +637,7 @@ class _DonationPageState extends State<DonationPage> {
                         ],
                       ),
                       child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context); // الرجوع إلى DonorPage
-                        },
+                        onPressed: _isSubmitting ? null : () { Navigator.pop(context); },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.grey.shade100,
                           foregroundColor: Colors.grey.shade800,
@@ -552,7 +674,7 @@ class _DonationPageState extends State<DonationPage> {
                         ],
                       ),
                       child: ElevatedButton(
-                        onPressed: _submitDonation,
+                        onPressed: _isSubmitting ? null : _submitDonation,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Theme.of(context).colorScheme.primary,
                           foregroundColor: Colors.white,
