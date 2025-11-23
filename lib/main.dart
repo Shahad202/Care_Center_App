@@ -5,6 +5,7 @@ import 'donation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'reservation.dart';
+import 'donor_page.dart';
 
 // Define a color scheme using a seed color
 
@@ -30,7 +31,16 @@ class _AppColors extends ThemeExtension<_AppColors> {
 // firebse initilizaton takes time to connect to firebase services that is why it is async
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    try {
+      await Firebase.initializeApp();
+    } catch (_) {
+    }
+  }
   runApp(const MyApp());
 }
 
@@ -72,12 +82,10 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: '/home',
       routes: {
-        '/login': (context) => const LoginPage(),
-        '/signup': (context) => const SignupPage(),
-        '/admin': (context) => const AdminPage(),
-        '/donation': (context) => const DonationPage(),
-        '/renter': (context) => const RenterPage(),
-        '/home': (context) => const MyHomePage(),
+        '/home': (c) => const MyHomePage(),
+        '/donation': (c) => const DonorPage(),
+        '/login': (c) => const LoginPage(),
+        '/signup': (c) => const SignupPage(),
       }
     );
   }
@@ -196,7 +204,7 @@ class _MyHomePageState extends State<MyHomePage> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const DonationPage()),
+                  MaterialPageRoute(builder: (context) => const DonorPage()),
                 );
               },
             ),
