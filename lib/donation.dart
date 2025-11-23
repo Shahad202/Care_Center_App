@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:ui';
+import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'reservation.dart';
+import 'login.dart'; // Add this import for LoginPage
+import 'signup.dart'; // Add this import for SignupPage
 
 class DonationPage extends StatefulWidget {
   const DonationPage({super.key});
@@ -11,7 +18,35 @@ class DonationPage extends StatefulWidget {
 
 class _DonationPageState extends State<DonationPage> {
   final _formKey = GlobalKey<FormState>();
+  bool _submitted = false; // جديد: لتعقب محاولة الإرسال
   final ImagePicker _imagePicker = ImagePicker();
+
+  // ==== Validation helpers (fixed regex) ====
+  final RegExp _forbiddenChars = RegExp(r'[@<>]');
+  final RegExp _scriptPattern = RegExp(r'\bscript\b', caseSensitive: false); // fixed
+  final RegExp _urlPattern = RegExp(r'https?://');
+  final RegExp _multiSpace = RegExp(r'\s{2,}');
+
+  String? _validateText({
+    required String? value,
+    required String field,
+    int min = 3,
+    int max = 120,
+    bool allowUrl = false,
+    bool allowScript = false,
+    bool forbidAt = true,
+  }) {
+    if (value == null) return 'Please enter $field';
+    final v = value.trim();
+    if (v.isEmpty) return 'Please enter $field';
+    if (v.length < min) return '$field must be at least $min chars';
+    if (v.length > max) return '$field must be <= $max chars';
+    if (_multiSpace.hasMatch(v)) return 'Remove extra spaces in $field';
+    if (forbidAt && _forbiddenChars.hasMatch(v)) return '$field cannot contain @ < >';
+    if (!allowScript && _scriptPattern.hasMatch(v)) return 'Invalid word in $field';
+    if (!allowUrl && _urlPattern.hasMatch(v)) return 'Links are not allowed in $field';
+    return null;
+  }
 
   String? selectedEquipmentType;
   String? selectedCondition;
@@ -50,91 +85,33 @@ class _DonationPageState extends State<DonationPage> {
   }
 
   void _submitDonation() {
-    if (_formKey.currentState!.validate()) {
-      if (selectedImages.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Please add at least one image'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-        return;
-      }
-
-      final donationData = {
-        'itemName': _itemNameController.text,
-        'equipmentType': selectedEquipmentType,
-        'description': _descriptionController.text,
-        'condition': selectedCondition,
-        'quantity': int.parse(_quantityController.text),
-        'location': _locationController.text,
-        'images': selectedImages,
-        'status': 'pending_approval',
-        'submittedAt': DateTime.now(),
-      };
-
-      print('Donation Data: $donationData');
-
-      showDialog(
-        context: context,
-        builder: (context) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.check_circle,
-                    color: Theme.of(context).colorScheme.secondary,
-                    size: 48,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Donation Submitted!',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Your donation is pending admin review',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _resetForm();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.secondary,
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text(
-                    'Done',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
+    FocusScope.of(context).unfocus();
+    if (!_submitted) {
+      setState(() => _submitted = true); // تفعيل عرض الأخطاء بعد أول محاولة
+    }
+    if (!_formKey.currentState!.validate()) return;
+    if (selectedImages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add at least one image')),
+      );
+      return;
+    }
+    showGeneralDialog(
+      context: context,
+      barrierColor: Colors.black54,
+      barrierDismissible: false,
+      pageBuilder: (_, __, ___) => Center(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+          child: DonationSubmittedDialog(
+            onDone: () {
+              Navigator.pop(context);
+              _resetForm();
+            },
           ),
         ),
-      );
-    }
+      ),
+    );
   }
 
   void _resetForm() {
@@ -151,10 +128,23 @@ class _DonationPageState extends State<DonationPage> {
   }
 
   Future<void> _pickImages() async {
+    if (selectedImages.length >= 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Max 6 images')),
+      );
+      return;
+    }
     final pickedFiles = await _imagePicker.pickMultiImage();
     if (pickedFiles.isNotEmpty) {
+      final paths = selectedImages.map((f) => f.path).toSet();
       setState(() {
-        selectedImages = pickedFiles.map((file) => File(file.path)).toList();
+        for (final f in pickedFiles) {
+          if (paths.length >= 6) break;
+          if (!paths.contains(f.path)) {
+            selectedImages.add(File(f.path));
+            paths.add(f.path);
+          }
+        }
       });
     }
   }
@@ -193,18 +183,100 @@ class _DonationPageState extends State<DonationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        title: const Text(
-          'Donate Equipment',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+        title: const Text('Care Center'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginPage())),
+            child: const Text('Login', style: TextStyle(color: Colors.white)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SignupPage())),
+            child: const Text('Sign Up', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              child: const Center(
+                child: Text(
+                  'App Features',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            // ListTile(
+            //   leading: const Icon(Icons.login),
+            //   title: const Text(
+            //     'Authentication & Role Management',
+            //     style: TextStyle(fontSize: 14),
+            //   ),
+            //   onTap: () {
+            //     Navigator.pop(context);
+            //   },
+            // ),
+            ListTile(
+              leading: const Icon(Icons.inventory),
+              title: const Text(
+                'Inventory Management',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_month),
+              title: const Text(
+                'Reservation & Rental',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.volunteer_activism),
+              title: const Text(
+                'Donation Management',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const DonationPage()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.bar_chart),
+              title: const Text(
+                'Tracking & Reports',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+          ],
         ),
-        centerTitle: true,
-        elevation: 0,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
+          autovalidateMode: _submitted
+              ? AutovalidateMode.onUserInteraction
+              : AutovalidateMode.disabled, // إيقاف التحقق المسبق
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -263,106 +335,133 @@ class _DonationPageState extends State<DonationPage> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: _itemNameController,
-                decoration: _buildInputDecoration('e.g., Manual Wheelchair', Icons.medical_services),
-                validator: (value) => value == null || value.isEmpty ? 'Please enter item name' : null,
+                inputFormatters: [
+                  FilteringTextInputFormatter.deny(RegExp(r'[@<>]')),
+                ],
+                decoration: _buildInputDecoration('e.g., Manual Wheelchair'),
+                validator: (v) => _validateText(value: v, field: 'item name', min: 3, max: 100),
+                onChanged: (_) {
+                  if (_submitted) _formKey.currentState!.validate();
+                },
               ),
               const SizedBox(height: 22),
+
               _buildFormLabel('Equipment Type'),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                initialValue: selectedEquipmentType,
+                value: selectedEquipmentType,
                 hint: const Text('Select equipment type'),
                 items: equipmentTypes.map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
                 onChanged: (value) => setState(() => selectedEquipmentType = value),
-                decoration: _buildInputDecoration('Select equipment type', Icons.category),
-                validator: (value) => value == null ? 'Please select equipment type' : null,
+                decoration: _buildInputDecoration('Select equipment type'),
+                validator: (value) {
+                  if (value == null) return 'Please select equipment type';
+                  if (_forbiddenChars.hasMatch(value)) return 'Invalid characters';
+                  return null;
+                },
               ),
               const SizedBox(height: 22),
+
               _buildFormLabel('Equipment Condition'),
               const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: selectedCondition != null
-                        ? _getConditionColor(selectedCondition)
-                        : Colors.grey.shade300,
-                    width: 2,
+              DropdownButtonFormField<String>(
+                value: selectedCondition,
+                hint: const Text('Select condition'),
+                items: conditionStatus.map((c) {
+                  final color = _getConditionColor(c);
+                  return DropdownMenuItem(
+                    value: c,
+                    child: Row(
+                      children: [
+                        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                        const SizedBox(width: 8),
+                        Text(c),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) => setState(() => selectedCondition = value),
+                decoration: InputDecoration(
+                  hintText: 'Select condition',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: selectedCondition != null
+                          ? _getConditionColor(selectedCondition)
+                          : Colors.grey.shade300,
+                      width: 2,
+                    ),
                   ),
-                ),
-                child: DropdownButtonFormField<String>(
-                  initialValue: selectedCondition,
-                  hint: const Text('Select condition'),
-                  items: conditionStatus.map((c) {
-                    final color = _getConditionColor(c);
-                    return DropdownMenuItem(
-                      value: c,
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 12,
-                            height: 12,
-                            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(c),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (value) => setState(() => selectedCondition = value),
-                  decoration: InputDecoration(
-                    prefixIcon: Icon(Icons.info, color: Theme.of(context).colorScheme.primary),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: selectedCondition != null
+                          ? _getConditionColor(selectedCondition)
+                          : Colors.grey.shade300,
+                      width: 2,
+                    ),
                   ),
-                  validator: (value) => value == null ? 'Please select condition' : null,
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: selectedCondition != null
+                          ? _getConditionColor(selectedCondition)
+                          : Theme.of(context).colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
                 ),
+                validator: (value) => value == null ? 'Please select condition' : null,
               ),
               const SizedBox(height: 22),
+
               _buildFormLabel('Description'),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _descriptionController,
                 maxLines: 4,
-                decoration: _buildInputDecoration(
-                    'Describe the equipment, its features, and any special notes...', Icons.description),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter description';
-                  }
-                  if (value.length < 10) {
-                    return 'Description must be at least 10 characters';
-                  }
-                  return null;
-                },
+                decoration: _buildInputDecoration('Describe the equipment...'),
+                validator: (v) => _validateText(
+                  value: v,
+                  field: 'description',
+                  min: 10,
+                  max: 500,
+                  allowUrl: false,
+                  allowScript: false,
+                ),
               ),
               const SizedBox(height: 22),
+
               _buildFormLabel('Quantity'),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _quantityController,
                 keyboardType: TextInputType.number,
-                decoration: _buildInputDecoration('e.g., 1', Icons.numbers),
+                decoration: _buildInputDecoration('e.g., 1'),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter quantity';
-                  }
-                  if (int.tryParse(value) == null || int.parse(value) <= 0) {
-                    return 'Please enter a valid quantity';
-                  }
+                  if (value == null || value.trim().isEmpty) return 'Please enter quantity';
+                  if (_forbiddenChars.hasMatch(value)) return 'Invalid characters';
+                  final n = int.tryParse(value);
+                  if (n == null) return 'Quantity must be a number';
+                  if (n <= 0) return 'Quantity must be > 0';
+                  if (n > 1000) return 'Quantity too large';
                   return null;
                 },
               ),
               const SizedBox(height: 22),
+
               _buildFormLabel('Pickup Location'),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _locationController,
-                decoration: _buildInputDecoration('Enter location or address', Icons.location_on),
-                validator: (value) => value == null || value.isEmpty ? 'Please enter location' : null,
+                decoration: _buildInputDecoration('Enter location or address'),
+                validator: (v) => _validateText(value: v, field: 'location', min: 3, max: 150),
               ),
               const SizedBox(height: 24),
+
               _buildFormLabel('Add Photos'),
               const SizedBox(height: 12),
               Row(
@@ -425,6 +524,15 @@ class _DonationPageState extends State<DonationPage> {
                       '${selectedImages.length} image(s) selected',
                       style: TextStyle(
                           fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Images (${selectedImages.length}/6)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: selectedImages.length >= 6 ? Colors.red : Colors.grey.shade700,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     GridView.builder(
@@ -556,10 +664,9 @@ class _DonationPageState extends State<DonationPage> {
     );
   }
 
-  InputDecoration _buildInputDecoration(String hint, IconData icon) {
+  InputDecoration _buildInputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      prefixIcon: Icon(icon, color: Theme.of(context).colorScheme.primary),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -576,6 +683,59 @@ class _DonationPageState extends State<DonationPage> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       filled: true,
       fillColor: Colors.grey.shade50,
+    );
+  }
+}
+
+class DonationSubmittedDialog extends StatelessWidget {
+  final VoidCallback onDone;
+  const DonationSubmittedDialog({super.key, required this.onDone});
+  @override
+  Widget build(BuildContext context) {
+    final successColor = Theme.of(context).colorScheme.primary;
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: Colors.blue, size: 56),
+            const SizedBox(height: 24),
+            Text('Donation Submitted!',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: successColor)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: successColor.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text('Pending Admin Review',
+                  style: TextStyle(color: successColor, fontWeight: FontWeight.w600)),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Thank you! Please wait for admin approval.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade700, height: 1.4),
+            ),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: onDone,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: successColor,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text('Done', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
