@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:project444/signup.dart';
 import 'login.dart';
-import 'donation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'reservation.dart';
-import 'donor_page.dart';
+import 'Donation/donor_page.dart';
 
 // Define a color scheme using a seed color
 
@@ -83,7 +83,9 @@ class MyApp extends StatelessWidget {
       initialRoute: '/home',
       routes: {
         '/home': (c) => const MyHomePage(),
-        '/donation': (c) => const DonorPage(),
+        '/donor': (c) => const DonorPage(),
+        '/admin': (c) => const AdminPage(),
+        '/renter': (c) => const MyHomePage(), // مؤقت: يوديه للصفحة الرئيسية
         '/login': (c) => const LoginPage(),
         '/signup': (c) => const SignupPage(),
       }
@@ -198,14 +200,12 @@ class _MyHomePageState extends State<MyHomePage> {
             ListTile(
               leading: const Icon(Icons.volunteer_activism),
               title: const Text(
-                'Donation Management',
+                'Donations',
                 style: TextStyle(fontSize: 14),
               ),
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const DonorPage()),
-                );
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/donor');
               },
             ),
             ListTile(
