@@ -3,7 +3,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'auth.dart';
 import 'signup.dart';
-import 'donation.dart';
 import 'reservation.dart';
 import 'main.dart';
 
@@ -143,18 +142,20 @@ class _LoginPageState extends State<LoginPage> {
           // to remove the login page from history, so user can't press back and return to guest home or login screen sisnce there are already buttons for these
           Navigator.pushReplacementNamed(context, '/admin');
         } else if (role == 'Donor'){
-          Navigator.pushReplacementNamed(context, '/donation');
+          Navigator.pushReplacementNamed(context, '/donor');
         } else if (role == 'Renter'){
           Navigator.pushReplacementNamed(context, '/renter');
         }
       }
     }  
   } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login failed. check creditials.')));
-    
+    setState(() {
+      _isLoading = false;
+    });
+    print('Login error details: $e'); // طباعة التفاصيل
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Login failed: ${e.toString()}'))
+    );
   }
 }
 
