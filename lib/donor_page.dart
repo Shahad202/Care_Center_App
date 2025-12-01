@@ -4,7 +4,9 @@ import 'login.dart';
 import 'signup.dart';
 
 class DonorPage extends StatelessWidget {
-  const DonorPage({super.key});
+  final String userName;
+
+  const DonorPage({super.key, required this.userName});
 
   @override
   Widget build(BuildContext context) {
@@ -239,7 +241,7 @@ class DonorPage extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const DonationPage()),
+                    MaterialPageRoute(builder: (_) => DonationPage(userName: userName,)),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: color,

@@ -139,13 +139,12 @@ class _LoginPageState extends State<LoginPage> {
 
         // Navigate based on role:
         if (role == 'Admin'){
-
           // to remove the login page from history, so user can't press back and return to guest home or login screen sisnce there are already buttons for these
-          Navigator.pushReplacementNamed(context, '/admin');
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => AdminPage(userName: name)));
         } else if (role == 'Donor'){
-          Navigator.pushReplacementNamed(context, '/donation');
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => DonationPage(userName: name)));
         } else if (role == 'Renter'){
-          Navigator.pushReplacementNamed(context, '/renter');
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => RenterPage(userName: name)));
         }
       }
     }  

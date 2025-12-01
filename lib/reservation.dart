@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 class RenterPage extends StatefulWidget {
-  const RenterPage({super.key});
+  final String userName;
+  
+  const RenterPage({super.key, required this.userName});
 
   @override
   State<RenterPage> createState() => _RenterPageState();

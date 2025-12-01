@@ -11,9 +11,11 @@ import 'signup.dart'; // Add this import for SignupPage
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart'; // NEW
+import 'profilePage.dart';
 
 class DonationPage extends StatefulWidget {
-  const DonationPage({super.key});
+  final String userName;
+  const DonationPage({super.key, required this.userName});
 
   @override
   State<DonationPage> createState() => _DonationPageState();
@@ -27,7 +29,10 @@ class _DonationPageState extends State<DonationPage> {
 
   // ==== Validation helpers (fixed regex) ====
   final RegExp _forbiddenChars = RegExp(r'[@<>]');
-  final RegExp _scriptPattern = RegExp(r'\bscript\b', caseSensitive: false); // fixed
+  final RegExp _scriptPattern = RegExp(
+    r'\bscript\b',
+    caseSensitive: false,
+  ); // fixed
   final RegExp _urlPattern = RegExp(r'https?://');
   final RegExp _multiSpace = RegExp(r'\s{2,}');
 
@@ -46,9 +51,12 @@ class _DonationPageState extends State<DonationPage> {
     if (v.length < min) return '$field must be at least $min chars';
     if (v.length > max) return '$field must be <= $max chars';
     if (_multiSpace.hasMatch(v)) return 'Remove extra spaces in $field';
-    if (forbidAt && _forbiddenChars.hasMatch(v)) return '$field cannot contain @ < >';
-    if (!allowScript && _scriptPattern.hasMatch(v)) return 'Invalid word in $field';
-    if (!allowUrl && _urlPattern.hasMatch(v)) return 'Links are not allowed in $field';
+    if (forbidAt && _forbiddenChars.hasMatch(v))
+      return '$field cannot contain @ < >';
+    if (!allowScript && _scriptPattern.hasMatch(v))
+      return 'Invalid word in $field';
+    if (!allowUrl && _urlPattern.hasMatch(v))
+      return 'Links are not allowed in $field';
     return null;
   }
 
@@ -94,12 +102,10 @@ class _DonationPageState extends State<DonationPage> {
     final List<String> urls = [];
     for (int i = 0; i < selectedImages.length; i++) {
       final file = selectedImages[i];
-      final path = 'donations/$uid/${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+      final path =
+          'donations/$uid/${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
       final ref = storage.ref().child(path);
-      await ref.putFile(
-        file,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
+      await ref.putFile(file, SettableMetadata(contentType: 'image/jpeg'));
       final url = await ref.getDownloadURL();
       urls.add(url);
     }
@@ -157,7 +163,9 @@ class _DonationPageState extends State<DonationPage> {
 
     if (!_formKey.currentState!.validate()) return;
     if (selectedImages.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Add at least one image')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Add at least one image')));
       return;
     }
 
@@ -197,7 +205,11 @@ class _DonationPageState extends State<DonationPage> {
                 Navigator.pop(context);
                 _resetForm();
                 setState(() => _isSubmitting = false);
-                Navigator.pushNamedAndRemoveUntil(context, '/home', (r) => false);
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/home',
+                  (r) => false,
+                );
               },
             ),
           ),
@@ -209,9 +221,9 @@ class _DonationPageState extends State<DonationPage> {
         Navigator.pop(context);
       }
       setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Upload failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
     }
   }
 
@@ -230,9 +242,9 @@ class _DonationPageState extends State<DonationPage> {
 
   Future<void> _pickImages() async {
     if (selectedImages.length >= 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Max 6 images')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Max 6 images')));
       return;
     }
     final pickedFiles = await _imagePicker.pickMultiImage();
@@ -284,6 +296,177 @@ class _DonationPageState extends State<DonationPage> {
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
     return Scaffold(
+      appBar: AppBar(title: const Text('Care Center'), actions: [
+          
+        ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              child: FirebaseAuth.instance.currentUser == null
+                  ? Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: () async {
+                            // Close drawer first
+                            Navigator.pop(context);
+                            // Go to login (await if you want to react to result)
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const LoginPage(),
+                              ),
+                            );
+                            // If login returned true (or something indicating updated state), refresh
+                            if (result == true) {
+                              setState(() {});
+                            }
+                          },
+                          child: CircleAvatar(
+                            radius: 35,
+                            backgroundImage: AssetImage(
+                              'lib/images/default_profile.png',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          "Welcome, Guest!",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    )
+                  : FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection("users")
+                          .doc(FirebaseAuth.instance.currentUser!.uid)
+                          .get(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          );
+                        }
+
+                        var data =
+                            snapshot.data!.data() as Map<String, dynamic>;
+                        String name = (data["name"] ?? "User").toString();
+                        String? imageUrl = data["profileImage"] as String?;
+
+                        return Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            GestureDetector(
+                              onTap: () async {
+                                // Close the drawer
+                                Navigator.pop(context);
+
+                                // Push ProfilePage and await result. ProfilePage should pop with true on success.
+                                final updated = await Navigator.push<bool?>(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const ProfilePage(),
+                                  ),
+                                );
+
+                                // If ProfilePage returned true (meaning profile was updated), refresh UI
+                                if (updated == true) {
+                                  setState(() {});
+                                }
+                              },
+                              child: CircleAvatar(
+                                radius: 35,
+                                backgroundImage:
+                                    (imageUrl != null && imageUrl.isNotEmpty)
+                                    ? NetworkImage(imageUrl)
+                                    : const AssetImage(
+                                            'lib/images/default_profile.png',
+                                          )
+                                          as ImageProvider,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              "Welcome, $name!",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+            ),
+
+            /// ---- MENU ITEMS ----
+            ListTile(
+              leading: const Icon(Icons.inventory),
+              title: const Text('Inventory Management'),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_month),
+              title: const Text('Reservation & Rental'),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.volunteer_activism),
+              title: const Text('Donation Management'),
+              onTap: () {
+                Navigator.pushNamed(context, '/login');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.bar_chart),
+              title: const Text('Tracking & Reports'),
+              onTap: () => Navigator.pop(context),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: FirebaseAuth.instance.currentUser != null
+                  ? ListTile(
+                      leading: Icon(Icons.logout, color: Colors.red),
+                      title: Text(
+                        "Logout",
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      onTap: () async {
+                        // 1. Sign out
+                        await FirebaseAuth.instance.signOut();
+
+                        // 2. Close drawer
+                        Navigator.pop(context);
+
+                        // 3. Redirect to home (guest view)
+                        Navigator.pushReplacementNamed(context, '/home');
+
+                        // 4. Refresh the UI
+                        setState(() {});
+                      },
+                    )
+                  : SizedBox(), // if guest, hide logout
+            ),
+          ],
+        ),
+      ),
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -300,14 +483,16 @@ class _DonationPageState extends State<DonationPage> {
                   gradient: LinearGradient(
                     colors: [
                       Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                      Theme.of(context).colorScheme.surface
+                      Theme.of(context).colorScheme.surface,
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withOpacity(0.2),
                     width: 1,
                   ),
                 ),
@@ -319,7 +504,11 @@ class _DonationPageState extends State<DonationPage> {
                         color: Theme.of(context).colorScheme.primary,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.favorite, color: Colors.white, size: 24),
+                      child: const Icon(
+                        Icons.favorite,
+                        color: Colors.white,
+                        size: 24,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -328,7 +517,8 @@ class _DonationPageState extends State<DonationPage> {
                         children: [
                           Text(
                             'Share Your Equipment',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: Theme.of(context).colorScheme.primary,
                                 ),
@@ -362,11 +552,17 @@ class _DonationPageState extends State<DonationPage> {
                         child: Text(
                           'You must login before submitting a donation.',
                           style: TextStyle(
-                              color: Colors.orange.shade800, fontWeight: FontWeight.w600, fontSize: 12),
+                            color: Colors.orange.shade800,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                       TextButton(
-                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginPage())),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const LoginPage()),
+                        ),
                         child: const Text('Login'),
                       ),
                     ],
@@ -380,7 +576,12 @@ class _DonationPageState extends State<DonationPage> {
                   FilteringTextInputFormatter.deny(RegExp(r'[@<>]')),
                 ],
                 decoration: _buildInputDecoration('e.g., Manual Wheelchair'),
-                validator: (v) => _validateText(value: v, field: 'item name', min: 3, max: 100),
+                validator: (v) => _validateText(
+                  value: v,
+                  field: 'item name',
+                  min: 3,
+                  max: 100,
+                ),
                 onChanged: (_) {
                   if (_submitted) _formKey.currentState!.validate();
                 },
@@ -392,12 +593,19 @@ class _DonationPageState extends State<DonationPage> {
               DropdownButtonFormField<String>(
                 value: selectedEquipmentType,
                 hint: const Text('Select equipment type'),
-                items: equipmentTypes.map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
-                onChanged: (value) => setState(() => selectedEquipmentType = value),
+                items: equipmentTypes
+                    .map(
+                      (type) =>
+                          DropdownMenuItem(value: type, child: Text(type)),
+                    )
+                    .toList(),
+                onChanged: (value) =>
+                    setState(() => selectedEquipmentType = value),
                 decoration: _buildInputDecoration('Select equipment type'),
                 validator: (value) {
                   if (value == null) return 'Please select equipment type';
-                  if (_forbiddenChars.hasMatch(value)) return 'Invalid characters';
+                  if (_forbiddenChars.hasMatch(value))
+                    return 'Invalid characters';
                   return null;
                 },
               ),
@@ -414,7 +622,14 @@ class _DonationPageState extends State<DonationPage> {
                     value: c,
                     child: Row(
                       children: [
-                        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
                         const SizedBox(width: 8),
                         Text(c),
                       ],
@@ -451,11 +666,15 @@ class _DonationPageState extends State<DonationPage> {
                       width: 2,
                     ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
-                validator: (value) => value == null ? 'Please select condition' : null,
+                validator: (value) =>
+                    value == null ? 'Please select condition' : null,
               ),
               const SizedBox(height: 22),
 
@@ -483,8 +702,10 @@ class _DonationPageState extends State<DonationPage> {
                 keyboardType: TextInputType.number,
                 decoration: _buildInputDecoration('e.g., 1'),
                 validator: (value) {
-                  if (value == null || value.trim().isEmpty) return 'Please enter quantity';
-                  if (_forbiddenChars.hasMatch(value)) return 'Invalid characters';
+                  if (value == null || value.trim().isEmpty)
+                    return 'Please enter quantity';
+                  if (_forbiddenChars.hasMatch(value))
+                    return 'Invalid characters';
                   final n = int.tryParse(value);
                   if (n == null) return 'Quantity must be a number';
                   if (n <= 0) return 'Quantity must be > 0';
@@ -499,7 +720,12 @@ class _DonationPageState extends State<DonationPage> {
               TextFormField(
                 controller: _locationController,
                 decoration: _buildInputDecoration('Enter location or address'),
-                validator: (v) => _validateText(value: v, field: 'location', min: 3, max: 150),
+                validator: (v) => _validateText(
+                  value: v,
+                  field: 'location',
+                  min: 3,
+                  max: 150,
+                ),
               ),
               const SizedBox(height: 24),
 
@@ -516,7 +742,9 @@ class _DonationPageState extends State<DonationPage> {
                         backgroundColor: Theme.of(context).colorScheme.primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
@@ -527,10 +755,14 @@ class _DonationPageState extends State<DonationPage> {
                       icon: const Icon(Icons.camera_alt),
                       label: const Text('Take Photo'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.primaryContainer,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
@@ -544,16 +776,33 @@ class _DonationPageState extends State<DonationPage> {
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey.shade300, width: 2),
                     borderRadius: BorderRadius.circular(12),
-                    color: Theme.of(context).colorScheme.surface.withOpacity(0.5),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surface.withOpacity(0.5),
                   ),
                   child: Column(
                     children: [
-                      Icon(Icons.image_not_supported, color: Colors.grey.shade400, size: 48),
+                      Icon(
+                        Icons.image_not_supported,
+                        color: Colors.grey.shade400,
+                        size: 48,
+                      ),
                       const SizedBox(height: 12),
-                      Text('No images selected', style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+                      Text(
+                        'No images selected',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text('Add photos to showcase your donation',
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                      Text(
+                        'Add photos to showcase your donation',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
                     ],
                   ),
                 )
@@ -564,14 +813,19 @@ class _DonationPageState extends State<DonationPage> {
                     Text(
                       '${selectedImages.length} image(s) selected',
                       style: TextStyle(
-                          fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600),
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Images (${selectedImages.length}/6)',
                       style: TextStyle(
                         fontSize: 12,
-                        color: selectedImages.length >= 6 ? Colors.red : Colors.grey.shade700,
+                        color: selectedImages.length >= 6
+                            ? Colors.red
+                            : Colors.grey.shade700,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -579,11 +833,12 @@ class _DonationPageState extends State<DonationPage> {
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                          ),
                       itemCount: selectedImages.length,
                       itemBuilder: (context, index) => Stack(
                         children: [
@@ -611,7 +866,11 @@ class _DonationPageState extends State<DonationPage> {
                                   ],
                                 ),
                                 padding: const EdgeInsets.all(6),
-                                child: const Icon(Icons.close, color: Colors.white, size: 16),
+                                child: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
                               ),
                             ),
                           ),
@@ -637,14 +896,21 @@ class _DonationPageState extends State<DonationPage> {
                         ],
                       ),
                       child: ElevatedButton(
-                        onPressed: _isSubmitting ? null : () { Navigator.pop(context); },
+                        onPressed: _isSubmitting
+                            ? null
+                            : () {
+                                Navigator.pop(context);
+                              },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.grey.shade100,
                           foregroundColor: Colors.grey.shade800,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
-                            side: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                            side: BorderSide(
+                              color: Colors.grey.shade300,
+                              width: 1.5,
+                            ),
                           ),
                           elevation: 0,
                         ),
@@ -667,7 +933,9 @@ class _DonationPageState extends State<DonationPage> {
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withOpacity(0.4),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -676,15 +944,23 @@ class _DonationPageState extends State<DonationPage> {
                       child: ElevatedButton(
                         onPressed: _isSubmitting ? null : _submitDonation,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                           elevation: 0,
                         ),
                         child: const Text(
                           'Submit Donation',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            letterSpacing: 0.5,
+                          ),
                         ),
                       ),
                     ),
@@ -698,7 +974,9 @@ class _DonationPageState extends State<DonationPage> {
                   color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withOpacity(0.3),
                     width: 1,
                   ),
                 ),
@@ -707,11 +985,16 @@ class _DonationPageState extends State<DonationPage> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(Icons.info,
-                          color: Theme.of(context).colorScheme.primary, size: 20),
+                      child: Icon(
+                        Icons.info,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -757,11 +1040,17 @@ class _DonationPageState extends State<DonationPage> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
+        borderSide: BorderSide(
+          color: Theme.of(context).colorScheme.primary,
+          width: 2,
+        ),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Theme.of(context).colorScheme.error, width: 1),
+        borderSide: BorderSide(
+          color: Theme.of(context).colorScheme.error,
+          width: 1,
+        ),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       filled: true,
@@ -785,8 +1074,14 @@ class DonationSubmittedDialog extends StatelessWidget {
           children: [
             const Icon(Icons.check_circle, color: Colors.blue, size: 56),
             const SizedBox(height: 24),
-            Text('Donation Submitted!',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: successColor)),
+            Text(
+              'Donation Submitted!',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: successColor,
+              ),
+            ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -794,8 +1089,13 @@ class DonationSubmittedDialog extends StatelessWidget {
                 color: successColor.withOpacity(0.10),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Text('Pending Admin Review',
-                  style: TextStyle(color: successColor, fontWeight: FontWeight.w600)),
+              child: Text(
+                'Pending Admin Review',
+                style: TextStyle(
+                  color: successColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             Text(
@@ -810,10 +1110,15 @@ class DonationSubmittedDialog extends StatelessWidget {
                 onPressed: onDone,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: successColor,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                child: const Text('Done', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text(
+                  'Done',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ],
