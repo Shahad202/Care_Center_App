@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -100,12 +102,10 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final images =
-        (widget.donation['imageUrls'] as List?)?.cast<String>() ?? [];
+    final images = (widget.donation['imageUrls'] as List?)?.cast<String>() ?? [];
     final hasMultipleImages = images.length > 1;
     final statusColor = _getStatusColor(widget.donation['status'] ?? 'pending');
-    final conditionColor =
-        _getConditionColor(widget.donation['condition'] ?? 'good');
+    final conditionColor = _getConditionColor(widget.donation['condition'] ?? 'good');
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFF),
@@ -137,11 +137,7 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
                           },
                           itemCount: images.length,
                           itemBuilder: (context, index) {
-                            return Image.network(
-                              images[index],
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Icon(Icons.broken_image, color: Colors.white),
-                            );
+                            return _buildImageFromBase64(images[index]);
                           },
                         ),
                         Container(
@@ -360,10 +356,10 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
       child: InkWell(
         onTap: onTap,
         customBorder: const CircleBorder(),
-        child: const SizedBox(
+        child: SizedBox(
           width: 40,
           height: 40,
-          child: Icon(Icons.arrow_forward_ios, color: Colors.white, size: 18),
+          child: Icon(icon, color: Colors.white, size: 18), // تغيير هنا
         ),
       ),
     );
@@ -444,5 +440,47 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
         ),
       ],
     );
+  }
+
+  Widget _buildImageFromBase64(String base64String) {
+    print('\n=== 🖼️ Details Page - Building Image ===');
+    print('Base64 length: ${base64String.length}');
+    
+    try {
+      if (base64String.isEmpty || base64String.length < 100) {
+        print('❌ Invalid base64 string');
+        return Container(
+          color: const Color(0xFF003465),
+          child: const Center(
+            child: Icon(Icons.broken_image, color: Colors.white, size: 60),
+          ),
+        );
+      }
+
+      final bytes = base64Decode(base64String);
+      print('✅ Decoded successfully, bytes: ${bytes.length}');
+      
+      return Image.memory(
+        bytes,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          print('❌ Image.memory error: $error');
+          return Container(
+            color: const Color(0xFF003465),
+            child: const Center(
+              child: Icon(Icons.broken_image, color: Colors.white, size: 60),
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      print('❌ Error: $e');
+      return Container(
+        color: const Color(0xFF003465),
+        child: const Center(
+          child: Icon(Icons.broken_image, color: Colors.white, size: 60),
+        ),
+      );
+    }
   }
 }
