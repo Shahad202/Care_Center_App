@@ -101,12 +101,12 @@ class _DonorPageState extends State<DonorPage> {
       color: const Color(0xFF003465),
       child: Row(
         children: [
-          const SizedBox(width: 8), // subtle left padding
+          const SizedBox(width: 8),
           Builder(
             builder: (context) => IconButton(
               icon: const Icon(Icons.menu, color: Colors.white),
-              padding: EdgeInsetsGeometry.all(18), // avoids extra internal padding
-              constraints: const BoxConstraints(), // keeps button compact
+              padding: const EdgeInsets.all(18), // تصحيح الخطأ
+              constraints: const BoxConstraints(),
               onPressed: () => Scaffold.of(context).openDrawer(),
               tooltip: 'Menu',
             ),
