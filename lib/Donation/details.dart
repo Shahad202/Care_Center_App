@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../services/hive_service.dart';
 
 class DonationDetailsPage extends StatefulWidget {
   final Map<String, dynamic> donation;
@@ -79,7 +80,6 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
       if (date is DateTime) {
         return '${date.day} ${_getMonthName(date.month)} ${date.year}';
       }
-      // If it's a string or other type, try parsing; otherwise show as-is
       if (date is String) {
         final parsed = DateTime.tryParse(date);
         if (parsed != null) {
@@ -102,10 +102,13 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final images = (widget.donation['imageUrls'] as List?)?.cast<String>() ?? [];
-    final hasMultipleImages = images.length > 1;
+    final imageIds = (widget.donation['imageIds'] as List?)?.cast<String>() ?? [];
+    final hasMultipleImages = imageIds.length > 1;
     final statusColor = _getStatusColor(widget.donation['status'] ?? 'pending');
     final conditionColor = _getConditionColor(widget.donation['condition'] ?? 'good');
+
+    print('\n=== Details Page Build ===');
+    print('Image IDs: ${imageIds.length}');
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFF),
@@ -127,7 +130,7 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
               onPressed: () => Navigator.pop(context),
             ),
             flexibleSpace: FlexibleSpaceBar(
-              background: images.isNotEmpty
+              background: imageIds.isNotEmpty
                   ? Stack(
                       children: [
                         PageView.builder(
@@ -135,9 +138,9 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
                           onPageChanged: (index) {
                             setState(() => _currentImageIndex = index);
                           },
-                          itemCount: images.length,
+                          itemCount: imageIds.length,
                           itemBuilder: (context, index) {
-                            return _buildImageFromBase64(images[index]);
+                            return _buildImageFromHive(imageIds[index]);
                           },
                         ),
                         Container(
@@ -169,7 +172,7 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
                             ),
                           ),
                         if (hasMultipleImages &&
-                            _currentImageIndex < images.length - 1)
+                            _currentImageIndex < imageIds.length - 1)
                           Positioned(
                             right: 16,
                             top: 0,
@@ -200,7 +203,7 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Text(
-                                  '${_currentImageIndex + 1} / ${images.length}',
+                                  '${_currentImageIndex + 1} / ${imageIds.length}',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 14,
@@ -349,6 +352,64 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
     );
   }
 
+  Widget _buildImageFromHive(String imageId) {
+    print('\n=== Building Image from Hive ===');
+    print('Image ID: $imageId');
+
+    return FutureBuilder<dynamic>(
+      future: HiveService.getImage(imageId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            color: const Color(0xFF003465),
+            child: const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          print('Error: ${snapshot.error}');
+          return Container(
+            color: const Color(0xFF003465),
+            child: const Center(
+              child: Icon(Icons.broken_image, color: Colors.white, size: 60),
+            ),
+          );
+        }
+
+        if (snapshot.data == null) {
+          print('Image not found in Hive');
+          return Container(
+            color: const Color(0xFF003465),
+            child: const Center(
+              child: Icon(Icons.broken_image, color: Colors.white, size: 60),
+            ),
+          );
+        }
+
+        final image = snapshot.data;
+        print('Image found! Bytes length: ${image.imageBytes.length}');
+
+        return Image.memory(
+          Uint8List.fromList(image.imageBytes),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            print('Image.memory error: $error');
+            return Container(
+              color: const Color(0xFF003465),
+              child: const Center(
+                child: Icon(Icons.broken_image, color: Colors.white, size: 60),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _arrowButton(IconData icon, VoidCallback onTap) {
     return Material(
       color: Colors.black.withOpacity(0.5),
@@ -359,7 +420,7 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
         child: SizedBox(
           width: 40,
           height: 40,
-          child: Icon(icon, color: Colors.white, size: 18), // تغيير هنا
+          child: Icon(icon, color: Colors.white, size: 18),
         ),
       ),
     );
@@ -440,47 +501,5 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
         ),
       ],
     );
-  }
-
-  Widget _buildImageFromBase64(String base64String) {
-    print('\n=== 🖼️ Details Page - Building Image ===');
-    print('Base64 length: ${base64String.length}');
-    
-    try {
-      if (base64String.isEmpty || base64String.length < 100) {
-        print('❌ Invalid base64 string');
-        return Container(
-          color: const Color(0xFF003465),
-          child: const Center(
-            child: Icon(Icons.broken_image, color: Colors.white, size: 60),
-          ),
-        );
-      }
-
-      final bytes = base64Decode(base64String);
-      print('✅ Decoded successfully, bytes: ${bytes.length}');
-      
-      return Image.memory(
-        bytes,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          print('❌ Image.memory error: $error');
-          return Container(
-            color: const Color(0xFF003465),
-            child: const Center(
-              child: Icon(Icons.broken_image, color: Colors.white, size: 60),
-            ),
-          );
-        },
-      );
-    } catch (e) {
-      print('❌ Error: $e');
-      return Container(
-        color: const Color(0xFF003465),
-        child: const Center(
-          child: Icon(Icons.broken_image, color: Colors.white, size: 60),
-        ),
-      );
-    }
   }
 }

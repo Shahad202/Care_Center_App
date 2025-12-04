@@ -6,6 +6,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'reservation.dart';
 import 'Donation/donor_page.dart';
+import 'services/hive_service.dart';
+import 'login.dart';
+import 'signup.dart';
+import 'admin_dashboard.dart';
 
 // Define a color scheme using a seed color
 
@@ -31,6 +35,10 @@ class _AppColors extends ThemeExtension<_AppColors> {
 // firebse initilizaton takes time to connect to firebase services that is why it is async
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Hive
+  await HiveService.init();
+  
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -195,7 +203,6 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/renter');
               },
             ),
             ListTile(

@@ -183,7 +183,7 @@ class DonateTabPage extends StatelessWidget {
     return Center(
       child: InkWell(
         onTap: () async {
-          print('🔄 Opening donation form...');
+          print('Opening donation form...');
           
           final result = await Navigator.push<DonationItem>(
             context,
@@ -193,7 +193,7 @@ class DonateTabPage extends StatelessWidget {
           );
 
           if (result != null) {
-            print('✅ Donation form returned with result: ${result.id}');
+            print('Donation form returned with result: ${result.id}');
             onDonationAdded?.call(result);
             
             if (context.mounted) {
@@ -206,7 +206,7 @@ class DonateTabPage extends StatelessWidget {
               );
             }
           } else {
-            print('ℹ️ Donation form cancelled or no result');
+            print('Donation form cancelled or no result');
           }
         },
         child: Container(

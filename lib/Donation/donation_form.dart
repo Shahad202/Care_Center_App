@@ -111,38 +111,35 @@ class _DonationFormPageState extends State<DonationFormPage> {
   }
 
   Future<void> _submitDonation() async {
-    print('\n=== 🚀 Submit Donation Started ===');
+    print('\n=== Submit Donation Started ===');
     
     // Validate form
     if (_formKey.currentState?.validate() != true) {
-      print('❌ Form validation failed');
+      print('Form validation failed');
       _showMessage('Please fix the errors in the form', color: Colors.orange);
       return;
     }
-    print('✅ Form validation passed');
-
+    print('Form validation passed');
     if (_selectedCondition == null) {
-      print('❌ No condition selected');
+      print('No condition selected');
       _showMessage('Please select equipment condition', color: Colors.orange);
       return;
     }
-    print('✅ Condition selected: $_selectedCondition');
-
+    print('Condition selected: $_selectedCondition');
     if (_uploadedImages.isEmpty) {
-      print('❌ No images uploaded');
+      print('No images uploaded');
       _showMessage('Please add at least one photo', color: Colors.orange);
       return;
     }
-    print('✅ Images uploaded: ${_uploadedImages.length}');
-
+    print('Images uploaded: ${_uploadedImages.length}');
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      print('❌ User not logged in');
+      print('User not logged in');
       _showMessage('Login required to submit', color: Colors.red);
       Navigator.pushNamed(context, '/login');
       return;
     }
-    print('✅ User logged in: ${user.uid}');
+    print('User logged in: ${user.uid}');
 
     // Show loading dialog
     showDialog(
@@ -169,14 +166,14 @@ class _DonationFormPageState extends State<DonationFormPage> {
       FocusScope.of(context).unfocus();
       
       final quantity = int.parse(_quantityController.text.trim());
-      print('📝 Preparing donation data...');
+      print('Preparing donation data...');
       print('   - Item: ${_itemNameController.text.trim()}');
       print('   - Condition: $_selectedCondition');
       print('   - Quantity: $quantity');
       print('   - Location: ${_locationController.text.trim()}');
 
       final service = DonationService();
-      print('🔄 Calling DonationService.addDonation...');
+      print('Calling DonationService.addDonation...');
       
       final item = await service.addDonation(
         itemName: _itemNameController.text.trim(),
@@ -187,11 +184,11 @@ class _DonationFormPageState extends State<DonationFormPage> {
         images: _uploadedImages,
       );
 
-      print('✅ Donation added successfully!');
+      print('Donation added successfully!');
       print('   - ID: ${item.id}');
       
       if (!mounted) {
-        print('⚠️ Widget unmounted');
+        print('Widget unmounted');
         return;
       }
 
@@ -201,7 +198,7 @@ class _DonationFormPageState extends State<DonationFormPage> {
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('✅ Donation submitted successfully!'),
+          content: Text('Donation submitted successfully!'),
           backgroundColor: Color(0xFF4CAF50),
           duration: Duration(seconds: 3),
         ),
@@ -211,12 +208,12 @@ class _DonationFormPageState extends State<DonationFormPage> {
       await Future.delayed(const Duration(milliseconds: 500));
       
       if (mounted) {
-        print('🔙 Navigating back...');
+        print('Navigating back...');
         Navigator.of(context).pop(item);
       }
       
     } catch (e, stackTrace) {
-      print('❌ Error during submission: $e');
+      print('Error during submission: $e');
       print('Stack trace: $stackTrace');
       
       if (!mounted) return;
@@ -227,7 +224,7 @@ class _DonationFormPageState extends State<DonationFormPage> {
       // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('❌ Failed to submit: ${e.toString()}'),
+          content: Text('Failed to submit: ${e.toString()}'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 5),
         ),
@@ -380,7 +377,7 @@ class _DonationFormPageState extends State<DonationFormPage> {
           controller: _quantityController,
           keyboardType: TextInputType.number,
           inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly, // فقط أرقام
+            FilteringTextInputFormatter.digitsOnly, 
           ],
           validator: _validateQuantity,
           decoration: InputDecoration(
