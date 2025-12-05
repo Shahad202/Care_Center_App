@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'donation_form.dart';
-import 'donor_page.dart';
-import 'tracking_tab.dart';
 import 'donation_item.dart';
 
 class DonateTabPage extends StatelessWidget {
@@ -185,24 +183,31 @@ class DonateTabPage extends StatelessWidget {
     return Center(
       child: InkWell(
         onTap: () async {
-          final result = await Navigator.push(
+          print('🔄 Opening donation form...');
+          
+          final result = await Navigator.push<DonationItem>(
             context,
             MaterialPageRoute(
               builder: (context) => const DonationFormPage(),
             ),
           );
 
-            if (result is DonationItem) {
-  onDonationAdded?.call(result);
-  if (context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Donation stored. Check Tracking tab.'),
-        backgroundColor: Color(0xFF4CAF50),
-      ),
-    );
-  }
-}
+          if (result != null) {
+            print('✅ Donation form returned with result: ${result.id}');
+            onDonationAdded?.call(result);
+            
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Donation "${result.itemName}" submitted successfully!'),
+                  backgroundColor: const Color(0xFF4CAF50),
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            }
+          } else {
+            print('ℹ️ Donation form cancelled or no result');
+          }
         },
         child: Container(
           decoration: BoxDecoration(
