@@ -17,10 +17,7 @@ import 'reservation_dates_screen.dart';
 import 'reservation_confirm_screen.dart';
 import 'reservation_success_screen.dart';
 import 'reservation_tracking_screen.dart';
-import 'donation/donor_page.dart';
 import 'profilePage.dart';
-
-// Define a color scheme using a seed color
 
 final ColorScheme colorScheme = ColorScheme.fromSeed(seedColor: Colors.blue);
 final _AppColors appColors = const _AppColors();
@@ -41,11 +38,9 @@ class _AppColors extends ThemeExtension<_AppColors> {
   }
 }
 
-// firebse initilizaton takes time to connect to firebase services that is why it is async
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Hive
   await HiveService.init();
   
   try {
@@ -66,18 +61,16 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Care Center',
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: colorScheme,
-        // put your named colors into ThemeData via ThemeExtension
         extensions: <ThemeExtension<dynamic>>[appColors],
         appBarTheme: AppBarTheme(
           backgroundColor: colorScheme.primary,
           foregroundColor: colorScheme.onPrimary,
           elevation: 0,
         ),
-        // customize elevated button theme
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             shape: RoundedRectangleBorder(
@@ -88,7 +81,6 @@ class MyApp extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
           ),
         ),
-        // customize input decoration theme
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.grey.shade50,
@@ -100,12 +92,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/home': (c) => const MyHomePage(),
         '/donor': (c) => const DonorPage(),
-        '/admin': (c) => const AdminPage(),
-        '/renter': (c) =>
-            const InventoryListScreen(), // مؤقت: يوديه للصفحة الرئيسية
-        // '/donor': (c) =>  const DonorPage(userName: null),
-        // '/admin': (c) => const AdminPage(userName: null,),
-        '/renter': (c) => const MyHomePage(), // مؤقت: يوديه للصفحة الرئيسية
+        '/admin': (c) => const AdminPage(userName: ''),
         '/login': (c) => const LoginPage(),
         '/signup': (c) => const SignupPage(),
         "/inventory": (c) => const InventoryListScreen(),
@@ -119,7 +106,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-final String? userName;
+  final String? userName;
 
   const MyHomePage({super.key, this.userName});
 
@@ -128,7 +115,6 @@ final String? userName;
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  @override
   Widget _lockedFeature(String title, IconData icon) {
     return InkWell(
       onTap: () {
@@ -159,6 +145,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -184,75 +171,81 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ],
       ),
-drawer: Drawer(
-  child: ListView(
-    padding: EdgeInsets.zero,
-    children: [
-DrawerHeader(
-  decoration: BoxDecoration(
-    color: Theme.of(context).colorScheme.primary,
-  ),
-  child: FirebaseAuth.instance.currentUser == null
-      ? Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
           children: [
-            CircleAvatar(
-              radius: 35,
-              backgroundImage:
-                  AssetImage('lib/images/ellipse5.svg'),
-            ),
-            SizedBox(height: 10),
-            Text(
-              "Welcome, Guest!",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
               ),
-            )
-          ],
-        )
-      : FutureBuilder<DocumentSnapshot>(
-          future: FirebaseFirestore.instance
-              .collection("users")
-              .doc(FirebaseAuth.instance.currentUser!.uid)
-              .get(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return Center(
-                child: CircularProgressIndicator(color: Colors.white),
-              );
-            }
+              child: FirebaseAuth.instance.currentUser == null
+                  ? const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircleAvatar(
+                          radius: 35,
+                          backgroundColor: Colors.white,
+                          child: Icon(Icons.person, size: 50),
+                        ),
+                        SizedBox(height: 10),
+                        Text(
+                          "Welcome, Guest!",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      ],
+                    )
+                  : FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection("users")
+                          .doc(FirebaseAuth.instance.currentUser!.uid)
+                          .get(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          );
+                        }
 
-            var data = snapshot.data!.data() as Map<String, dynamic>;
-            String name = data["name"] ?? "User";
-            String? imageUrl = data["profileImage"];
+                        var data = snapshot.data!.data() as Map<String, dynamic>;
+                        String name = data["name"] ?? "User";
+                        String? imageUrl = data["profileImage"];
 
-            return Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircleAvatar(
-                  radius: 35,
-                  backgroundImage: imageUrl != null && imageUrl.isNotEmpty
-                      ? NetworkImage(imageUrl)
-                      : AssetImage('lib/images/default_profile.png')
-                          as ImageProvider,
-                ),
-                SizedBox(height: 10),
-                Text(
-                  "Welcome, $name!",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            );
-          },
-      ),
-),
-            
+                        return Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircleAvatar(
+                              radius: 35,
+                              backgroundImage: imageUrl != null &&
+                                      imageUrl.isNotEmpty
+                                  ? NetworkImage(imageUrl)
+                                  : null,
+                              child: imageUrl == null || imageUrl.isEmpty
+                                  ? const Icon(Icons.person, size: 50)
+                                  : null,
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              "Welcome, $name!",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+            ),
             ListTile(
               leading: const Icon(Icons.inventory),
               title: const Text(
@@ -270,8 +263,8 @@ DrawerHeader(
                 style: TextStyle(fontSize: 14),
               ),
               onTap: () {
-                Navigator.pop(context); // يغلق القائمة
-                Navigator.pushNamed(context, '/inventory'); // يروح لصفحتك
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/inventory');
               },
             ),
             ListTile(
@@ -295,7 +288,6 @@ DrawerHeader(
           ],
         ),
       ),
-    
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -307,7 +299,6 @@ DrawerHeader(
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 10),
-
             Center(
               child: Text(
                 'Please login to access the below features.',
@@ -316,8 +307,6 @@ DrawerHeader(
               ),
             ),
             const SizedBox(height: 10),
-
-            // tiles that show Features
             Expanded(
               child: GridView.count(
                 crossAxisCount: 2,
@@ -331,15 +320,10 @@ DrawerHeader(
                 ],
               ),
             ),
-                ),
-                )
-            
           ],
         ),
       ),
     );
-
-    
   }
 }
 
@@ -349,6 +333,6 @@ class AdminPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    return const AdminDashboard();
   }
 }

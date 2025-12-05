@@ -15,8 +15,9 @@ import 'package:project444/profilePage.dart';
 
 
 class DonorPage extends StatefulWidget {
-  final userName;
-  const DonorPage({super.key, required this.userName});
+  final String? userName;
+  const DonorPage({super.key, this.userName});
+  
   @override
   State<DonorPage> createState() => _DonorPageState();
 }
