@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'details.dart';
 
 class TrackingTabPage extends StatefulWidget {
@@ -67,11 +69,61 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
     }
   }
 
+  Widget _buildImageFromBase64(String base64String) {
+    print('\n=== 🖼️ Building Image from Base64 ===');
+    print('Base64 string length: ${base64String.length}');
+    
+    try {
+      if (base64String.isEmpty) {
+        print('❌ Error: Empty base64 string');
+        return _placeholderIcon();
+      }
+      
+      if (base64String.length < 100) {
+        print('❌ Error: Base64 string too short (${base64String.length} chars)');
+        print('Content: "$base64String"');
+        return _placeholderIcon();
+      }
+
+      print('🔄 Attempting to decode base64...');
+      final bytes = base64Decode(base64String);
+      print('✅ Successfully decoded! Bytes length: ${bytes.length}');
+      
+      if (bytes.isEmpty) {
+        print('❌ Error: Decoded bytes are empty');
+        return _placeholderIcon();
+      }
+
+      if (bytes.length < 1000) {
+        print('⚠️ Warning: Image bytes suspiciously small (${bytes.length} bytes)');
+      }
+
+      print('✅ Creating Image.memory widget...');
+      return Image.memory(
+        bytes,
+        height: 80,
+        width: 80,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          print('❌ Image.memory error: $error');
+          print('Stack trace: $stackTrace');
+          return _placeholderIcon();
+        },
+      );
+    } on FormatException catch (e) {
+      print('❌ Base64 decode error (FormatException): $e');
+      print('Invalid base64 content (first 100 chars): ${base64String.substring(0, base64String.length > 100 ? 100 : base64String.length)}');
+      return _placeholderIcon();
+    } catch (e, stackTrace) {
+      print('❌ Unexpected error: $e');
+      print('Stack trace: $stackTrace');
+      return _placeholderIcon();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-
-    // Base query
     Query query = FirebaseFirestore.instance.collection('donations');
     if (uid != null) {
       query = query.where('donorId', isEqualTo: uid);
@@ -106,7 +158,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                   ),
                   TextButton(
                     onPressed: () => Navigator.pushNamed(context, '/login'), // Changed to navigate to login
-                    child: const Text('Register', style: TextStyle(color: Color(0xFFFFA726))),
+                    child: const Text('Login', style: TextStyle(color: Color(0xFFFFA726))),
                   ),
                 ],
               ),
@@ -151,7 +203,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                     return _emptyState();
                   }
 
-                  final filtered = (snapshot.data?.docs ?? []).where((d) {
+                  final filtered = docs.where((d) {
                     final data = d.data() as Map<String, dynamic>;
                     final name =
                         (data['itemName'] ?? '').toString().toLowerCase();
@@ -276,50 +328,41 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                         'rejected',
                         'in review'
                       ];
-                      return FractionallySizedBox(
-                        widthFactor: 1,
-                        child: Padding(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Filter by Status',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF003465),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
                               children: [
-                                const Text(
-                                  'Filter by Status',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF003465),
+                                ChoiceChip(
+                                  label: const Text('All'),
+                                  selected: _selectedStatus == null,
+                                  onSelected: (_) => Navigator.pop(context, null),
+                                ),
+                                ...statuses.map(
+                                  (s) => ChoiceChip(
+                                    label: Text(s),
+                                    selected: _selectedStatus == s,
+                                    onSelected: (_) => Navigator.pop(context, s),
                                   ),
                                 ),
-                                const SizedBox(height: 12),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: [
-                                    ChoiceChip(
-                                      label: const Text('All'),
-                                      selected: _selectedStatus == null,
-                                      onSelected: (_) =>
-                                          Navigator.pop(context, null),
-                                    ),
-                                    ...statuses.map(
-                                      (s) => ChoiceChip(
-                                        label: Text(s),
-                                        selected: _selectedStatus == s,
-                                        onSelected: (_) =>
-                                            Navigator.pop(context, s),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
                               ],
                             ),
-                          ),
+                            const SizedBox(height: 12),
+                          ],
                         ),
                       );
                     },
@@ -338,6 +381,23 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
   Widget _donationCard(Map<String, dynamic> data) {
     final statusColor = _getStatusColor(data['status'] ?? 'pending');
     final images = (data['imageUrls'] as List?)?.cast<String>() ?? [];
+
+    print('\n=== 🎴 Donation Card Debug ===');
+    print('Item name: ${data['itemName']}');
+    print('Images count: ${images.length}');
+    
+    if (images.isNotEmpty) {
+      final firstImage = images.first;
+      print('First image length: ${firstImage.length} characters');
+      
+      if (firstImage.length < 100) {
+        print('⚠️ WARNING: Image data too short! Actual content: "$firstImage"');
+      } else {
+        print('✅ Image data looks valid (first 50 chars): ${firstImage.substring(0, 50)}...');
+      }
+    } else {
+      print('⚠️ No images found for this donation');
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -377,8 +437,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       color: Colors.white,
-                      border:
-                          Border.all(color: const Color(0xFFE6E8EB), width: 1),
+                      border: Border.all(color: const Color(0xFFE6E8EB), width: 1),
                       boxShadow: [
                         BoxShadow(
                           color: const Color(0xFF003465).withOpacity(0.06),
@@ -390,14 +449,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                     child: images.isNotEmpty
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              images.first,
-                              height: 80,
-                              width: 80,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  _placeholderIcon(),
-                            ),
+                            child: _buildImageFromBase64(images.first),
                           )
                         : _placeholderIcon(),
                   ),

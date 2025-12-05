@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:typed_data';
+import 'dart:io';
 
 import 'donation_service.dart';
 import 'donation_item.dart';
@@ -24,11 +25,11 @@ class _DonationFormPageState extends State<DonationFormPage> {
   String? _selectedCondition;
   final List<String> _conditions = ['New', 'Like New', 'Good', 'Fair', 'Needs Repair'];
 
-  final List<XFile> _uploadedImages = [];
-  final ImagePicker _picker = ImagePicker();
-
   // RegEx to detect invalid characters (@ and < >)
   final RegExp _invalidCharsRegex = RegExp(r'[@<>]');
+
+  final List<XFile> _uploadedImages = [];
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void dispose() {
@@ -37,32 +38,6 @@ class _DonationFormPageState extends State<DonationFormPage> {
     _quantityController.dispose();
     _locationController.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickImageFromGallery() async {
-    if (_uploadedImages.length >= 6) {
-      _showMessage('Maximum 6 images allowed');
-      return;
-    }
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() => _uploadedImages.add(image));
-    }
-  }
-
-  Future<void> _pickImageFromCamera() async {
-    if (_uploadedImages.length >= 6) {
-      _showMessage('Maximum 6 images allowed');
-      return;
-    }
-    final XFile? image = await _picker.pickImage(source: ImageSource.camera);
-    if (image != null) {
-      setState(() => _uploadedImages.add(image));
-    }
-  }
-
-  void _removeImage(int index) {
-    setState(() => _uploadedImages.removeAt(index));
   }
 
   void _showMessage(String message, {Color? color}) {
@@ -104,41 +79,105 @@ class _DonationFormPageState extends State<DonationFormPage> {
       return 'Quantity must be greater than 0';
     }
     if (quantity > 1000) {
-      return 'Quantity seems too high (max 1000)';
+      return 'Quantity seems to high (max 1000)';
     }
     return null;
   }
 
+  Future<void> _pickImageFromGallery() async {
+    if (_uploadedImages.length >= 6) {
+      _showMessage('Maximum 6 images allowed');
+      return;
+    }
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      setState(() => _uploadedImages.add(image));
+    }
+  }
+
+  Future<void> _pickImageFromCamera() async {
+    if (_uploadedImages.length >= 6) {
+      _showMessage('Maximum 6 images allowed');
+      return;
+    }
+    final XFile? image = await _picker.pickImage(source: ImageSource.camera);
+    if (image != null) {
+      setState(() => _uploadedImages.add(image));
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() => _uploadedImages.removeAt(index));
+  }
+
   Future<void> _submitDonation() async {
+    print('\n=== 🚀 Submit Donation Started ===');
+    
     // Validate form
     if (_formKey.currentState?.validate() != true) {
+      print('❌ Form validation failed');
       _showMessage('Please fix the errors in the form', color: Colors.orange);
       return;
     }
+    print('✅ Form validation passed');
 
     if (_selectedCondition == null) {
+      print('❌ No condition selected');
       _showMessage('Please select equipment condition', color: Colors.orange);
       return;
     }
+    print('✅ Condition selected: $_selectedCondition');
 
     if (_uploadedImages.isEmpty) {
+      print('❌ No images uploaded');
       _showMessage('Please add at least one photo', color: Colors.orange);
       return;
     }
+    print('✅ Images uploaded: ${_uploadedImages.length}');
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
+      print('❌ User not logged in');
       _showMessage('Login required to submit', color: Colors.red);
       Navigator.pushNamed(context, '/login');
       return;
     }
+    print('✅ User logged in: ${user.uid}');
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Submitting donation...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
 
     try {
       FocusScope.of(context).unfocus();
-      _showMessage('Submitting...', color: Colors.blue);
+      
       final quantity = int.parse(_quantityController.text.trim());
+      print('📝 Preparing donation data...');
+      print('   - Item: ${_itemNameController.text.trim()}');
+      print('   - Condition: $_selectedCondition');
+      print('   - Quantity: $quantity');
+      print('   - Location: ${_locationController.text.trim()}');
 
       final service = DonationService();
+      print('🔄 Calling DonationService.addDonation...');
+      
       final item = await service.addDonation(
         itemName: _itemNameController.text.trim(),
         condition: _selectedCondition!,
@@ -148,13 +187,51 @@ class _DonationFormPageState extends State<DonationFormPage> {
         images: _uploadedImages,
       );
 
+      print('✅ Donation added successfully!');
+      print('   - ID: ${item.id}');
+      
+      if (!mounted) {
+        print('⚠️ Widget unmounted');
+        return;
+      }
+
+      // Close loading dialog
+      Navigator.of(context).pop();
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Donation submitted successfully!'),
+          backgroundColor: Color(0xFF4CAF50),
+          duration: Duration(seconds: 3),
+        ),
+      );
+
+      // Wait a bit then go back
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      if (mounted) {
+        print('🔙 Navigating back...');
+        Navigator.of(context).pop(item);
+      }
+      
+    } catch (e, stackTrace) {
+      print('❌ Error during submission: $e');
+      print('Stack trace: $stackTrace');
+      
       if (!mounted) return;
-      _showMessage('Donation submitted (pending review).', color: const Color(0xFF4CAF50));
-      Navigator.pop(context, item);
-    } on FirebaseException catch (e) {
-      _showMessage('Failed: ${e.code} ${e.message}', color: Colors.red);
-    } catch (e) {
-      _showMessage('Failed: $e', color: Colors.red);
+      
+      // Close loading dialog
+      Navigator.of(context).pop();
+      
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Failed to submit: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
     }
   }
 
@@ -434,9 +511,7 @@ class _DonationFormPageState extends State<DonationFormPage> {
                                   borderRadius: BorderRadius.circular(11),
                                   border: Border.all(color: const Color(0xFF8E8B93)),
                                 ),
-                                child: const Center(
-                                  child: CircularProgressIndicator(),
-                                ),
+                                child: const Center(child: CircularProgressIndicator()),
                               );
                             }
                             if (!snap.hasData) {
@@ -471,11 +546,7 @@ class _DonationFormPageState extends State<DonationFormPage> {
                                 shape: BoxShape.circle,
                               ),
                               padding: const EdgeInsets.all(4),
-                              child: const Icon(
-                                Icons.close,
-                                color: Colors.white,
-                                size: 16,
-                              ),
+                              child: const Icon(Icons.close, color: Colors.white, size: 16),
                             ),
                           ),
                         ),
