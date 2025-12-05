@@ -33,8 +33,8 @@ class _RenterPageState extends State<RenterPage> {
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
+              decoration: const BoxDecoration(
+                color: Color(0xFF003465), // ✅ تغيير من Theme.of(context).colorScheme.primary
               ),
               child: FirebaseAuth.instance.currentUser == null
                   ? Column(
@@ -153,9 +153,9 @@ class _RenterPageState extends State<RenterPage> {
             ),
             ListTile(
               leading: const Icon(Icons.volunteer_activism),
-              title: const Text('Donation Management'),
+              title: const Text('Donations'),
               onTap: () {
-                Navigator.pushNamed(context, '/login');
+                Navigator.pushNamed(context, '/donor');
               },
             ),
             ListTile(

@@ -1,39 +1,17 @@
-import 'package:hive/hive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-part 'donation_item.g.dart';
-
-@HiveType(typeId: 1)
-class DonationItem extends HiveObject {
-  @HiveField(0)
+class DonationItem {
   String id;
-
-  @HiveField(1)
   String itemName;
-
-  @HiveField(2)
   String condition;
-
-  @HiveField(3)
   String description;
-
-  @HiveField(4)
   int quantity;
-
-  @HiveField(5)
   String location;
-
-  @HiveField(6)
   String status;
-
-  @HiveField(7)
   String donorId;
-
-  @HiveField(8)
   List<String> imageIds;
-
-  @HiveField(9)
   DateTime createdAt;
+  String iconKey;
 
   DonationItem({
     required this.id,
@@ -46,6 +24,7 @@ class DonationItem extends HiveObject {
     required this.donorId,
     required this.imageIds,
     required this.createdAt,
+    required this.iconKey,
   });
 
   factory DonationItem.fromDoc(DocumentSnapshot doc) {
@@ -61,6 +40,7 @@ class DonationItem extends HiveObject {
       donorId: data['donorId'] ?? '',
       imageIds: List<String>.from(data['imageIds'] ?? []),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      iconKey: data['iconKey'] ?? 'default',
     );
   }
 
@@ -75,6 +55,7 @@ class DonationItem extends HiveObject {
       'donorId': donorId,
       'imageIds': imageIds,
       'createdAt': createdAt,
+      'iconKey': iconKey,
     };
   }
 }
