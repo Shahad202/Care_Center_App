@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:convert';
 import 'dart:typed_data';
 import 'details.dart';
+import '../services/hive_service.dart';
+import '../models/donation_image.dart';
 
 class TrackingTabPage extends StatefulWidget {
   const TrackingTabPage({super.key});
@@ -66,58 +67,6 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
       return createdAt.toString();
     } catch (_) {
       return '—';
-    }
-  }
-
-  Widget _buildImageFromBase64(String base64String) {
-    print('\n=== 🖼️ Building Image from Base64 ===');
-    print('Base64 string length: ${base64String.length}');
-    
-    try {
-      if (base64String.isEmpty) {
-        print('❌ Error: Empty base64 string');
-        return _placeholderIcon();
-      }
-      
-      if (base64String.length < 100) {
-        print('❌ Error: Base64 string too short (${base64String.length} chars)');
-        print('Content: "$base64String"');
-        return _placeholderIcon();
-      }
-
-      print('🔄 Attempting to decode base64...');
-      final bytes = base64Decode(base64String);
-      print('✅ Successfully decoded! Bytes length: ${bytes.length}');
-      
-      if (bytes.isEmpty) {
-        print('❌ Error: Decoded bytes are empty');
-        return _placeholderIcon();
-      }
-
-      if (bytes.length < 1000) {
-        print('⚠️ Warning: Image bytes suspiciously small (${bytes.length} bytes)');
-      }
-
-      print('✅ Creating Image.memory widget...');
-      return Image.memory(
-        bytes,
-        height: 80,
-        width: 80,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          print('❌ Image.memory error: $error');
-          print('Stack trace: $stackTrace');
-          return _placeholderIcon();
-        },
-      );
-    } on FormatException catch (e) {
-      print('❌ Base64 decode error (FormatException): $e');
-      print('Invalid base64 content (first 100 chars): ${base64String.substring(0, base64String.length > 100 ? 100 : base64String.length)}');
-      return _placeholderIcon();
-    } catch (e, stackTrace) {
-      print('❌ Unexpected error: $e');
-      print('Stack trace: $stackTrace');
-      return _placeholderIcon();
     }
   }
 
@@ -380,23 +329,17 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
 
   Widget _donationCard(Map<String, dynamic> data) {
     final statusColor = _getStatusColor(data['status'] ?? 'pending');
-    final images = (data['imageUrls'] as List?)?.cast<String>() ?? [];
+    final imageIds = (data['imageIds'] as List?)?.cast<String>() ?? [];
 
-    print('\n=== 🎴 Donation Card Debug ===');
+    print('\n=== Donation Card Debug ===');
     print('Item name: ${data['itemName']}');
-    print('Images count: ${images.length}');
+    print('Images count: ${imageIds.length}');
     
-    if (images.isNotEmpty) {
-      final firstImage = images.first;
-      print('First image length: ${firstImage.length} characters');
-      
-      if (firstImage.length < 100) {
-        print('⚠️ WARNING: Image data too short! Actual content: "$firstImage"');
-      } else {
-        print('✅ Image data looks valid (first 50 chars): ${firstImage.substring(0, 50)}...');
-      }
+    if (imageIds.isNotEmpty) {
+      final firstImage = imageIds.first;
+      print('First image ID: $firstImage');
     } else {
-      print('⚠️ No images found for this donation');
+      print('No images found for this donation');
     }
 
     return Container(
@@ -446,10 +389,10 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                         ),
                       ],
                     ),
-                    child: images.isNotEmpty
+                    child: imageIds.isNotEmpty
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: _buildImageFromBase64(images.first),
+                            child: _buildImageFromHive(imageIds.first),
                           )
                         : _placeholderIcon(),
                   ),
@@ -578,6 +521,31 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildImageFromHive(String imageId) {
+    return FutureBuilder<DonationImage?>(
+      future: HiveService.getImage(imageId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _placeholderIcon();
+        }
+
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
+          return _placeholderIcon();
+        }
+
+        final image = snapshot.data!;
+
+        return Image.memory(
+          Uint8List.fromList(image.imageBytes),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return _placeholderIcon();
+          },
+        );
+      },
     );
   }
 

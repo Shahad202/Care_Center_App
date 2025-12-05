@@ -435,6 +435,15 @@ class _DonorPageState extends State<DonorPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          const Text(
+            'Before You Donate',
+            style: TextStyle(
+              color: Color.fromARGB(255, 56, 55, 55),
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
           _bullet('Ensure the equipment is clean and in working condition.'),
           const SizedBox(height: 16),
           _bullet('Provide clear, well-lit photos from multiple angles.'),

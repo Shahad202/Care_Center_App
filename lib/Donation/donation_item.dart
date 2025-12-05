@@ -1,16 +1,39 @@
+import 'package:hive/hive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class DonationItem {
-  final String id;
-  final String itemName;
-  final String condition;
-  final String description;
-  final int quantity;
-  final String location;
-  final String status;
-  final DateTime createdAt;
-  final List<String> imageUrls;
-  final String? donorId;
+part 'donation_item.g.dart';
+
+@HiveType(typeId: 1)
+class DonationItem extends HiveObject {
+  @HiveField(0)
+  String id;
+
+  @HiveField(1)
+  String itemName;
+
+  @HiveField(2)
+  String condition;
+
+  @HiveField(3)
+  String description;
+
+  @HiveField(4)
+  int quantity;
+
+  @HiveField(5)
+  String location;
+
+  @HiveField(6)
+  String status;
+
+  @HiveField(7)
+  String donorId;
+
+  @HiveField(8)
+  List<String> imageIds;
+
+  @HiveField(9)
+  DateTime createdAt;
 
   DonationItem({
     required this.id,
@@ -20,26 +43,24 @@ class DonationItem {
     required this.quantity,
     required this.location,
     required this.status,
-    required this.createdAt,
-    required this.imageUrls,
     required this.donorId,
+    required this.imageIds,
+    required this.createdAt,
   });
 
   factory DonationItem.fromDoc(DocumentSnapshot doc) {
-    final d = doc.data() as Map<String, dynamic>? ?? {};
+    final data = doc.data() as Map<String, dynamic>;
     return DonationItem(
       id: doc.id,
-      itemName: d['itemName'] ?? '',
-      condition: d['condition'] ?? '',
-      description: d['description'] ?? '',
-      quantity: int.tryParse(d['quantity']?.toString() ?? '0') ?? 0,
-      location: d['location'] ?? '',
-      status: d['status'] ?? 'pending',
-      createdAt: (d['createdAt'] is Timestamp)
-          ? (d['createdAt'] as Timestamp).toDate()
-          : DateTime.now(),
-      imageUrls: (d['imageUrls'] as List?)?.cast<String>() ?? [],
-      donorId: d['donorId'],
+      itemName: data['itemName'] ?? '',
+      condition: data['condition'] ?? '',
+      description: data['description'] ?? '',
+      quantity: data['quantity'] ?? 0,
+      location: data['location'] ?? '',
+      status: data['status'] ?? 'pending',
+      donorId: data['donorId'] ?? '',
+      imageIds: List<String>.from(data['imageIds'] ?? []),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
@@ -51,8 +72,8 @@ class DonationItem {
       'quantity': quantity,
       'location': location,
       'status': status,
-      'imageUrls': imageUrls,
       'donorId': donorId,
+      'imageIds': imageIds,
       'createdAt': createdAt,
     };
   }
