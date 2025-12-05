@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:project444/signup.dart';
@@ -5,7 +7,8 @@ import 'login.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'reservation.dart';
-import 'Donation/donor_page.dart';
+import 'donation/donor_page.dart';
+import 'profilePage.dart';
 
 // Define a color scheme using a seed color
 
@@ -83,8 +86,8 @@ class MyApp extends StatelessWidget {
       initialRoute: '/home',
       routes: {
         '/home': (c) => const MyHomePage(),
-        '/donor': (c) => const DonorPage(),
-        '/admin': (c) => const AdminPage(),
+        // '/donor': (c) =>  const DonorPage(userName: null),
+        // '/admin': (c) => const AdminPage(userName: null,),
         '/renter': (c) => const MyHomePage(), // مؤقت: يوديه للصفحة الرئيسية
         '/login': (c) => const LoginPage(),
         '/signup': (c) => const SignupPage(),
@@ -94,7 +97,9 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
+final String? userName;
+
+  const MyHomePage({super.key, this.userName});
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -148,35 +153,75 @@ class _MyHomePageState extends State<MyHomePage> {
           )
         ],
       ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
+drawer: Drawer(
+  child: ListView(
+    padding: EdgeInsets.zero,
+    children: [
+DrawerHeader(
+  decoration: BoxDecoration(
+    color: Theme.of(context).colorScheme.primary,
+  ),
+  child: FirebaseAuth.instance.currentUser == null
+      ? Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
+            CircleAvatar(
+              radius: 35,
+              backgroundImage:
+                  AssetImage('lib/images/ellipse5.svg'),
+            ),
+            SizedBox(height: 10),
+            Text(
+              "Welcome, Guest!",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
-              child: const Center(
-                child: Text(
-                  'App Features',
+            )
+          ],
+        )
+      : FutureBuilder<DocumentSnapshot>(
+          future: FirebaseFirestore.instance
+              .collection("users")
+              .doc(FirebaseAuth.instance.currentUser!.uid)
+              .get(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              );
+            }
+
+            var data = snapshot.data!.data() as Map<String, dynamic>;
+            String name = data["name"] ?? "User";
+            String? imageUrl = data["profileImage"];
+
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircleAvatar(
+                  radius: 35,
+                  backgroundImage: imageUrl != null && imageUrl.isNotEmpty
+                      ? NetworkImage(imageUrl)
+                      : AssetImage('lib/images/default_profile.png')
+                          as ImageProvider,
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "Welcome, $name!",
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-            ),
-            // ListTile(
-            //   leading: const Icon(Icons.login),
-            //   title: const Text(
-            //     'Authentication & Role Management',
-            //     style: TextStyle(fontSize: 14),
-            //   ),
-            //   onTap: () {
-            //     Navigator.pop(context);
-            //   },
-            // ),
+              ],
+            );
+          },
+      ),
+),
+            
             ListTile(
               leading: const Icon(Icons.inventory),
               title: const Text(
@@ -221,6 +266,7 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
         ),
       ),
+    
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -256,18 +302,21 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
                 ],
-                )
+                ),
                 )
             
           ],
         ),
       )
     );
+
+    
   }
 }
 
 class AdminPage extends StatelessWidget {
-  const AdminPage({super.key});
+  final String userName;
+  const AdminPage({super.key, required this.userName});
 
   @override
   Widget build(BuildContext context) {
