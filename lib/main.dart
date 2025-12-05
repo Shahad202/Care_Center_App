@@ -17,7 +17,6 @@ import 'reservation_dates_screen.dart';
 import 'reservation_confirm_screen.dart';
 import 'reservation_success_screen.dart';
 import 'reservation_tracking_screen.dart';
-import 'donation/donor_page.dart';
 import 'profilePage.dart';
 
 // Define a color scheme using a seed color
@@ -100,12 +99,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/home': (c) => const MyHomePage(),
         '/donor': (c) => const DonorPage(),
-        '/admin': (c) => const AdminPage(),
-        '/renter': (c) =>
-            const InventoryListScreen(), // مؤقت: يوديه للصفحة الرئيسية
-        // '/donor': (c) =>  const DonorPage(userName: null),
-        // '/admin': (c) => const AdminPage(userName: null,),
-        '/renter': (c) => const MyHomePage(), // مؤقت: يوديه للصفحة الرئيسية
+        '/admin': (c) => const AdminPage(userName: '',),
         '/login': (c) => const LoginPage(),
         '/signup': (c) => const SignupPage(),
         "/inventory": (c) => const InventoryListScreen(),
@@ -331,9 +325,6 @@ DrawerHeader(
                 ],
               ),
             ),
-                ),
-                )
-            
           ],
         ),
       ),
