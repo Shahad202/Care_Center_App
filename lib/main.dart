@@ -7,6 +7,12 @@ import 'login.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'reservation.dart';
+import 'Donation/donor_page.dart';
+import 'inventory_list_screen.dart';
+import 'reservation_dates_screen.dart';
+import 'reservation_confirm_screen.dart';
+import 'reservation_success_screen.dart';
+import 'reservation_tracking_screen.dart';
 import 'donation/donor_page.dart';
 import 'profilePage.dart';
 
@@ -41,8 +47,7 @@ void main() async {
   } catch (e) {
     try {
       await Firebase.initializeApp();
-    } catch (_) {
-    }
+    } catch (_) {}
   }
   runApp(const MyApp());
 }
@@ -86,12 +91,21 @@ class MyApp extends StatelessWidget {
       initialRoute: '/home',
       routes: {
         '/home': (c) => const MyHomePage(),
+        '/donor': (c) => const DonorPage(),
+        '/admin': (c) => const AdminPage(),
+        '/renter': (c) =>
+            const InventoryListScreen(), // مؤقت: يوديه للصفحة الرئيسية
         // '/donor': (c) =>  const DonorPage(userName: null),
         // '/admin': (c) => const AdminPage(userName: null,),
         '/renter': (c) => const MyHomePage(), // مؤقت: يوديه للصفحة الرئيسية
         '/login': (c) => const LoginPage(),
         '/signup': (c) => const SignupPage(),
-      }
+        "/inventory": (c) => const InventoryListScreen(),
+        "/dates": (c) => const ReservationDatesScreen(),
+        "/confirm": (c) => const Placeholder(),
+        "/success": (c) => const ReservationSuccessScreen(),
+        "/tracking": (c) => const ReservationTrackingScreen(),
+      },
     );
   }
 }
@@ -107,50 +121,59 @@ final String? userName;
 
 class _MyHomePageState extends State<MyHomePage> {
   @override
-
-  Widget _lockedFeature(String title, IconData icon){
-  return InkWell(
-    onTap:(){
-      Navigator.pushNamed(context, '/login');
-    },
-    child: Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade400),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon( icon, size: 40, color:Colors.grey),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade700,
+  Widget _lockedFeature(String title, IconData icon) {
+    return InkWell(
+      onTap: () {
+        Navigator.pushNamed(context, '/login');
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade400),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 40, color: Colors.grey),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade700,
+              ),
             ),
-          )
-        ],
+          ],
+        ),
       ),
-    ),
+    );
+  }
 
-  );
-}
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Care Center'),
         actions: [
-          TextButton(onPressed: (){
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginPage()));
-          }, child: const Text('Login', style: TextStyle(color: Colors.white),)
+          TextButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginPage()),
+              );
+            },
+            child: const Text('Login', style: TextStyle(color: Colors.white)),
           ),
-          TextButton(onPressed: (){
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const SignupPage()));
-          }, child:  const Text('Sign Up', style: TextStyle(color: Colors.white),)
-          )
+          TextButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SignupPage()),
+              );
+            },
+            child: const Text('Sign Up', style: TextStyle(color: Colors.white)),
+          ),
         ],
       ),
 drawer: Drawer(
@@ -239,15 +262,13 @@ DrawerHeader(
                 style: TextStyle(fontSize: 14),
               ),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop(context); // يغلق القائمة
+                Navigator.pushNamed(context, '/inventory'); // يروح لصفحتك
               },
             ),
             ListTile(
               leading: const Icon(Icons.volunteer_activism),
-              title: const Text(
-                'Donations',
-                style: TextStyle(fontSize: 14),
-              ),
+              title: const Text('Donations', style: TextStyle(fontSize: 14)),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushNamed(context, '/donor');
@@ -277,16 +298,16 @@ DrawerHeader(
               style: Theme.of(context).textTheme.headlineSmall,
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 10,),
+            const SizedBox(height: 10),
 
             Center(
               child: Text(
-                'Please login to access the below features.', 
+                'Please login to access the below features.',
                 style: Theme.of(context).textTheme.bodyMedium,
                 textAlign: TextAlign.center,
               ),
             ),
-            const SizedBox(height: 10,),
+            const SizedBox(height: 10),
 
             // tiles that show Features
             Expanded(
@@ -296,18 +317,18 @@ DrawerHeader(
                 mainAxisSpacing: 10,
                 children: [
                   _lockedFeature('Inventory', Icons.inventory_2),
-                  _lockedFeature( 'Reservation', Icons.calendar_month),
-                  _lockedFeature( 'Donations', Icons.volunteer_activism),
-                  _lockedFeature( 'Tracking', Icons.bar_chart),
-
-
+                  _lockedFeature('Reservation', Icons.calendar_month),
+                  _lockedFeature('Donations', Icons.volunteer_activism),
+                  _lockedFeature('Tracking', Icons.bar_chart),
                 ],
+              ),
+            ),
                 ),
                 )
             
           ],
         ),
-      )
+      ),
     );
 
     

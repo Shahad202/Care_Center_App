@@ -95,6 +95,11 @@ flutter:
       - lib/images/Image11.png
       - lib/images/Image12.png
       - lib/images/uploads/
+      - lib/images/wheelchair.png
+      - lib/images/bed.png
+      - lib/images/crutches.png
+      - lib/images/success.png
+
       - lib/images/
       - lib/images/ellipse5.svg
       - lib/images/rectangle49.svg
