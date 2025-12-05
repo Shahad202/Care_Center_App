@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/hive_service.dart';
+import '../models/donation_image.dart';
 
 class DonationDetailsPage extends StatefulWidget {
   final Map<String, dynamic> donation;
@@ -353,60 +353,48 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
   }
 
   Widget _buildImageFromHive(String imageId) {
-    print('\n=== Building Image from Hive ===');
-    print('Image ID: $imageId');
-
-    return FutureBuilder<dynamic>(
+    return FutureBuilder<DonationImage?>(
       future: HiveService.getImage(imageId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Container(
-            color: const Color(0xFF003465),
-            child: const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-            ),
-          );
+          return _placeholderIcon();
         }
 
-        if (snapshot.hasError) {
-          print('Error: ${snapshot.error}');
-          return Container(
-            color: const Color(0xFF003465),
-            child: const Center(
-              child: Icon(Icons.broken_image, color: Colors.white, size: 60),
-            ),
-          );
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
+          return _placeholderIcon();
         }
 
-        if (snapshot.data == null) {
-          print('Image not found in Hive');
-          return Container(
-            color: const Color(0xFF003465),
-            child: const Center(
-              child: Icon(Icons.broken_image, color: Colors.white, size: 60),
-            ),
-          );
-        }
-
-        final image = snapshot.data;
-        print('Image found! Bytes length: ${image.imageBytes.length}');
+        final image = snapshot.data!;
 
         return Image.memory(
           Uint8List.fromList(image.imageBytes),
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
-            print('Image.memory error: $error');
-            return Container(
-              color: const Color(0xFF003465),
-              child: const Center(
-                child: Icon(Icons.broken_image, color: Colors.white, size: 60),
-              ),
-            );
+            return _placeholderIcon();
           },
         );
       },
+    );
+  }
+
+  Widget _placeholderIcon() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF003465).withOpacity(0.1),
+            const Color(0xFF1976D2).withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Center(
+        child: Icon(
+          Icons.medical_services_outlined,
+          color: Color(0xFF003465),
+          size: 60,
+        ),
+      ),
     );
   }
 

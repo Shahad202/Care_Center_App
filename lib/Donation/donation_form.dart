@@ -3,8 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:typed_data';
-import 'dart:io';
-
 import 'donation_service.dart';
 import 'donation_item.dart';
 
@@ -113,25 +111,27 @@ class _DonationFormPageState extends State<DonationFormPage> {
   Future<void> _submitDonation() async {
     print('\n=== Submit Donation Started ===');
     
-    // Validate form
     if (_formKey.currentState?.validate() != true) {
       print('Form validation failed');
       _showMessage('Please fix the errors in the form', color: Colors.orange);
       return;
     }
     print('Form validation passed');
+    
     if (_selectedCondition == null) {
       print('No condition selected');
       _showMessage('Please select equipment condition', color: Colors.orange);
       return;
     }
     print('Condition selected: $_selectedCondition');
+    
     if (_uploadedImages.isEmpty) {
       print('No images uploaded');
       _showMessage('Please add at least one photo', color: Colors.orange);
       return;
     }
     print('Images uploaded: ${_uploadedImages.length}');
+    
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       print('User not logged in');
@@ -141,7 +141,6 @@ class _DonationFormPageState extends State<DonationFormPage> {
     }
     print('User logged in: ${user.uid}');
 
-    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -171,6 +170,7 @@ class _DonationFormPageState extends State<DonationFormPage> {
       print('   - Condition: $_selectedCondition');
       print('   - Quantity: $quantity');
       print('   - Location: ${_locationController.text.trim()}');
+      print('   - Images to process: ${_uploadedImages.length}');
 
       final service = DonationService();
       print('Calling DonationService.addDonation...');
@@ -186,16 +186,15 @@ class _DonationFormPageState extends State<DonationFormPage> {
 
       print('Donation added successfully!');
       print('   - ID: ${item.id}');
+      print('   - Images saved: ${item.imageIds.length}');
       
       if (!mounted) {
         print('Widget unmounted');
         return;
       }
 
-      // Close loading dialog
       Navigator.of(context).pop();
       
-      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Donation submitted successfully!'),
@@ -204,7 +203,6 @@ class _DonationFormPageState extends State<DonationFormPage> {
         ),
       );
 
-      // Wait a bit then go back
       await Future.delayed(const Duration(milliseconds: 500));
       
       if (mounted) {
@@ -218,13 +216,16 @@ class _DonationFormPageState extends State<DonationFormPage> {
       
       if (!mounted) return;
       
-      // Close loading dialog
       Navigator.of(context).pop();
       
-      // Show error message
+      String errorMessage = e.toString();
+      if (errorMessage.contains('Failed to convert any images')) {
+        errorMessage = 'Failed to process images. Please try different images.';
+      }
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to submit: ${e.toString()}'),
+          content: Text('Failed to submit: $errorMessage'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 5),
         ),

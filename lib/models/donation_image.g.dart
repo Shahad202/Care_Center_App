@@ -13,26 +13,29 @@ class DonationImageAdapter extends TypeAdapter<DonationImage> {
     return DonationImage(
       id: fields[0] as String,
       donationId: fields[1] as String,
-      imageBytes: (fields[2] as List).cast<int>(),
+      imagePath: fields[2] as String,
       fileName: fields[3] as String,
       createdAt: fields[4] as DateTime,
+      imageBytes: (fields[5] as List).cast<int>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, DonationImage obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
       ..write(obj.donationId)
       ..writeByte(2)
-      ..write(obj.imageBytes)
+      ..write(obj.imagePath)
       ..writeByte(3)
       ..write(obj.fileName)
       ..writeByte(4)
-      ..write(obj.createdAt);
+      ..write(obj.createdAt)
+      ..writeByte(5)
+      ..write(obj.imageBytes);
   }
 
   @override

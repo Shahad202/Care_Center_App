@@ -27,37 +27,44 @@ class _AdminDonationDetailsState extends State<AdminDonationDetails> {
       future: HiveService.getImage(imageId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Container(
-            color: Colors.grey.shade300,
-            child: const Center(
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          );
+          return _placeholderIcon();
         }
 
         if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
-          return Container(
-            color: Colors.grey.shade300,
-            child: const Center(
-              child: Icon(Icons.broken_image, color: Colors.white, size: 60),
-            ),
-          );
+          return _placeholderIcon();
         }
 
         final image = snapshot.data!;
+
         return Image.memory(
           Uint8List.fromList(image.imageBytes),
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
-            return Container(
-              color: Colors.grey.shade300,
-              child: const Center(
-                child: Icon(Icons.broken_image, color: Colors.white, size: 60),
-              ),
-            );
+            return _placeholderIcon();
           },
         );
       },
+    );
+  }
+
+  Widget _placeholderIcon() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF003465).withOpacity(0.1),
+            const Color(0xFF1976D2).withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Center(
+        child: Icon(
+          Icons.medical_services_outlined,
+          color: Color(0xFF003465),
+          size: 60,
+        ),
+      ),
     );
   }
 
@@ -208,7 +215,6 @@ class _AdminDonationDetailsState extends State<AdminDonationDetails> {
                     ),
                   ),
                 const SizedBox(height: 24),
-
                 _buildInfoSection('Item Name', data['itemName'] ?? 'N/A'),
                 const SizedBox(height: 16),
                 _buildInfoSection('Quantity', '${data['quantity'] ?? 0}'),

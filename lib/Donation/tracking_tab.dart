@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:typed_data';
 import 'details.dart';
 import '../services/hive_service.dart';
+import '../models/donation_image.dart';
 
 class TrackingTabPage extends StatefulWidget {
   const TrackingTabPage({super.key});
@@ -391,28 +392,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                     child: imageIds.isNotEmpty
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: FutureBuilder<dynamic>(
-                              future: HiveService.getImage(imageIds.first),
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState == ConnectionState.waiting) {
-                                  return _placeholderIcon();
-                                }
-                                if (snapshot.hasError || snapshot.data == null) {
-                                  return _placeholderIcon();
-                                }
-                                final image = snapshot.data;
-                                return Image.memory(
-                                  Uint8List.fromList(image.imageBytes),
-                                  height: 88,
-                                  width: 88,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    print('Image.memory error: $error');
-                                    return _placeholderIcon();
-                                  },
-                                );
-                              },
-                            ),
+                            child: _buildImageFromHive(imageIds.first),
                           )
                         : _placeholderIcon(),
                   ),
@@ -541,6 +521,31 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildImageFromHive(String imageId) {
+    return FutureBuilder<DonationImage?>(
+      future: HiveService.getImage(imageId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _placeholderIcon();
+        }
+
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
+          return _placeholderIcon();
+        }
+
+        final image = snapshot.data!;
+
+        return Image.memory(
+          Uint8List.fromList(image.imageBytes),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return _placeholderIcon();
+          },
+        );
+      },
     );
   }
 
