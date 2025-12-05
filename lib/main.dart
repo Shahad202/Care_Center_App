@@ -8,7 +8,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'reservation.dart';
 import 'Donation/donor_page.dart';
-import 'services/hive_service.dart';
 import 'login.dart';
 import 'signup.dart';
 import 'admin_dashboard.dart';
@@ -40,8 +39,6 @@ class _AppColors extends ThemeExtension<_AppColors> {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  await HiveService.init();
   
   try {
     await Firebase.initializeApp(
@@ -245,6 +242,11 @@ class _MyHomePageState extends State<MyHomePage> {
                         );
                       },
                     ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.home),
+              title: const Text('Home'),
+              onTap: () => Navigator.pop(context),
             ),
             ListTile(
               leading: const Icon(Icons.inventory),

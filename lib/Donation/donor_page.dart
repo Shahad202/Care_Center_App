@@ -34,8 +34,8 @@ class _DonorPageState extends State<DonorPage> {
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
+              decoration: const BoxDecoration(
+                color: Color(0xFF003465), // ✅ تغيير من Theme.of(context).colorScheme.primary
               ),
               child: FirebaseAuth.instance.currentUser == null
                   ? Column(
@@ -143,6 +143,14 @@ class _DonorPageState extends State<DonorPage> {
 
             /// ---- MENU ITEMS ----
             ListTile(
+              leading: const Icon(Icons.home),
+              title: const Text('Home'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushReplacementNamed(context, '/home');
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.inventory),
               title: const Text('Inventory Management'),
               onTap: () => Navigator.pop(context),
@@ -154,9 +162,9 @@ class _DonorPageState extends State<DonorPage> {
             ),
             ListTile(
               leading: const Icon(Icons.volunteer_activism),
-              title: const Text('Donation Management'),
+              title: const Text('Donations'),
               onTap: () {
-                Navigator.pushNamed(context, '/login');
+                Navigator.pushNamed(context, '/donor');
               },
             ),
             ListTile(
