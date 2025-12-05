@@ -3,9 +3,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'auth.dart';
 import 'signup.dart';
-import 'donation.dart';
 import 'reservation.dart';
 import 'main.dart';
+import 'Donation/donor_page.dart';
+
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -142,18 +143,20 @@ class _LoginPageState extends State<LoginPage> {
           // to remove the login page from history, so user can't press back and return to guest home or login screen sisnce there are already buttons for these
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => AdminPage(userName: name)));
         } else if (role == 'Donor'){
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => DonationPage(userName: name)));
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => DonorPage(userName: name)));
         } else if (role == 'Renter'){
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => RenterPage(userName: name)));
         }
       }
     }  
   } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login failed. check creditials.')));
-    
+    setState(() {
+      _isLoading = false;
+    });
+    print('Login error details: $e'); // طباعة التفاصيل
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Login failed: ${e.toString()}'))
+    );
   }
 }
 

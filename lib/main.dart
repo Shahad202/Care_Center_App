@@ -1,13 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:project444/signup.dart';
 import 'login.dart';
-import 'donation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'reservation.dart';
-import 'donor_page.dart';
+import 'donation/donor_page.dart';
 import 'profilePage.dart';
 
 // Define a color scheme using a seed color
@@ -85,8 +85,10 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: '/home',
       routes: {
-        '/home': (c) => MyHomePage(),
-        // '/donation': (c) => DonorPage(),
+        '/home': (c) => const MyHomePage(),
+        // '/donor': (c) =>  const DonorPage(userName: null),
+        // '/admin': (c) => const AdminPage(userName: null,),
+        '/renter': (c) => const MyHomePage(), // مؤقت: يوديه للصفحة الرئيسية
         '/login': (c) => const LoginPage(),
         '/signup': (c) => const SignupPage(),
       }
@@ -217,38 +219,54 @@ DrawerHeader(
               ],
             );
           },
+      ),
+),
+            
+            ListTile(
+              leading: const Icon(Icons.inventory),
+              title: const Text(
+                'Inventory Management',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_month),
+              title: const Text(
+                'Reservation & Rental',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.volunteer_activism),
+              title: const Text(
+                'Donations',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/donor');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.bar_chart),
+              title: const Text(
+                'Tracking & Reports',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+          ],
         ),
-),
-
-
-
-      /// ---- MENU ITEMS ----
-      ListTile(
-        leading: const Icon(Icons.inventory),
-        title: const Text('Inventory Management'),
-        onTap: () => Navigator.pop(context),
       ),
-      ListTile(
-        leading: const Icon(Icons.calendar_month),
-        title: const Text('Reservation & Rental'),
-        onTap: () => Navigator.pop(context),
-      ),
-      ListTile(
-        leading: const Icon(Icons.volunteer_activism),
-        title: const Text('Donation Management'),
-        onTap: () {
-          Navigator.pushNamed(context, '/login');
-        },
-      ),
-      ListTile(
-        leading: const Icon(Icons.bar_chart),
-        title: const Text('Tracking & Reports'),
-        onTap: () => Navigator.pop(context),
-      ),
-    ],
-  ),
-),
-
+    
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -284,13 +302,15 @@ DrawerHeader(
 
 
                 ],
-                )
+                ),
                 )
             
           ],
         ),
       )
     );
+
+    
   }
 }
 

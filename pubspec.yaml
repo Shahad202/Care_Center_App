@@ -34,7 +34,8 @@ dependencies:
   firebase_auth: ^6.1.0        
   cloud_firestore: ^6.0.2
   firebase_storage: ^13.0.4
-  flutter_svg: ^2.0.10+1
+  flutter_svg: ^2.0.0
+  image_picker: ^1.0.0
 
 
 
@@ -68,11 +69,42 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - lib/images/ellipse5.svg
-    - lib/images/rectangle49.svg
-    - lib/images/vector (1).svg
-    - lib/images/vector (2).svg
-    - lib/images/vector.svg
+      - lib/images/2circled.png
+      - lib/images/Circled3.png
+      - lib/images/Level1.png
+      - lib/images/vector.svg
+      - lib/images/Fullstop.png
+      - lib/images/drawer.svg
+      - lib/images/Electricwheelchair.png
+      - lib/images/Glucometer.png
+      - lib/images/Massagetable.png
+      - lib/images/More.png
+      - lib/images/Sphygmomanometer.png
+      - lib/images/Trusticon.png
+      - lib/images/Walker.png
+      - lib/images/vector2.svg
+      - lib/images/vector3.svg
+      - lib/images/vector4.svg
+      - lib/images/vector5.svg
+      - lib/images/vector6.svg
+      - lib/images/vector7.svg
+      - lib/images/vector8.svg
+      - lib/images/vector9.svg
+      - lib/images/vector10.svg
+      - lib/images/vector11.svg
+      - lib/images/vector12.svg
+      - lib/images/infoicon.svg
+      - lib/images/Newproducticon.png
+      - lib/images/Photo165132665927059bbb788199a1.png
+      - lib/images/Image11.png
+      - lib/images/Image12.png
+      - lib/images/uploads/
+      - lib/images/
+      - lib/images/ellipse5.svg
+      - lib/images/rectangle49.svg
+      - lib/images/vector (1).svg
+      - lib/images/vector (2).svg
+      - lib/images/vector.svg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
