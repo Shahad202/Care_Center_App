@@ -1,66 +1,1167 @@
 import 'package:flutter/material.dart';
-
-class AppColors {
-  static const Color primaryBlue = Color(0xFF3B82F6);
-  static const Color primaryOrange = Color(0xFFF97316);
-  static const Color backgroundGray = Color(0xFFF5F5F5);
-  static const Color lightGray = Color(0xFFF3F4F6);
-  static const Color darkText = Color(0xFF101010);
-  static const Color bodyText = Color(0xFF64748B);
-  static const Color lightText = Color(0xFF94A3B8);
-}
-
-class AppDimensions {
-  static const double spacingLarge = 24.0;
-  static const double spacingMedium = 16.0;
-  static const double spacingSmall = 12.0;
-  static const double iconSizeMedium = 24.0;
-  static const double iconSizeSmall = 20.0;
-}
-
-class AppIcons {
-  static const IconData notifications = Icons.notifications_outlined;
-  static const IconData activeRentals = Icons.access_time_rounded;
-  static const IconData dueSoon = Icons.warning_amber_rounded;
-}
+import 'package:fl_chart/fl_chart.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const CareCenterApp());
 }
 
-class MyApp extends StatelessWidget {
+class CareCenterApp extends StatelessWidget {
+  const CareCenterApp({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(debugShowCheckedModeBanner: false, home: MainScreen());
+    return MaterialApp(
+      title: 'Care Center',
+      theme: ThemeData(primarySwatch: Colors.indigo, useMaterial3: true),
+      home: const CareCenter(),
+      debugShowCheckedModeBanner: false,
+    );
   }
 }
 
-class MainScreen extends StatefulWidget {
+class CareCenter extends StatefulWidget {
+  const CareCenter({Key? key}) : super(key: key);
+
   @override
-  _MainScreenState createState() => _MainScreenState();
+  State<CareCenter> createState() => _CareCenterState();
 }
 
-class _MainScreenState extends State<MainScreen> {
-  int _selectedIndex = 0; // 0: Tracking, 1: Report
+class _CareCenterState extends State<CareCenter> {
+  int _activeTab = 0;
+  String _filterType = 'all';
+  String _timeRange = 'month';
+  bool _showFilters = false;
+  List<int> _dismissedNotifications = [];
+  AppNotification? _selectedNotification;
+
+  final List<RentalData> _rentalData = [
+    RentalData('Wheelchairs', 45, 12),
+    RentalData('Walkers', 32, 8),
+    RentalData('Crutches', 28, 15),
+    RentalData('Hospital Beds', 15, 5),
+    RentalData('Oxygen Machines', 10, 3),
+  ];
+
+  final List<TrendData> _usageTrend = [
+    TrendData('Aug', 85),
+    TrendData('Sep', 95),
+    TrendData('Oct', 110),
+    TrendData('Nov', 130),
+    TrendData('Dec', 125),
+  ];
+
+  final List<StatusData> _equipmentStatus = [
+    StatusData('Available', 145, const Color(0xFF10b981)),
+    StatusData('Rented', 85, const Color(0xFF3b82f6)),
+    StatusData('Maintenance', 12, const Color(0xFFf59e0b)),
+    StatusData('Reserved', 23, const Color(0xFF8b5cf6)),
+  ];
+
+  final List<AppNotification> _notifications = [
+    AppNotification(
+      id: 1,
+      type: 'overdue',
+      title: 'Overdue Return',
+      message: 'Wheelchair #W-234 is 2 days overdue',
+      user: 'Ahmed Al-Khalifa',
+      userId: 'U-1001',
+      phone: '+973 3333 1234',
+      email: 'ahmed.alkhalifa@email.com',
+      rentalId: 'R-1234',
+      equipmentId: 'W-234',
+      checkoutDate: '2024-11-25',
+      dueDate: '2024-12-03',
+      time: '2 hours ago',
+      priority: 'high',
+      details:
+          'This wheelchair was rented for elderly care. Customer has been contacted twice. Late fee: 2 BD per day.',
+    ),
+    AppNotification(
+      id: 2,
+      type: 'upcoming',
+      title: 'Return Reminder',
+      message: 'Walker #WK-156 due tomorrow',
+      user: 'Fatima Mohammed',
+      userId: 'U-1002',
+      phone: '+973 3333 5678',
+      email: 'fatima.m@email.com',
+      rentalId: 'R-1235',
+      equipmentId: 'WK-156',
+      checkoutDate: '2024-11-28',
+      dueDate: '2024-12-06',
+      time: '5 hours ago',
+      priority: 'medium',
+      details:
+          'Automated reminder sent to customer. Equipment is in good condition. Extension available upon request.',
+    ),
+    AppNotification(
+      id: 3,
+      type: 'donation',
+      title: 'New Donation',
+      message: 'Hospital bed donation pending approval',
+      user: 'Care Foundation',
+      userId: 'D-2001',
+      phone: '+973 1777 8888',
+      email: 'donations@carefoundation.bh',
+      donationId: 'DON-445',
+      equipmentType: 'Hospital Bed',
+      condition: 'Good',
+      time: '1 day ago',
+      priority: 'low',
+      details:
+          'Donor is a reputable charity organization. Equipment appears to be in excellent condition. Includes mattress and side rails. Requires inspection before approval.',
+    ),
+    AppNotification(
+      id: 4,
+      type: 'maintenance',
+      title: 'Maintenance Required',
+      message: 'Oxygen machine #O-089 needs inspection',
+      user: 'System Alert',
+      equipmentId: 'O-089',
+      lastMaintenance: '2024-09-15',
+      nextMaintenance: '2024-12-15',
+      maintenanceType: 'Routine Inspection',
+      time: '1 day ago',
+      priority: 'high',
+      details:
+          'Equipment has completed 90 days since last maintenance. Requires pressure test and filter replacement. Currently not available for rental.',
+    ),
+    AppNotification(
+      id: 5,
+      type: 'returned',
+      title: 'Equipment Returned',
+      message: 'Crutches #C-445 returned successfully',
+      user: 'Ali Hassan',
+      userId: 'U-1003',
+      phone: '+973 3333 9999',
+      email: 'ali.hassan@email.com',
+      rentalId: 'R-1230',
+      equipmentId: 'C-445',
+      checkoutDate: '2024-11-15',
+      returnDate: '2024-12-03',
+      time: '2 days ago',
+      priority: 'low',
+      details:
+          'Equipment returned on time in excellent condition. No damage reported. Customer feedback: 5 stars. Available for next rental.',
+    ),
+  ];
+
+  final List<ActiveRental> _activeRentals = [
+    ActiveRental(
+      id: 'R-1234',
+      equipment: 'Wheelchair',
+      itemId: 'W-234',
+      user: 'Ahmed Al-Khalifa',
+      checkoutDate: '2024-11-25',
+      dueDate: '2024-12-03',
+      status: 'overdue',
+      daysRemaining: -2,
+    ),
+    ActiveRental(
+      id: 'R-1235',
+      equipment: 'Walker',
+      itemId: 'WK-156',
+      user: 'Fatima Mohammed',
+      checkoutDate: '2024-11-28',
+      dueDate: '2024-12-06',
+      status: 'due-soon',
+      daysRemaining: 1,
+    ),
+    ActiveRental(
+      id: 'R-1236',
+      equipment: 'Hospital Bed',
+      itemId: 'HB-089',
+      user: 'Mohammed Ali',
+      checkoutDate: '2024-11-20',
+      dueDate: '2024-12-20',
+      status: 'active',
+      daysRemaining: 15,
+    ),
+    ActiveRental(
+      id: 'R-1237',
+      equipment: 'Crutches',
+      itemId: 'C-778',
+      user: 'Sara Ahmed',
+      checkoutDate: '2024-12-01',
+      dueDate: '2024-12-15',
+      status: 'active',
+      daysRemaining: 10,
+    ),
+  ];
+
+  List<AppNotification> get _visibleNotifications {
+    return _notifications
+        .where((n) => !_dismissedNotifications.contains(n.id))
+        .toList();
+  }
+
+  int get _highPriorityCount {
+    return _visibleNotifications.where((n) => n.priority == 'high').length;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundGray,
-      body: SafeArea(
-        child: Stack(
+      backgroundColor: Colors.grey[50],
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              _buildHeader(),
+              Expanded(child: _buildContent()),
+              const SizedBox(height: 70),
+            ],
+          ),
+          _buildBottomNav(),
+          if (_selectedNotification != null) _buildNotificationModal(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.indigo[600]!, Colors.indigo[700]!],
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.medical_services,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Care Center',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      'Admin Dashboard',
+                      style: TextStyle(color: Color(0xFFc7d2fe), fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.menu, color: Colors.white, size: 24),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: _activeTab == 0
+          ? _buildReportsTab()
+          : _activeTab == 1
+          ? _buildTrackingTab()
+          : _buildNotificationsTab(),
+    );
+  }
+
+  Widget _buildReportsTab() {
+    return Column(
+      children: [
+        _buildFilterButton(),
+        if (_showFilters) ...[const SizedBox(height: 16), _buildFilters()],
+        const SizedBox(height: 16),
+        _buildMetricsGrid(),
+        const SizedBox(height: 16),
+        _buildEquipmentUsageChart(),
+        const SizedBox(height: 16),
+        _buildInventoryStatusChart(),
+        const SizedBox(height: 16),
+        _buildRentalTrendChart(),
+      ],
+    );
+  }
+
+  Widget _buildFilterButton() {
+    return InkWell(
+      onTap: () => setState(() => _showFilters = !_showFilters),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
+          ],
+        ),
+        child: Row(
           children: [
-            _selectedIndex == 0
-                ? TrackingScreenWidget()
-                : ReportsScreenWidget(),
-            _buildBottomButtons(),
+            const Icon(Icons.filter_list, color: Colors.indigo),
+            const SizedBox(width: 8),
+            const Text(
+              'Filters',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const Spacer(),
+            Transform.rotate(
+              angle: _showFilters ? 1.57 : 0,
+              child: const Icon(Icons.chevron_right, color: Colors.grey),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBottomButtons() {
+  Widget _buildFilters() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Time Range',
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: _timeRange,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'week', child: Text('Last Week')),
+              DropdownMenuItem(value: 'month', child: Text('Last Month')),
+              DropdownMenuItem(value: 'quarter', child: Text('Last Quarter')),
+              DropdownMenuItem(value: 'year', child: Text('Last Year')),
+            ],
+            onChanged: (value) => setState(() => _timeRange = value!),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Equipment Type',
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: _filterType,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'all', child: Text('All Equipment')),
+              DropdownMenuItem(value: 'rental', child: Text('Rentals Only')),
+              DropdownMenuItem(
+                value: 'donation',
+                child: Text('Donations Only'),
+              ),
+            ],
+            onChanged: (value) => setState(() => _filterType = value!),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricsGrid() {
+    return GridView.count(
+      crossAxisCount: 2,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      childAspectRatio: 1.1,
+      children: [
+        _buildMetricCard(
+          'Total Rentals',
+          '130',
+          '↑ 12% this month',
+          Colors.blue[600]!,
+          Icons.inventory_2,
+        ),
+        _buildMetricCard(
+          'Donations',
+          '43',
+          '↑ 8% this month',
+          Colors.green[600]!,
+          Icons.check_circle,
+        ),
+        _buildMetricCard(
+          'Overdue',
+          '5',
+          'Needs attention',
+          Colors.red[600]!,
+          Icons.warning,
+        ),
+        _buildMetricCard(
+          'Maintenance',
+          '12',
+          'In progress',
+          Colors.orange[600]!,
+          Icons.build,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricCard(
+    String title,
+    String value,
+    String subtitle,
+    Color color,
+    IconData icon,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [color, color.withOpacity(0.8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Colors.white.withOpacity(0.8), size: 32),
+          const Spacer(),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.9),
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.75),
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEquipmentUsageChart() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Equipment Usage',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 220,
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: 50,
+                barGroups: _rentalData.asMap().entries.map((entry) {
+                  return BarChartGroupData(
+                    x: entry.key,
+                    barRods: [
+                      BarChartRodData(
+                        toY: entry.value.rented.toDouble(),
+                        color: Colors.blue,
+                        width: 12,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(4),
+                        ),
+                      ),
+                      BarChartRodData(
+                        toY: entry.value.donated.toDouble(),
+                        color: Colors.green,
+                        width: 12,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(4),
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 30,
+                      getTitlesWidget: (value, meta) {
+                        return Text(
+                          value.toInt().toString(),
+                          style: const TextStyle(fontSize: 10),
+                        );
+                      },
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        if (value.toInt() >= 0 &&
+                            value.toInt() < _rentalData.length) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              _rentalData[value.toInt()].name,
+                              style: const TextStyle(fontSize: 9),
+                              textAlign: TextAlign.center,
+                            ),
+                          );
+                        }
+                        return const Text('');
+                      },
+                    ),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                ),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (value) {
+                    return FlLine(color: Colors.grey[200]!, strokeWidth: 1);
+                  },
+                ),
+                borderData: FlBorderData(show: false),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildLegendItem(Colors.blue, 'Rented'),
+              const SizedBox(width: 16),
+              _buildLegendItem(Colors.green, 'Donated'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInventoryStatusChart() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Inventory Status',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 200,
+            child: PieChart(
+              PieChartData(
+                sections: _equipmentStatus.map((data) {
+                  return PieChartSectionData(
+                    value: data.value.toDouble(),
+                    color: data.color,
+                    title: data.value.toString(),
+                    radius: 80,
+                    titleStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  );
+                }).toList(),
+                sectionsSpace: 2,
+                centerSpaceRadius: 40,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            children: _equipmentStatus.map((item) {
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: item.color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${item.name}: ${item.value}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRentalTrendChart() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Rental Trend',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 200,
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (value) {
+                    return FlLine(color: Colors.grey[200]!, strokeWidth: 1);
+                  },
+                ),
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 35,
+                      getTitlesWidget: (value, meta) {
+                        return Text(
+                          value.toInt().toString(),
+                          style: const TextStyle(fontSize: 11),
+                        );
+                      },
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        if (value.toInt() >= 0 &&
+                            value.toInt() < _usageTrend.length) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              _usageTrend[value.toInt()].month,
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                          );
+                        }
+                        return const Text('');
+                      },
+                    ),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                ),
+                borderData: FlBorderData(show: false),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: _usageTrend.asMap().entries.map((entry) {
+                      return FlSpot(
+                        entry.key.toDouble(),
+                        entry.value.rentals.toDouble(),
+                      );
+                    }).toList(),
+                    isCurved: true,
+                    color: Colors.blue,
+                    barWidth: 3,
+                    dotData: const FlDotData(show: true),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: Colors.blue.withOpacity(0.1),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(Color color, String label) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 12)),
+      ],
+    );
+  }
+
+  Widget _buildTrackingTab() {
+    return Column(
+      children: _activeRentals.map((rental) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          rental.equipment,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          rental.itemId,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(rental.status).withOpacity(0.1),
+                      border: Border.all(color: _getStatusColor(rental.status)),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      _getStatusText(rental.status),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _getStatusColor(rental.status),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _buildInfoRow('Customer', rental.user),
+              const SizedBox(height: 8),
+              _buildInfoRow('Due Date', rental.dueDate),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _getTimeRemainingColor(
+                    rental.daysRemaining,
+                  ).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Time Remaining',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      rental.daysRemaining < 0
+                          ? '${rental.daysRemaining.abs()} days overdue'
+                          : '${rental.daysRemaining} days',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: _getTimeRemainingColor(rental.daysRemaining),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'overdue':
+        return Colors.red;
+      case 'due-soon':
+        return Colors.orange;
+      case 'active':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'overdue':
+        return 'Overdue';
+      case 'due-soon':
+        return 'Due Soon';
+      case 'active':
+        return 'Active';
+      default:
+        return 'Unknown';
+    }
+  }
+
+  Color _getTimeRemainingColor(int days) {
+    if (days < 0) return Colors.red[600]!;
+    if (days <= 2) return Colors.orange[600]!;
+    return Colors.green[600]!;
+  }
+
+  Widget _buildNotificationsTab() {
+    if (_visibleNotifications.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.check_circle, size: 64, color: Colors.green[500]),
+            const SizedBox(height: 16),
+            const Text(
+              'All Caught Up!',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'You have no pending notifications.',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: _visibleNotifications.map((notification) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () => setState(() => _selectedNotification = notification),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _getPriorityIcon(notification.priority),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      notification.title,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _getPriorityColor(
+                                        notification.priority,
+                                      ).withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      notification.priority,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: _getPriorityColor(
+                                          notification.priority,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                notification.message,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    notification.user,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[500],
+                                    ),
+                                  ),
+                                  Text(
+                                    notification.time,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[400],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => setState(
+                              () => _selectedNotification = notification,
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.indigo[600],
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: const Text(
+                              'View',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton(
+                          onPressed: () {
+                            setState(() {
+                              _dismissedNotifications.add(notification.id);
+                            });
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.grey[700],
+                            side: BorderSide(
+                              color: Colors.grey[300]!,
+                              width: 2,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Dismiss',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _getPriorityIcon(String priority) {
+    switch (priority) {
+      case 'high':
+        return Icon(Icons.warning, color: Colors.red[500], size: 20);
+      case 'medium':
+        return Icon(Icons.access_time, color: Colors.orange[500], size: 20);
+      case 'low':
+        return Icon(Icons.check_circle, color: Colors.green[500], size: 20);
+      default:
+        return Icon(Icons.notifications, color: Colors.grey[500], size: 20);
+    }
+  }
+
+  Color _getPriorityColor(String priority) {
+    switch (priority) {
+      case 'high':
+        return Colors.red;
+      case 'medium':
+        return Colors.orange;
+      case 'low':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Widget _buildBottomNav() {
     return Positioned(
       left: 0,
       right: 0,
@@ -68,1044 +1169,584 @@ class _MainScreenState extends State<MainScreen> {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
+          border: Border(top: BorderSide(color: Colors.grey[200]!)),
           boxShadow: [
             BoxShadow(
-              color: Color.fromRGBO(0, 0, 0, 0.1),
-              offset: Offset(0, -2),
-              blurRadius: 8,
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
             ),
           ],
         ),
-        padding: EdgeInsets.symmetric(
-          horizontal: AppDimensions.spacingMedium,
-          vertical: AppDimensions.spacingSmall,
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: InkWell(
-                onTap: () {
-                  setState(() {
-                    _selectedIndex = 0;
-                  });
-                },
-                child: Container(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: _selectedIndex == 0
-                        ? AppColors.primaryBlue
-                        : AppColors.lightGray,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Tracking',
-                      style: TextStyle(
-                        color: _selectedIndex == 0
-                            ? Colors.white
-                            : AppColors.bodyText,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(width: AppDimensions.spacingSmall),
-            Expanded(
-              child: InkWell(
-                onTap: () {
-                  setState(() {
-                    _selectedIndex = 1;
-                  });
-                },
-                child: Container(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: _selectedIndex == 1
-                        ? AppColors.primaryBlue
-                        : AppColors.lightGray,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Report',
-                      style: TextStyle(
-                        color: _selectedIndex == 1
-                            ? Colors.white
-                            : AppColors.bodyText,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class TrackingScreenWidget extends StatefulWidget {
-  @override
-  _TrackingScreenWidgetState createState() => _TrackingScreenWidgetState();
-}
-
-class _TrackingScreenWidgetState extends State<TrackingScreenWidget> {
-  String selectedFilter = 'All';
-
-  final List<Map<String, dynamic>> rentalItems = [
-    {
-      'icon': Icons.wheelchair_pickup,
-      'title': 'Wheelchair Standard',
-      'date': 'Due Dec 5, 2025',
-      'statusText': 'Active',
-      'statusBgColor': Color(0xFFEBF8FF),
-      'statusTextColor': Color(0xFF1E40AF),
-      'hasProgress': true,
-      'progress': 0.65,
-      'progressColor': AppColors.primaryBlue,
-    },
-    {
-      'icon': Icons.assist_walker,
-      'title': 'Walker',
-      'date': 'Due Dec 2, 2025',
-      'statusText': 'Overdue',
-      'statusBgColor': Color(0xFFFEE2E2),
-      'statusTextColor': Color(0xFF991B1B),
-      'hasProgress': true,
-      'progress': 1.0,
-      'progressColor': Color(0xFFEF4444),
-    },
-    {
-      'icon': Icons.electric_scooter,
-      'title': 'Electric Scooter',
-      'date': 'Reserved for Dec 8, 2025',
-      'statusText': 'Reserved',
-      'statusBgColor': Color(0xFFFEF3C7),
-      'statusTextColor': Color(0xFFB45309),
-      'hasProgress': false,
-      'progress': 0.0,
-      'progressColor': Colors.transparent,
-    },
-    {
-      'icon': Icons.chair,
-      'title': 'Shower Chair',
-      'date': 'Returned Nov 28, 2025',
-      'statusText': 'Returned',
-      'statusBgColor': Color(0xFFD1FAE5),
-      'statusTextColor': Color(0xFF065F46),
-      'hasProgress': false,
-      'progress': 0.0,
-      'progressColor': Colors.transparent,
-    },
-  ];
-
-  final List<Map<String, dynamic>> notificationItems = [
-    {
-      'icon': AppIcons.dueSoon,
-      'iconBgColor': Color(0xFFFEF3C7),
-      'iconColor': AppColors.primaryOrange,
-      'title': 'Rental Due Soon',
-      'message': 'Walker is due in 1 day',
-      'time': '2 hours ago',
-    },
-    {
-      'icon': Icons.check_circle_outline,
-      'iconBgColor': Color(0xFFD1FAE5),
-      'iconColor': Color(0xFF065F46),
-      'title': 'Reservation Confirmed',
-      'message': 'Electric Scooter reserved for Dec 8',
-      'time': '5 hours ago',
-    },
-    {
-      'icon': Icons.event_note,
-      'iconBgColor': Color(0xFFEBF8FF),
-      'iconColor': AppColors.primaryBlue,
-      'title': 'Return Reminder',
-      'message': 'Please return Wheelchair by Dec 5',
-      'time': '1 day ago',
-    },
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: EdgeInsets.only(bottom: 80),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildTopBar(),
-          SizedBox(height: AppDimensions.spacingLarge),
-          _buildStatsCards(),
-          SizedBox(height: AppDimensions.spacingLarge),
-          _buildFilterPills(),
-          SizedBox(height: AppDimensions.spacingMedium),
-          _buildRentalCards(),
-          SizedBox(height: AppDimensions.spacingLarge),
-          _buildRecentNotifications(),
-          SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTopBar() {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: AppDimensions.spacingMedium,
-        vertical: AppDimensions.spacingMedium,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Color.fromRGBO(0, 0, 0, 0.05),
-            offset: Offset(0, 1),
-            blurRadius: 3,
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Care Center',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.darkText,
-              letterSpacing: -0.5,
-            ),
-          ),
-          Icon(
-            AppIcons.notifications,
-            size: AppDimensions.iconSizeMedium,
-            color: AppColors.bodyText,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatsCards() {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: AppDimensions.spacingMedium),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildStatCard(
-              '7',
-              'Active Rentals',
-              AppColors.primaryBlue,
-              Color(0xFF2563EB),
-              AppIcons.activeRentals,
-            ),
-          ),
-          SizedBox(width: AppDimensions.spacingSmall),
-          Expanded(
-            child: _buildStatCard(
-              '3',
-              'Due Soon',
-              AppColors.primaryOrange,
-              Color(0xFFEA580C),
-              AppIcons.dueSoon,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(
-    String value,
-    String label,
-    Color startColor,
-    Color endColor,
-    IconData icon,
-  ) {
-    return Container(
-      height: 100,
-      padding: EdgeInsets.all(AppDimensions.spacingMedium),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [startColor, endColor],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: startColor.withOpacity(0.25),
-            offset: Offset(0, 4),
-            blurRadius: 12,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Icon(icon, color: Colors.white.withOpacity(0.8), size: 24),
-              Text(
-                value,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                  height: 1,
-                ),
-              ),
-            ],
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.95),
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterPills() {
-    final filters = ['All', 'Active', 'Reserved', 'Returned'];
-    return Container(
-      height: 45,
-      padding: EdgeInsets.symmetric(horizontal: AppDimensions.spacingMedium),
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: filters
-            .map((filter) => _buildFilterPill(filter, selectedFilter == filter))
-            .toList(),
-      ),
-    );
-  }
-
-  Widget _buildFilterPill(String text, bool isActive) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            selectedFilter = text;
-          });
-        },
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: isActive ? AppColors.primaryBlue : AppColors.lightGray,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Center(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: isActive ? Colors.white : AppColors.bodyText,
-                fontSize: 14,
-                fontWeight: FontWeight.normal,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRentalCards() {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: AppDimensions.spacingMedium),
-      child: Column(
-        children: rentalItems.map((item) {
-          if (selectedFilter == 'All' || item['statusText'] == selectedFilter) {
-            return Padding(
-              padding: const EdgeInsets.only(
-                bottom: AppDimensions.spacingSmall,
-              ),
-              child: _buildRentalCard(
-                icon: item['icon'],
-                title: item['title'],
-                date: item['date'],
-                statusText: item['statusText'],
-                statusBgColor: item['statusBgColor'],
-                statusTextColor: item['statusTextColor'],
-                hasProgress: item['hasProgress'],
-                progress: item['progress'],
-                progressColor: item['progressColor'],
-              ),
-            );
-          }
-          return Container();
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildRentalCard({
-    required IconData icon,
-    required String title,
-    required String date,
-    required String statusText,
-    required Color statusBgColor,
-    required Color statusTextColor,
-    required bool hasProgress,
-    required double progress,
-    required Color progressColor,
-  }) {
-    return Container(
-      padding: EdgeInsets.all(AppDimensions.spacingMedium),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Color.fromRGBO(0, 0, 0, 0.05),
-            offset: Offset(0, 1),
-            blurRadius: 2,
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: statusBgColor,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Icon(
-                icon,
-                size: AppDimensions.iconSizeSmall,
-                color: statusTextColor,
-              ),
-            ),
-          ),
-          SizedBox(width: AppDimensions.spacingSmall),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.darkText,
-                      ),
-                    ),
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: statusBgColor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        statusText,
-                        style: TextStyle(
-                          color: statusTextColor,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                _buildNavItem(0, Icons.trending_up, 'Reports'),
+                _buildNavItem(1, Icons.access_time, 'Tracking'),
+                _buildNavItem(
+                  2,
+                  Icons.notifications,
+                  'Alerts',
+                  badge: _highPriorityCount,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, IconData icon, String label, {int? badge}) {
+    final isActive = _activeTab == index;
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _activeTab = index),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isActive ? Colors.indigo[50] : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(
+                    icon,
+                    color: isActive ? Colors.indigo[600] : Colors.grey[500],
+                    size: 24,
+                  ),
+                  if (badge != null && badge > 0)
+                    Positioned(
+                      right: -6,
+                      top: -4,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          badge.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
                     ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                Text(
-                  date,
-                  style: TextStyle(fontSize: 14, color: AppColors.bodyText),
-                ),
-                if (hasProgress) ...[
-                  SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      backgroundColor: Color(0xFFE5E7EB),
-                      valueColor: AlwaysStoppedAnimation(progressColor),
-                      minHeight: 8,
-                    ),
-                  ),
                 ],
-                SizedBox(height: 12),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'View Details',
-                      style: TextStyle(
-                        color: AppColors.primaryBlue,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isActive ? Colors.indigo[600] : Colors.grey[500],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotificationModal() {
+    final notification = _selectedNotification!;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedNotification = null),
+      child: Container(
+        color: Colors.black.withOpacity(0.5),
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: GestureDetector(
+            onTap: () {},
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.9,
+              ),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.indigo[600]!, Colors.indigo[700]!],
+                      ),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(24),
                       ),
                     ),
-                    SizedBox(width: 4),
-                    Icon(
-                      Icons.arrow_forward_ios,
-                      size: 14,
-                      color: AppColors.primaryBlue,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentNotifications() {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: AppDimensions.spacingMedium),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Recent Notifications',
-            style: TextStyle(
-              color: AppColors.darkText,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: AppDimensions.spacingSmall),
-          ...notificationItems.map((item) {
-            return Padding(
-              padding: const EdgeInsets.only(
-                bottom: AppDimensions.spacingSmall,
-              ),
-              child: _buildNotificationCard(
-                icon: item['icon'],
-                iconBgColor: item['iconBgColor'],
-                iconColor: item['iconColor'],
-                title: item['title'],
-                message: item['message'],
-                time: item['time'],
-              ),
-            );
-          }).toList(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNotificationCard({
-    required IconData icon,
-    required Color iconBgColor,
-    required Color iconColor,
-    required String title,
-    required String message,
-    required String time,
-  }) {
-    return Container(
-      padding: EdgeInsets.all(AppDimensions.spacingMedium),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Color.fromRGBO(0, 0, 0, 0.05),
-            offset: Offset(0, 1),
-            blurRadius: 4,
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: iconBgColor,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Icon(
-                icon,
-                size: AppDimensions.iconSizeSmall,
-                color: iconColor,
-              ),
-            ),
-          ),
-          SizedBox(width: AppDimensions.spacingSmall),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: AppColors.darkText,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  message,
-                  style: TextStyle(color: AppColors.bodyText, fontSize: 14),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  time,
-                  style: TextStyle(color: AppColors.lightText, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          Icon(Icons.chevron_right, size: 20, color: AppColors.lightText),
-        ],
-      ),
-    );
-  }
-}
-
-class ReportsScreenWidget extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: EdgeInsets.only(bottom: 80),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildTopBar(),
-          SizedBox(height: AppDimensions.spacingLarge),
-          _buildStatsGrid(),
-          SizedBox(height: AppDimensions.spacingLarge),
-          _buildMostRentedEquipment(),
-          SizedBox(height: AppDimensions.spacingLarge),
-          _buildMonthlyTrend(),
-          SizedBox(height: AppDimensions.spacingLarge),
-          _buildPerformanceInsights(),
-          SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTopBar() {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: AppDimensions.spacingMedium,
-        vertical: AppDimensions.spacingMedium,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Color.fromRGBO(0, 0, 0, 0.05),
-            offset: Offset(0, 1),
-            blurRadius: 3,
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Reports & Statistics',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.darkText,
-              letterSpacing: -0.5,
-            ),
-          ),
-          Icon(
-            AppIcons.notifications,
-            size: AppDimensions.iconSizeMedium,
-            color: AppColors.bodyText,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatsGrid() {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: AppDimensions.spacingMedium),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.shopping_bag_outlined,
-                  iconColor: AppColors.primaryBlue,
-                  iconBgColor: Color(0xFFEFF6FF),
-                  value: '156',
-                  label: 'Total Rentals',
-                ),
-              ),
-              SizedBox(width: AppDimensions.spacingSmall),
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.check_circle_outline,
-                  iconColor: Color(0xFF22C55E),
-                  iconBgColor: Color(0xFFF0FDF4),
-                  value: '8',
-                  label: 'Active Now',
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: AppDimensions.spacingSmall),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.calendar_today_outlined,
-                  iconColor: AppColors.primaryOrange,
-                  iconBgColor: Color(0xFFFFF7ED),
-                  value: '23',
-                  label: 'Reserved',
-                ),
-              ),
-              SizedBox(width: AppDimensions.spacingSmall),
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.warning_amber_rounded,
-                  iconColor: Color(0xFFEF4444),
-                  iconBgColor: Color(0xFFFEF2F2),
-                  value: '3',
-                  label: 'Overdue',
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard({
-    required IconData icon,
-    required Color iconColor,
-    required Color iconBgColor,
-    required String value,
-    required String label,
-  }) {
-    return Container(
-      padding: EdgeInsets.all(AppDimensions.spacingMedium),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Color.fromRGBO(0, 0, 0, 0.05),
-            offset: Offset(0, 1),
-            blurRadius: 2,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: iconBgColor,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: iconColor, size: 22),
-          ),
-          SizedBox(height: AppDimensions.spacingSmall),
-          Text(
-            value,
-            style: TextStyle(
-              color: AppColors.darkText,
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(color: AppColors.bodyText, fontSize: 12),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMostRentedEquipment() {
-    final equipment = [
-      {
-        'name': 'Wheelchair',
-        'count': 45,
-        'color': AppColors.primaryBlue,
-        'progress': 1.0,
-      },
-      {
-        'name': 'Walker',
-        'count': 38,
-        'color': Color(0xFF22C55E),
-        'progress': 0.84,
-      },
-      {
-        'name': 'Crutches',
-        'count': 32,
-        'color': AppColors.primaryOrange,
-        'progress': 0.71,
-      },
-      {
-        'name': 'Shower Chair',
-        'count': 28,
-        'color': Color(0xFFAD46FF),
-        'progress': 0.62,
-      },
-      {
-        'name': 'Hospital Bed',
-        'count': 23,
-        'color': Color(0xFFF6339A),
-        'progress': 0.51,
-      },
-    ];
-
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: AppDimensions.spacingMedium),
-      child: Container(
-        padding: EdgeInsets.all(AppDimensions.spacingMedium),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Color.fromRGBO(0, 0, 0, 0.05),
-              offset: Offset(0, 1),
-              blurRadius: 2,
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.trending_up, size: 20, color: AppColors.darkText),
-                SizedBox(width: 8),
-                Text(
-                  'Most Rented Equipment',
-                  style: TextStyle(
-                    color: AppColors.darkText,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: AppDimensions.spacingMedium),
-            ...equipment.map(
-              (item) => Padding(
-                padding: EdgeInsets.only(bottom: AppDimensions.spacingSmall),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
                       children: [
-                        Text(
-                          item['name'] as String,
-                          style: TextStyle(
-                            color: AppColors.darkText,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                        const Expanded(
+                          child: Text(
+                            'Details',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                        Text(
-                          '${item['count']}',
-                          style: TextStyle(
-                            color: AppColors.bodyText,
-                            fontSize: 14,
+                        InkWell(
+                          onTap: () =>
+                              setState(() => _selectedNotification = null),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: 4),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: LinearProgressIndicator(
-                        value: item['progress'] as double,
-                        backgroundColor: Color(0xFFE5E7EB),
-                        valueColor: AlwaysStoppedAnimation(
-                          item['color'] as Color,
-                        ),
-                        minHeight: 8,
+                  ),
+                  // Content
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Priority Badge
+                          Row(
+                            children: [
+                              _getPriorityIcon(notification.priority),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _getPriorityColor(
+                                    notification.priority,
+                                  ).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  '${notification.priority.toUpperCase()} PRIORITY',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: _getPriorityColor(
+                                      notification.priority,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          // Title and Message
+                          Text(
+                            notification.title,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            notification.message,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            notification.time,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Details Section
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[50],
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Additional Information',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  notification.details,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[700],
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // User Information
+                          if (notification.userId != null) ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Colors.grey[200]!,
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.person,
+                                        color: Colors.indigo[600],
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Text(
+                                        'Customer Information',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildDetailRow('Name', notification.user),
+                                  if (notification.phone != null) ...[
+                                    const SizedBox(height: 12),
+                                    _buildDetailRow(
+                                      'Phone',
+                                      notification.phone!,
+                                    ),
+                                  ],
+                                  if (notification.email != null) ...[
+                                    const SizedBox(height: 12),
+                                    _buildDetailRow(
+                                      'Email',
+                                      notification.email!,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                          // Equipment Information
+                          if (notification.rentalId != null ||
+                              notification.equipmentId != null) ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Colors.grey[200]!,
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.inventory_2,
+                                        color: Colors.indigo[600],
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        notification.type == 'donation'
+                                            ? 'Donation Information'
+                                            : 'Rental Information',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  if (notification.equipmentType != null)
+                                    _buildDetailRow(
+                                      'Equipment Type',
+                                      notification.equipmentType!,
+                                    ),
+                                  if (notification.condition != null) ...[
+                                    const SizedBox(height: 12),
+                                    _buildDetailRow(
+                                      'Condition',
+                                      notification.condition!,
+                                    ),
+                                  ],
+                                  if (notification.checkoutDate != null) ...[
+                                    const SizedBox(height: 12),
+                                    _buildDetailRow(
+                                      'Checkout Date',
+                                      notification.checkoutDate!,
+                                    ),
+                                  ],
+                                  if (notification.dueDate != null) ...[
+                                    const SizedBox(height: 12),
+                                    _buildDetailRow(
+                                      'Due Date',
+                                      notification.dueDate!,
+                                    ),
+                                  ],
+                                  if (notification.returnDate != null) ...[
+                                    const SizedBox(height: 12),
+                                    _buildDetailRow(
+                                      'Return Date',
+                                      notification.returnDate!,
+                                    ),
+                                  ],
+                                  if (notification.lastMaintenance != null) ...[
+                                    const SizedBox(height: 12),
+                                    _buildDetailRow(
+                                      'Last Maintenance',
+                                      notification.lastMaintenance!,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 16),
+                          // Action Buttons
+                          ..._buildActionButtons(notification),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMonthlyTrend() {
-    final weeklyData = [
-      {'week': 'W1', 'value': 12, 'height': 0.43},
-      {'week': 'W2', 'value': 19, 'height': 0.68},
-      {'week': 'W3', 'value': 15, 'height': 0.54},
-      {'week': 'W4', 'value': 25, 'height': 0.89},
-      {'week': 'W5', 'value': 22, 'height': 0.79},
-      {'week': 'W6', 'value': 18, 'height': 0.64},
-      {'week': 'W7', 'value': 28, 'height': 1.0},
-    ];
-
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: AppDimensions.spacingMedium),
-      child: Container(
-        padding: EdgeInsets.all(AppDimensions.spacingMedium),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Color.fromRGBO(0, 0, 0, 0.05),
-              offset: Offset(0, 1),
-              blurRadius: 2,
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Monthly Trend',
-              style: TextStyle(
-                color: AppColors.darkText,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: AppDimensions.spacingMedium),
-            Container(
-              height: 200,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: weeklyData.map((data) {
-                  return Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text(
-                        '${data['value']}',
-                        style: TextStyle(
-                          color: AppColors.bodyText,
-                          fontSize: 12,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Container(
-                        width: 37.5,
-                        height: 140 * (data['height'] as double),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [AppColors.primaryBlue, Color(0xFF50A2FF)],
-                          ),
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(10),
-                            topRight: Radius.circular(10),
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        data['week'] as String,
-                        style: TextStyle(
-                          color: AppColors.bodyText,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  );
-                }).toList(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPerformanceInsights() {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: AppDimensions.spacingMedium),
-      child: Container(
-        padding: EdgeInsets.all(AppDimensions.spacingMedium),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topRight,
-            end: Alignment.bottomLeft,
-            colors: [Color(0xFFAC46FF), Color(0xFF980FFA)],
           ),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Performance Insights',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: AppDimensions.spacingMedium),
-            _buildInsightRow('Average Rental Duration', '12 days'),
-            SizedBox(height: AppDimensions.spacingSmall),
-            _buildInsightRow('On-time Return Rate', '94%'),
-            SizedBox(height: AppDimensions.spacingSmall),
-            _buildInsightRow('Customer Satisfaction', '4.8/5.0'),
-          ],
         ),
       ),
     );
   }
 
-  Widget _buildInsightRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildDetailRow(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14),
-        ),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+        const SizedBox(height: 4),
         Text(
           value,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ],
     );
   }
+
+  List<Widget> _buildActionButtons(AppNotification notification) {
+    List<Widget> buttons = [];
+
+    if (notification.type == 'donation') {
+      buttons.addAll([
+        _buildActionButton('Approve Donation', Colors.green[600]!),
+        const SizedBox(height: 8),
+        _buildActionButton('Reject Donation', Colors.red[600]!),
+      ]);
+    } else if (notification.type == 'maintenance') {
+      buttons.addAll([
+        _buildActionButton('Schedule Maintenance', Colors.indigo[600]!),
+        const SizedBox(height: 8),
+        _buildActionButton('Mark as Urgent', Colors.orange[600]!),
+      ]);
+    } else if (notification.type == 'overdue') {
+      buttons.addAll([
+        _buildActionButton('Contact Customer', Colors.indigo[600]!),
+        const SizedBox(height: 8),
+        _buildActionButton('Apply Late Fee', Colors.orange[600]!),
+      ]);
+    } else if (notification.type == 'upcoming') {
+      buttons.add(_buildActionButton('Send Reminder', Colors.indigo[600]!));
+    } else if (notification.type == 'returned') {
+      buttons.add(_buildActionButton('Mark as Available', Colors.green[600]!));
+    }
+
+    buttons.addAll([
+      const SizedBox(height: 8),
+      OutlinedButton(
+        onPressed: () => setState(() => _selectedNotification = null),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.grey[700],
+          side: BorderSide(color: Colors.grey[300]!, width: 2),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: const Text(
+          'Close',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      ),
+    ]);
+
+    return buttons;
+  }
+
+  Widget _buildActionButton(String text, Color color) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: () {},
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 0,
+        ),
+        child: Text(
+          text,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+}
+
+// Data Models
+class RentalData {
+  final String name;
+  final int rented;
+  final int donated;
+
+  RentalData(this.name, this.rented, this.donated);
+}
+
+class TrendData {
+  final String month;
+  final int rentals;
+
+  TrendData(this.month, this.rentals);
+}
+
+class StatusData {
+  final String name;
+  final int value;
+  final Color color;
+
+  StatusData(this.name, this.value, this.color);
+}
+
+class ActiveRental {
+  final String id;
+  final String equipment;
+  final String itemId;
+  final String user;
+  final String checkoutDate;
+  final String dueDate;
+  final String status;
+  final int daysRemaining;
+
+  ActiveRental({
+    required this.id,
+    required this.equipment,
+    required this.itemId,
+    required this.user,
+    required this.checkoutDate,
+    required this.dueDate,
+    required this.status,
+    required this.daysRemaining,
+  });
+}
+
+class AppNotification {
+  final int id;
+  final String type;
+  final String title;
+  final String message;
+  final String user;
+  final String? userId;
+  final String? phone;
+  final String? email;
+  final String? rentalId;
+  final String? equipmentId;
+  final String? checkoutDate;
+  final String? dueDate;
+  final String? returnDate;
+  final String? donationId;
+  final String? equipmentType;
+  final String? condition;
+  final String? lastMaintenance;
+  final String? nextMaintenance;
+  final String? maintenanceType;
+  final String time;
+  final String priority;
+  final String details;
+
+  AppNotification({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.message,
+    required this.user,
+    this.userId,
+    this.phone,
+    this.email,
+    this.rentalId,
+    this.equipmentId,
+    this.checkoutDate,
+    this.dueDate,
+    this.returnDate,
+    this.donationId,
+    this.equipmentType,
+    this.condition,
+    this.lastMaintenance,
+    this.nextMaintenance,
+    this.maintenanceType,
+    required this.time,
+    required this.priority,
+    required this.details,
+  });
 }
