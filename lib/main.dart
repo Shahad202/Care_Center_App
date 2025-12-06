@@ -8,6 +8,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'reservation.dart';
 import 'Donation/donor_page.dart';
+import 'inventory/inventory_admin.dart';
 import 'services/hive_service.dart';
 import 'login.dart';
 import 'signup.dart';
@@ -255,6 +256,10 @@ DrawerHeader(
               ),
               onTap: () {
                 Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => NewinventoryWidget()),
+                );
               },
             ),
             ListTile(

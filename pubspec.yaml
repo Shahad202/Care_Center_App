@@ -99,7 +99,6 @@ flutter:
       - lib/images/Photo165132665927059bbb788199a1.png
       - lib/images/Image11.png
       - lib/images/Image12.png
-      - lib/images/uploads/
       - lib/images/wheelchair.png
       - lib/images/bed.png
       - lib/images/crutches.png
@@ -112,15 +111,13 @@ flutter:
       - lib/images/vector (2).svg
       - lib/images/vector.svg
 
-      - lib/images/dashdoard_icon.svg
+      - lib\images\dashboard_icon.svg
       - lib/images/box.svg
       - lib/images/filter.svg
       - lib/images/location.svg
       - lib/images/sorticon.svg
       - lib/images/search.svg
       - lib/images/plus.svg
-      - assets/images/
-
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 
