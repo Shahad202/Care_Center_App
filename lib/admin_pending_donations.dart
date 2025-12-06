@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'admin_donation_details.dart';
+import 'navigation_transitions.dart';
 
 class AdminPendingDonations extends StatefulWidget {
   const AdminPendingDonations({super.key});
@@ -118,13 +119,11 @@ class _AdminPendingDonationsState extends State<AdminPendingDonations> {
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              // الأيقونة
                               Hero(
                                 tag: 'admin_donation_${filteredDocs[index].id}',
                                 child: _iconTile(iconKey),
                               ),
                               const SizedBox(width: 12),
-                              // المحتوى الأوسط
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -211,8 +210,8 @@ class _AdminPendingDonationsState extends State<AdminPendingDonations> {
                               onPressed: () async {
                                 final result = await Navigator.push(
                                   context,
-                                  MaterialPageRoute(
-                                    builder: (_) => AdminDonationDetails(
+                                  slideUpRoute(
+                                    AdminDonationDetails(
                                       donationId: filteredDocs[index].id,
                                       donationData: data,
                                     ),
@@ -248,7 +247,6 @@ class _AdminPendingDonationsState extends State<AdminPendingDonations> {
     );
   }
 
-  // Helpers (نفس أسلوب التبرعات)
   Widget _iconTile(String iconKey) {
     IconData icon;
     switch (iconKey) {

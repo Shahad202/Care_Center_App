@@ -3,7 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project444/login.dart';
 import 'package:project444/profilePage.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'admin_pending_donations.dart';
+import 'navigation_transitions.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -13,6 +15,26 @@ class AdminDashboard extends StatefulWidget {
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
+  String _userRole = 'guest';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final snap = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final role = (snap.data()?['role'] ?? 'user').toString();
+      if (mounted) setState(() => _userRole = role);
+    } catch (_) {
+      // keep default role
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -32,9 +54,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             Navigator.pop(context);
                             final result = await Navigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (_) => const LoginPage(),
-                              ),
+                              slideUpRoute(const LoginPage()),
                             );
                             if (result == true && mounted) {
                               setState(() {});
@@ -76,6 +96,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             snapshot.data!.data() as Map<String, dynamic>;
                         String name = (data["name"] ?? "User").toString();
                         String? imageUrl = data["profileImage"] as String?;
+                        _userRole = (data['role'] ?? 'user').toString();
 
                         return Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -85,9 +106,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 Navigator.pop(context);
                                 final updated = await Navigator.push<bool?>(
                                   context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const ProfilePage(),
-                                  ),
+                                  slideUpRoute(const ProfilePage()),
                                 );
                                 if (updated == true && mounted) {
                                   setState(() {});
@@ -123,7 +142,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
               title: const Text('Home'),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushReplacementNamed(context, '/home');
+                final role = _userRole.toLowerCase();
+                if (role == 'admin') {
+                  Navigator.pushReplacementNamed(context, '/admin');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/home');
+                }
               },
             ),
             ListTile(
@@ -173,152 +197,171 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ],
         ),
       ),
-      appBar: AppBar(
-        title: const Text('Admin Dashboard'),
-        backgroundColor: const Color(0xFF003465),
-        elevation: 0,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(63),
+        child: AppBar(
+          backgroundColor: const Color(0xFF003465),
+          elevation: 0,
+          toolbarHeight: 63,
+          leading: Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu, color: Colors.white, size: 24),
+              tooltip: 'Open menu',
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
+          ),
+          title: const SizedBox.shrink(),
+        ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Welcome Admin',
-              style: TextStyle(
-                color: Color(0xFF003465),
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.3,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Welcome Admin',
+                      style: TextStyle(
+                        color: Color(0xFF003465),
+                        fontSize: 27,
+                        fontWeight: FontWeight.w700,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Manage donations, inventory, and reports',
+                      style: TextStyle(
+                        color: Color(0xFFAAA6B2),
+                        fontSize: 16,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 48),
+                    _dashboardCard(
+                      title: 'Pending Donations',
+                      subtitle: 'Review and approve donations',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          slideUpRoute(const AdminPendingDonations()),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    _dashboardCard(
+                      title: 'Inventory Management',
+                      subtitle: 'Manage items in inventory',
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Coming soon...')),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    _dashboardCard(
+                      title: 'Reports & Analytics',
+                      subtitle: 'View donation and rental statistics',
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Coming soon...')),
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Manage donations, inventory, and reports',
-              style: TextStyle(
-                color: Color(0xFF7A869A),
-                fontSize: 14,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 20),
-            _buildDashboardCard(
-              context,
-              title: 'Pending Donations',
-              subtitle: 'Review and approve donations',
-              icon: Icons.volunteer_activism,
-              color: const Color(0xFF1874CF),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const AdminPendingDonations(),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 14),
-            _buildDashboardCard(
-              context,
-              title: 'Inventory Management',
-              subtitle: 'Manage items in inventory',
-              icon: Icons.inventory_2,
-              color: const Color(0xFF4CAF50),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Coming soon...')),
-                );
-              },
-            ),
-            const SizedBox(height: 14),
-            _buildDashboardCard(
-              context,
-              title: 'Reports & Analytics',
-              subtitle: 'View donation and rental statistics',
-              icon: Icons.bar_chart,
-              color: const Color(0xFFFFA726),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Coming soon...')),
-                );
-              },
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildDashboardCard(
-    BuildContext context, {
+  Widget _dashboardCard({
     required String title,
     required String subtitle,
-    required IconData icon,
-    required Color color,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: LinearGradient(
-              colors: [color.withOpacity(0.12), color.withOpacity(0.06)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF003465).withOpacity(0.08),
-                offset: const Offset(0, 4),
-                blurRadius: 10,
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
+    var isPressed = false;
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return AnimatedScale(
+          scale: isPressed ? 0.97 : 1.0,
+          duration: const Duration(milliseconds: 120),
+          curve: Curves.easeOut,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: onTap,
+              onHighlightChanged: (value) => setState(() => isPressed = value),
+              child: Container(
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.18),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(14),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFF9FBFF), Color(0xFFF4F7FB)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border.all(
+                    color: const Color(0xFF8EA4BD),
+                    width: 1.4,
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color.fromRGBO(0, 0, 0, 0.06),
+                      offset: Offset(0, 3),
+                      blurRadius: 10,
+                    ),
+                  ],
                 ),
-                child: Icon(icon, color: color, size: 30),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                child: Row(
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: Color(0xFF003465),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              color: Color(0xFF003465),
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              height: 1.1,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            subtitle,
+                            style: const TextStyle(
+                              color: Color(0xFF7A869A),
+                              fontSize: 14,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: Color(0xFF7A869A),
-                        fontSize: 13,
-                        height: 1.4,
-                      ),
+                    const SizedBox(width: 10),
+                    const Icon(
+                      Icons.arrow_forward_ios,
+                      size: 16,
+                      color: Color(0xFF003465),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: color),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

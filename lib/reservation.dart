@@ -21,6 +21,26 @@ class RenterPage extends StatefulWidget {
 }
 
 class _RenterPageState extends State<RenterPage> {
+  String _userRole = 'guest';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final snap = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final role = (snap.data()?['role'] ?? 'user').toString();
+      if (mounted) setState(() => _userRole = role);
+    } catch (_) {
+      // keep default role
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -34,7 +54,7 @@ class _RenterPageState extends State<RenterPage> {
           children: [
             DrawerHeader(
               decoration: const BoxDecoration(
-                color: Color(0xFF003465), // ✅ تغيير من Theme.of(context).colorScheme.primary
+                color: Color(0xFF003465),
               ),
               child: FirebaseAuth.instance.currentUser == null
                   ? Column(
@@ -42,21 +62,18 @@ class _RenterPageState extends State<RenterPage> {
                       children: [
                         GestureDetector(
                           onTap: () async {
-                            // Close drawer first
                             Navigator.pop(context);
-                            // Go to login (await if you want to react to result)
                             final result = await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => const LoginPage(),
                               ),
                             );
-                            // If login returned true (or something indicating updated state), refresh
-                            if (result == true) {
+                            if (result == true && mounted) {
                               setState(() {});
                             }
                           },
-                          child: CircleAvatar(
+                          child: const CircleAvatar(
                             radius: 35,
                             backgroundImage: AssetImage(
                               'lib/images/default_profile.png',
@@ -92,25 +109,21 @@ class _RenterPageState extends State<RenterPage> {
                             snapshot.data!.data() as Map<String, dynamic>;
                         String name = (data["name"] ?? "User").toString();
                         String? imageUrl = data["profileImage"] as String?;
+                        _userRole = (data['role'] ?? 'user').toString();
 
                         return Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             GestureDetector(
                               onTap: () async {
-                                // Close the drawer
                                 Navigator.pop(context);
-
-                                // Push ProfilePage and await result. ProfilePage should pop with true on success.
                                 final updated = await Navigator.push<bool?>(
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => const ProfilePage(),
                                   ),
                                 );
-
-                                // If ProfilePage returned true (meaning profile was updated), refresh UI
-                                if (updated == true) {
+                                if (updated == true && mounted) {
                                   setState(() {});
                                 }
                               },
@@ -118,11 +131,11 @@ class _RenterPageState extends State<RenterPage> {
                                 radius: 35,
                                 backgroundImage:
                                     (imageUrl != null && imageUrl.isNotEmpty)
-                                    ? NetworkImage(imageUrl)
-                                    : const AssetImage(
-                                            'lib/images/default_profile.png',
-                                          )
-                                          as ImageProvider,
+                                        ? NetworkImage(imageUrl)
+                                        : const AssetImage(
+                                                'lib/images/default_profile.png',
+                                              )
+                                            as ImageProvider,
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -139,36 +152,66 @@ class _RenterPageState extends State<RenterPage> {
                       },
                     ),
             ),
-
-            /// ---- MENU ITEMS ----
+            ListTile(
+              leading: const Icon(Icons.home),
+              title: const Text('Home'),
+              onTap: () {
+                Navigator.pop(context);
+                final role = _userRole.toLowerCase();
+                if (role == 'admin') {
+                  Navigator.pushReplacementNamed(context, '/admin');
+                } else if (role == 'donor') {
+                  Navigator.pushReplacementNamed(context, '/donor');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/home');
+                }
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.inventory),
-              title: const Text('Inventory Management'),
-              onTap: () => Navigator.pop(context),
+              title: const Text(
+                'Inventory Management',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+              },
             ),
             ListTile(
               leading: const Icon(Icons.calendar_month),
-              title: const Text('Reservation & Rental'),
-              onTap: () => Navigator.pop(context),
+              title: const Text(
+                'Reservation & Rental',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/inventory');
+              },
             ),
             ListTile(
               leading: const Icon(Icons.volunteer_activism),
-              title: const Text('Donations'),
+              title: const Text('Donations', style: TextStyle(fontSize: 14)),
               onTap: () {
+                Navigator.pop(context);
                 Navigator.pushNamed(context, '/donor');
               },
             ),
             ListTile(
               leading: const Icon(Icons.bar_chart),
-              title: const Text('Tracking & Reports'),
-              onTap: () => Navigator.pop(context),
+              title: const Text(
+                'Tracking & Reports',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+              },
             ),
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: FirebaseAuth.instance.currentUser != null
                   ? ListTile(
-                      leading: Icon(Icons.logout, color: Colors.red),
-                      title: Text(
+                      leading: const Icon(Icons.logout, color: Colors.red),
+                      title: const Text(
                         "Logout",
                         style: TextStyle(
                           color: Colors.red,
@@ -176,20 +219,14 @@ class _RenterPageState extends State<RenterPage> {
                         ),
                       ),
                       onTap: () async {
-                        // 1. Sign out
                         await FirebaseAuth.instance.signOut();
-
-                        // 2. Close drawer
-                        Navigator.pop(context);
-
-                        // 3. Redirect to home (guest view)
-                        Navigator.pushReplacementNamed(context, '/home');
-
-                        // 4. Refresh the UI
-                        setState(() {});
+                        if (mounted) {
+                          Navigator.pop(context);
+                          Navigator.pushReplacementNamed(context, '/home');
+                        }
                       },
                     )
-                  : SizedBox(), // if guest, hide logout
+                  : const SizedBox(),
             ),
           ],
         ),
