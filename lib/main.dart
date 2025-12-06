@@ -6,17 +6,17 @@ import 'package:project444/signup.dart';
 import 'login.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'reservation.dart';
+import 'Reservation/reservation.dart';
 import 'Donation/donor_page.dart';
 import 'services/hive_service.dart';
 import 'login.dart';
 import 'signup.dart';
 import 'admin_dashboard.dart';
 import 'inventory_list_screen.dart';
-import 'reservation_dates_screen.dart';
-import 'reservation_confirm_screen.dart';
-import 'reservation_success_screen.dart';
-import 'reservation_tracking_screen.dart';
+import 'reservation/reservation_dates_screen.dart';
+import 'reservation/reservation_confirm_screen.dart';
+import 'reservation/reservation_success_screen.dart';
+import 'reservation/reservation_tracking_screen.dart';
 import 'profilePage.dart';
 
 // Define a color scheme using a seed color
@@ -103,7 +103,7 @@ class MyApp extends StatelessWidget {
         '/login': (c) => const LoginPage(),
         '/signup': (c) => const SignupPage(),
         "/inventory": (c) => const InventoryListScreen(),
-        "/dates": (c) => const ReservationDatesScreen(),
+        // "/dates": (c) => const ReservationDatesScreen(),
         "/confirm": (c) => const Placeholder(),
         "/success": (c) => const ReservationSuccessScreen(),
         "/tracking": (c) => const ReservationTrackingScreen(),
@@ -157,6 +157,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Care Center'),
+        backgroundColor:  const Color(0xFF0A66C2),
         actions: [
           TextButton(
             onPressed: () {
@@ -184,7 +185,7 @@ drawer: Drawer(
     children: [
 DrawerHeader(
   decoration: BoxDecoration(
-    color: Theme.of(context).colorScheme.primary,
+    color:  const Color(0xFF0A66C2),
   ),
   child: FirebaseAuth.instance.currentUser == null
       ? Column(

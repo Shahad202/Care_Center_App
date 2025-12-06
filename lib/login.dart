@@ -3,10 +3,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'auth.dart';
 import 'signup.dart';
-import 'reservation.dart';
+import 'reservation/reservation.dart';
 import 'main.dart';
 import 'Donation/donor_page.dart';
-
+import 'reservation/reservation_dates_screen.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -36,7 +36,10 @@ class _LoginPageState extends State<LoginPage> {
 
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
+      appBar: AppBar(
+        title: const Text('Login'),
+        backgroundColor: const Color(0xFF0A66C2),
+      ),
       body: Center(
         child: Padding(padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -89,12 +92,14 @@ class _LoginPageState extends State<LoginPage> {
                _isLoading
                ? const CircularProgressIndicator()
                : ElevatedButton(onPressed: _login,
-                child: const Text('Login'),
+                child: const Text('Login', style: TextStyle(color: Colors.white),),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0A66C2)),
                 ),
                 TextButton(onPressed: (){
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const SignupPage())
                   );
-                }, child: const Text("Dont have an account? Sign Up"))
+                }, child: const Text("Dont have an account? Sign Up")
+                )
             ],
             ),
         ), 

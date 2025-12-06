@@ -9,7 +9,7 @@ import 'package:project444/signup.dart';
 import 'package:project444/login.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:project444/firebase_options.dart';
-import 'package:project444/reservation.dart';
+import 'package:project444/Reservation/reservation.dart';
 import 'package:project444/donation/donor_page.dart';
 import 'package:project444/profilePage.dart';
 
@@ -34,7 +34,7 @@ class _DonorPageState extends State<DonorPage> {
           children: [
             DrawerHeader(
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
+                color:  const Color(0xFF0A66C2),
               ),
               child: FirebaseAuth.instance.currentUser == null
                   ? Column(
