@@ -17,7 +17,7 @@ class DonationService {
     
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not authenticated');
-    print('Creating Firestore document (icons only, no photos)...');
+    print('Creating Firestore document...');
 
     try {
       final docRef = await _firestore.collection('donations').add({

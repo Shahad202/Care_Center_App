@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'details.dart';
+import '../navigation_transitions.dart';
 
 class TrackingTabPage extends StatefulWidget {
   const TrackingTabPage({super.key});
@@ -13,7 +14,7 @@ class TrackingTabPage extends StatefulWidget {
 class _TrackingTabPageState extends State<TrackingTabPage> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
-  String? _selectedStatus; // null = no status filter
+  String? _selectedStatus;
 
   @override
   void dispose() {
@@ -77,7 +78,6 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Login-required banner (auto-hides when uid != null)
           if (uid == null)
             Container(
               width: double.infinity,
@@ -120,8 +120,6 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
           const SizedBox(height: 20),
           _buildSearchBar(),
           const SizedBox(height: 20),
-
-          // If not logged in, show an empty state instead of hooking a stream to all data
           if (uid == null)
             Expanded(child: _emptyState())
           else
@@ -344,9 +342,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => DonationDetailsPage(donation: data),
-              ),
+              slideUpRoute(DonationDetailsPage(donation: data)),
             );
           },
           child: Padding(
@@ -473,9 +469,8 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                               onTap: () {
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(
-                                    builder: (_) => DonationDetailsPage(
-                                        donation: data),
+                                  slideUpRoute(
+                                    DonationDetailsPage(donation: data),
                                   ),
                                 );
                               },

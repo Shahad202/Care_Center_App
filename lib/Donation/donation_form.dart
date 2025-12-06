@@ -100,7 +100,6 @@ class _DonationFormPageState extends State<DonationFormPage> {
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
-    // إذا لم يكن مسجل دخول، عرض صفحة تسجيل الدخول
     if (uid == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Donate Equipment')),
@@ -188,7 +187,6 @@ class _DonationFormPageState extends State<DonationFormPage> {
       );
     }
 
-    // إذا كان مسجل دخول، عرض نموذج التبرع
     return Scaffold(
       appBar: AppBar(title: const Text('Donate Equipment')),
       body: SingleChildScrollView(

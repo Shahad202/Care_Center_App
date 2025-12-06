@@ -264,11 +264,8 @@ class _AdminDonationDetailsState extends State<AdminDonationDetails> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // أيقونة الجهاز
                 SizedBox(height: 240, child: _iconTile(iconKey)),
                 const SizedBox(height: 24),
-
-                // اسم الجهاز مع الحالة
                 Row(
                   children: [
                     Expanded(
@@ -309,8 +306,6 @@ class _AdminDonationDetailsState extends State<AdminDonationDetails> {
                   ],
                 ),
                 const SizedBox(height: 24),
-
-                // بطاقة التفاصيل الرئيسية
                 _sectionTitle('Item Details'),
                 const SizedBox(height: 12),
                 _detailCard([
@@ -337,7 +332,6 @@ class _AdminDonationDetailsState extends State<AdminDonationDetails> {
                   ),
                 ]),
 
-                // القسم الإضافي - الوصف
                 if (data['description'] != null &&
                     data['description'].toString().isNotEmpty) ...[
                   const SizedBox(height: 24),
@@ -373,8 +367,6 @@ class _AdminDonationDetailsState extends State<AdminDonationDetails> {
               ],
             ),
           ),
-
-          // أزرار الموافقة والرفض - تظهر فقط عند الـ pending
           if (status == 'pending')
             Positioned(
               bottom: 0,
