@@ -111,6 +111,14 @@ flutter:
       - lib/images/vector (1).svg
       - lib/images/vector (2).svg
       - lib/images/vector.svg
+
+      - lib/images/dashdoard_icon.svg
+      - lib/images/box.svg
+      - lib/images/filter.svg
+      - lib/images/location.svg
+      - lib/images/sorticon.svg
+      - lib/images/search.svg
+      - lib/images/plus.svg
       - assets/images/
 
   # An image asset can refer to one or more resolution-specific "variants", see
