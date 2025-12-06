@@ -9,7 +9,6 @@ import 'firebase_options.dart';
 import 'reservation.dart';
 import 'Donation/donor_page.dart';
 import 'inventory/inventory_admin.dart';
-import 'services/hive_service.dart';
 import 'login.dart';
 import 'signup.dart';
 import 'admin_dashboard.dart';
@@ -19,8 +18,6 @@ import 'reservation_confirm_screen.dart';
 import 'reservation_success_screen.dart';
 import 'reservation_tracking_screen.dart';
 import 'profilePage.dart';
-
-// Define a color scheme using a seed color
 
 final ColorScheme colorScheme = ColorScheme.fromSeed(seedColor: Colors.blue);
 final _AppColors appColors = const _AppColors();
@@ -41,12 +38,8 @@ class _AppColors extends ThemeExtension<_AppColors> {
   }
 }
 
-// firebse initilizaton takes time to connect to firebase services that is why it is async
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize Hive
-  await HiveService.init();
   
   try {
     await Firebase.initializeApp(
@@ -66,18 +59,16 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Care Center',
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: colorScheme,
-        // put your named colors into ThemeData via ThemeExtension
         extensions: <ThemeExtension<dynamic>>[appColors],
         appBarTheme: AppBarTheme(
           backgroundColor: colorScheme.primary,
           foregroundColor: colorScheme.onPrimary,
           elevation: 0,
         ),
-        // customize elevated button theme
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             shape: RoundedRectangleBorder(
@@ -88,7 +79,6 @@ class MyApp extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
           ),
         ),
-        // customize input decoration theme
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.grey.shade50,
@@ -100,7 +90,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/home': (c) => const MyHomePage(),
         '/donor': (c) => const DonorPage(),
-        '/admin': (c) => const AdminPage(userName: '',),
+        '/admin': (c) => const AdminPage(userName: ''),
         '/login': (c) => const LoginPage(),
         '/signup': (c) => const SignupPage(),
         "/inventory": (c) => const InventoryListScreen(),
@@ -114,7 +104,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-final String? userName;
+  final String? userName;
 
   const MyHomePage({super.key, this.userName});
 
@@ -123,131 +113,271 @@ final String? userName;
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  String _userRole = 'guest';
+
   @override
+  void initState() {
+    super.initState();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final snap = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final role = (snap.data()?['role'] ?? 'user').toString();
+      if (mounted) setState(() => _userRole = role);
+    } catch (_) {
+      // keep default role
+    }
+  }
+
   Widget _lockedFeature(String title, IconData icon) {
-    return InkWell(
-      onTap: () {
-        Navigator.pushNamed(context, '/login');
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade400),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 40, color: Colors.grey),
-            const SizedBox(height: 10),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade700,
+    var isPressed = false;
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return AnimatedScale(
+          scale: isPressed ? 0.97 : 1.0,
+          duration: const Duration(milliseconds: 120),
+          curve: Curves.easeOut,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () => Navigator.pushNamed(context, '/login'),
+              onHighlightChanged: (value) => setState(() => isPressed = value),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFF9FBFF), Color(0xFFF4F7FB)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border.all(
+                    color: const Color(0xFF8EA4BD),
+                    width: 1.4,
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color.fromRGBO(0, 0, 0, 0.06),
+                      offset: Offset(0, 3),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      icon,
+                      size: 44,
+                      color: const Color(0xFF003465),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF003465),
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Care Center'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginPage()),
-              );
-            },
-            child: const Text('Login', style: TextStyle(color: Colors.white)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SignupPage()),
-              );
-            },
-            child: const Text('Sign Up', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-drawer: Drawer(
-  child: ListView(
-    padding: EdgeInsets.zero,
-    children: [
-DrawerHeader(
-  decoration: BoxDecoration(
-    color: Theme.of(context).colorScheme.primary,
-  ),
-  child: FirebaseAuth.instance.currentUser == null
-      ? Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircleAvatar(
-              radius: 35,
-              backgroundImage:
-                  AssetImage('lib/images/ellipse5.svg'),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: AppBar(
+          backgroundColor: const Color(0xFF003465),
+          elevation: 0,
+          toolbarHeight: 70,
+          leading: Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu, color: Colors.white, size: 24),
+              tooltip: 'Open menu',
+              onPressed: () => Scaffold.of(context).openDrawer(),
             ),
-            SizedBox(height: 10),
-            Text(
-              "Welcome, Guest!",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            )
-          ],
-        )
-      : FutureBuilder<DocumentSnapshot>(
-          future: FirebaseFirestore.instance
-              .collection("users")
-              .doc(FirebaseAuth.instance.currentUser!.uid)
-              .get(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return Center(
-                child: CircularProgressIndicator(color: Colors.white),
-              );
-            }
-
-            var data = snapshot.data!.data() as Map<String, dynamic>;
-            String name = data["name"] ?? "User";
-            String? imageUrl = data["profileImage"];
-
-            return Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircleAvatar(
-                  radius: 35,
-                  backgroundImage: imageUrl != null && imageUrl.isNotEmpty
-                      ? NetworkImage(imageUrl)
-                      : AssetImage('lib/images/default_profile.png')
-                          as ImageProvider,
+          ),
+          centerTitle: false,
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                );
+              },
+              child: const Text(
+                'Login',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
                 ),
-                SizedBox(height: 10),
-                Text(
-                  "Welcome, $name!",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SignupPage()),
+                  );
+                },
+                style: TextButton.styleFrom(
+                  backgroundColor: Colors.white.withOpacity(0.2),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-              ],
-            );
-          },
+                child: const Text(
+                  'Sign Up',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-),
-            
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: const BoxDecoration(
+                color: Color(0xFF003465),
+              ),
+              child: FirebaseAuth.instance.currentUser == null
+                  ? Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: () async {
+                            Navigator.pop(context);
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const LoginPage(),
+                              ),
+                            );
+                            if (result == true && mounted) {
+                              setState(() {});
+                            }
+                          },
+                          child: const CircleAvatar(
+                            radius: 35,
+                            backgroundImage: AssetImage(
+                              'lib/images/default_profile.png',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          "Welcome, Guest!",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    )
+                  : FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection("users")
+                          .doc(FirebaseAuth.instance.currentUser!.uid)
+                          .get(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          );
+                        }
+
+                        var data =
+                            snapshot.data!.data() as Map<String, dynamic>;
+                        String name = (data["name"] ?? "User").toString();
+                        String? imageUrl = data["profileImage"] as String?;
+                        _userRole = (data['role'] ?? 'user').toString();
+
+                        return Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            GestureDetector(
+                              onTap: () async {
+                                Navigator.pop(context);
+                                final updated = await Navigator.push<bool?>(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const ProfilePage(),
+                                  ),
+                                );
+                                if (updated == true && mounted) {
+                                  setState(() {});
+                                }
+                              },
+                              child: CircleAvatar(
+                                radius: 35,
+                                backgroundImage:
+                                    (imageUrl != null && imageUrl.isNotEmpty)
+                                        ? NetworkImage(imageUrl)
+                                        : const AssetImage(
+                                                'lib/images/default_profile.png',
+                                              )
+                                            as ImageProvider,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              "Welcome, $name!",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.home),
+              title: const Text('Home'),
+              onTap: () {
+                Navigator.pop(context);
+                final role = _userRole.toLowerCase();
+                if (role == 'admin') {
+                  Navigator.pushReplacementNamed(context, '/admin');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/home');
+                }
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.inventory),
               title: const Text(
@@ -269,8 +399,8 @@ DrawerHeader(
                 style: TextStyle(fontSize: 14),
               ),
               onTap: () {
-                Navigator.pop(context); // يغلق القائمة
-                Navigator.pushNamed(context, '/inventory'); // يروح لصفحتك
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/inventory');
               },
             ),
             ListTile(
@@ -291,51 +421,84 @@ DrawerHeader(
                 Navigator.pop(context);
               },
             ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: FirebaseAuth.instance.currentUser != null
+                  ? ListTile(
+                      leading: const Icon(Icons.logout, color: Colors.red),
+                      title: const Text(
+                        "Logout",
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      onTap: () async {
+                        await FirebaseAuth.instance.signOut();
+                        if (mounted) {
+                          Navigator.pop(context);
+                          Navigator.pushReplacementNamed(context, '/home');
+                        }
+                      },
+                    )
+                  : const SizedBox(),
+            ),
           ],
         ),
       ),
-    
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Welcome to Care Center Management App!',
-              style: Theme.of(context).textTheme.headlineSmall,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
-
-            Center(
-              child: Text(
-                'Please login to access the below features.',
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center,
+      body: Container(
+        color: const Color(0xFFF7FBFF),
+        child: SingleChildScrollView(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Welcome to Care Center Management App',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Color(0xFF003465),
+                        fontSize: 27,
+                        fontWeight: FontWeight.w700,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Login to access all features',
+                      style: TextStyle(
+                        color: Color(0xFFAAA6B2),
+                        fontSize: 16,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 48),
+                    GridView.count(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: [
+                        _lockedFeature('Inventory', Icons.inventory_2),
+                        _lockedFeature('Reservation', Icons.calendar_month),
+                        _lockedFeature('Donations', Icons.volunteer_activism),
+                        _lockedFeature('Tracking', Icons.bar_chart),
+                      ],
+                    ),
+                    const SizedBox(height: 30),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 10),
-
-            // tiles that show Features
-            Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                children: [
-                  _lockedFeature('Inventory', Icons.inventory_2),
-                  _lockedFeature('Reservation', Icons.calendar_month),
-                  _lockedFeature('Donations', Icons.volunteer_activism),
-                  _lockedFeature('Tracking', Icons.bar_chart),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
-
-    
   }
 }
 
@@ -345,6 +508,6 @@ class AdminPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    return const AdminDashboard();
   }
 }

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:typed_data';
 import 'details.dart';
-import '../services/hive_service.dart';
-import '../models/donation_image.dart';
+import '../navigation_transitions.dart';
 
 class TrackingTabPage extends StatefulWidget {
   const TrackingTabPage({super.key});
@@ -16,7 +14,7 @@ class TrackingTabPage extends StatefulWidget {
 class _TrackingTabPageState extends State<TrackingTabPage> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
-  String? _selectedStatus; // null = no status filter
+  String? _selectedStatus;
 
   @override
   void dispose() {
@@ -32,8 +30,6 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
         return const Color(0xFF4CAF50);
       case 'rejected':
         return const Color(0xFFF44336);
-      case 'in review':
-        return const Color(0xFF2196F3);
       default:
         return const Color(0xFFAAA6B2);
     }
@@ -47,8 +43,6 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
         return 'Approved';
       case 'rejected':
         return 'Rejected';
-      case 'in review':
-        return 'In Review';
       default:
         return status;
     }
@@ -84,7 +78,6 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Login-required banner (auto-hides when uid != null)
           if (uid == null)
             Container(
               width: double.infinity,
@@ -106,7 +99,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                     ),
                   ),
                   TextButton(
-                    onPressed: () => Navigator.pushNamed(context, '/login'), // Changed to navigate to login
+                    onPressed: () => Navigator.pushNamed(context, '/login'),
                     child: const Text('Login', style: TextStyle(color: Color(0xFFFFA726))),
                   ),
                 ],
@@ -127,8 +120,6 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
           const SizedBox(height: 20),
           _buildSearchBar(),
           const SizedBox(height: 20),
-
-          // If not logged in, show an empty state instead of hooking a stream to all data
           if (uid == null)
             Expanded(child: _emptyState())
           else
@@ -275,7 +266,6 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                         'pending',
                         'approved',
                         'rejected',
-                        'in review'
                       ];
                       return Padding(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -329,18 +319,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
 
   Widget _donationCard(Map<String, dynamic> data) {
     final statusColor = _getStatusColor(data['status'] ?? 'pending');
-    final imageIds = (data['imageIds'] as List?)?.cast<String>() ?? [];
-
-    print('\n=== Donation Card Debug ===');
-    print('Item name: ${data['itemName']}');
-    print('Images count: ${imageIds.length}');
-    
-    if (imageIds.isNotEmpty) {
-      final firstImage = imageIds.first;
-      print('First image ID: $firstImage');
-    } else {
-      print('No images found for this donation');
-    }
+    final iconKey = (data['iconKey'] ?? 'default').toString();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -363,9 +342,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => DonationDetailsPage(donation: data),
-              ),
+              slideUpRoute(DonationDetailsPage(donation: data)),
             );
           },
           child: Padding(
@@ -389,12 +366,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                         ),
                       ],
                     ),
-                    child: imageIds.isNotEmpty
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: _buildImageFromHive(imageIds.first),
-                          )
-                        : _placeholderIcon(),
+                    child: _iconTile(iconKey),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -497,9 +469,8 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                               onTap: () {
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(
-                                    builder: (_) => DonationDetailsPage(
-                                        donation: data),
+                                  slideUpRoute(
+                                    DonationDetailsPage(donation: data),
                                   ),
                                 );
                               },
@@ -524,50 +495,44 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
     );
   }
 
-  Widget _buildImageFromHive(String imageId) {
-    return FutureBuilder<DonationImage?>(
-      future: HiveService.getImage(imageId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return _placeholderIcon();
-        }
-
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
-          return _placeholderIcon();
-        }
-
-        final image = snapshot.data!;
-
-        return Image.memory(
-          Uint8List.fromList(image.imageBytes),
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return _placeholderIcon();
-          },
-        );
-      },
-    );
-  }
-
-  Widget _placeholderIcon() {
+  Widget _iconTile(String iconKey) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFF003465).withOpacity(0.1),
+            const Color(0xFF003465).withOpacity(0.08),
             const Color(0xFF1976D2).withOpacity(0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Center(
+      child: Center(
         child: Icon(
-          Icons.medical_services_outlined,
-          color: Color(0xFF003465),
-          size: 40,
+          _mapIcon(iconKey),
+          color: const Color(0xFF003465),
+          size: 36,
         ),
       ),
     );
+  }
+
+  IconData _mapIcon(String key) {
+    switch (key) {
+      case 'wheelchair':
+        return Icons.wheelchair_pickup;
+      case 'walker':
+        return Icons.elderly;
+      case 'crutches':
+        return Icons.accessibility;
+      case 'shower_chair':
+        return Icons.chair;
+      case 'hospital_bed':
+        return Icons.bed;
+      case 'other':
+        return Icons.volunteer_activism;
+      default:
+        return Icons.inventory_2_outlined;
+    }
   }
 
   Widget _infoChip(IconData icon, String label, Color color) {

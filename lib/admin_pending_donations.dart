@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:typed_data';
-import 'services/hive_service.dart';
-import 'models/donation_image.dart';
 import 'admin_donation_details.dart';
+import 'navigation_transitions.dart';
 
 class AdminPendingDonations extends StatefulWidget {
   const AdminPendingDonations({super.key});
@@ -16,6 +14,7 @@ class AdminPendingDonations extends StatefulWidget {
 class _AdminPendingDonationsState extends State<AdminPendingDonations> {
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
+  final Set<String> _handledDonationIds = {};
 
   @override
   void initState() {
@@ -32,48 +31,249 @@ class _AdminPendingDonationsState extends State<AdminPendingDonations> {
   }
 
   Stream<QuerySnapshot> getAllDonations() {
-    if (_auth.currentUser == null) {
-      return const Stream.empty();
-    }
-    
+    if (_auth.currentUser == null) return const Stream.empty();
     try {
       return _firestore
           .collection('donations')
+          .where('status', isEqualTo: 'pending')
           .orderBy('createdAt', descending: true)
           .snapshots();
-    } catch (error) {
-      print('Error fetching donations: $error');
+    } catch (_) {
       return const Stream.empty();
     }
   }
 
-  Widget _buildImageFromHive(String imageId) {
-    return FutureBuilder<DonationImage?>(
-      future: HiveService.getImage(imageId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return _placeholderIcon();
-        }
+  @override
+  Widget build(BuildContext context) {
+    if (_auth.currentUser == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
-          return _placeholderIcon();
-        }
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7FBFF),
+      appBar: AppBar(
+        title: const Text('All Donations'),
+        backgroundColor: const Color(0xFF003465),
+        elevation: 0,
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: getAllDonations(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation(Color(0xFF003465)),
+              ),
+            );
+          }
 
-        final image = snapshot.data!;
+          if (snapshot.hasError) {
+            return _errorState(snapshot.error.toString());
+          }
 
-        return Image.memory(
-          Uint8List.fromList(image.imageBytes),
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return _placeholderIcon();
-          },
-        );
-      },
+          final docs = snapshot.data?.docs ?? [];
+          final filteredDocs = docs.where((d) => !_handledDonationIds.contains(d.id)).toList();
+          if (filteredDocs.isEmpty) return _emptyState();
+
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                itemCount: filteredDocs.length,
+                itemBuilder: (context, index) {
+                  final data = filteredDocs[index].data() as Map<String, dynamic>;
+                  final itemName = data['itemName'] ?? 'Unknown Item';
+                  final quantity = data['quantity'] ?? 0;
+                  final status = (data['status'] ?? 'pending').toString().toLowerCase();
+                  final createdAt = data['createdAt'] as Timestamp?;
+                  final iconKey = (data['iconKey'] ?? 'default').toString();
+
+                  String formattedDate = 'N/A';
+                  if (createdAt != null) {
+                    final date = createdAt.toDate();
+                    formattedDate = '${date.day} ${_getMonthName(date.month)} ${date.year}';
+                  }
+
+                  final statusColor = _getStatusColor(status);
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE6E8EB), width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF003465).withOpacity(0.06),
+                          offset: const Offset(0, 2),
+                          blurRadius: 10,
+                        ),
+                      ],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Hero(
+                                tag: 'admin_donation_${filteredDocs[index].id}',
+                                child: _iconTile(iconKey),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      itemName,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 16,
+                                        color: Color(0xFF003465),
+                                        letterSpacing: -0.1,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      formattedDate,
+                                      style: const TextStyle(
+                                        color: Color(0xFF7A869A),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: _infoChip(Icons.numbers, 'Qty: $quantity', const Color(0xFF7B1FA2)),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Flexible(
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            decoration: BoxDecoration(
+                                              color: statusColor.withOpacity(0.12),
+                                              borderRadius: BorderRadius.circular(999),
+                                              border: Border.all(color: statusColor.withOpacity(0.32), width: 1),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Container(
+                                                  width: 6,
+                                                  height: 6,
+                                                  decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Flexible(
+                                                  child: Text(
+                                                    _getStatusText(status),
+                                                    style: TextStyle(
+                                                      color: statusColor,
+                                                      fontSize: 11.5,
+                                                      fontWeight: FontWeight.w700,
+                                                    ),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF003465),
+                                minimumSize: const Size(double.infinity, 44),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              ),
+                              onPressed: () async {
+                                final result = await Navigator.push(
+                                  context,
+                                  slideUpRoute(
+                                    AdminDonationDetails(
+                                      donationId: filteredDocs[index].id,
+                                      donationData: data,
+                                    ),
+                                  ),
+                                );
+
+                                if (result == 'approved' || result == 'rejected') {
+                                  setState(() {
+                                    _handledDonationIds.add(filteredDocs[index].id);
+                                  });
+                                }
+                              },
+                              child: const Text(
+                                'View',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
-  Widget _placeholderIcon() {
+  Widget _iconTile(String iconKey) {
+    IconData icon;
+    switch (iconKey) {
+      case 'wheelchair':
+        icon = Icons.wheelchair_pickup;
+        break;
+      case 'walker':
+        icon = Icons.elderly;
+        break;
+      case 'crutches':
+        icon = Icons.accessibility;
+        break;
+      case 'shower_chair':
+        icon = Icons.chair;
+        break;
+      case 'hospital_bed':
+        icon = Icons.bed;
+        break;
+      case 'other':
+        icon = Icons.volunteer_activism;
+        break;
+      default:
+        icon = Icons.inventory_2_outlined;
+    }
     return Container(
+      width: 70,
+      height: 70,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -81,181 +281,118 @@ class _AdminPendingDonationsState extends State<AdminPendingDonations> {
             const Color(0xFF1976D2).withOpacity(0.05),
           ],
         ),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE6E8EB), width: 1),
       ),
-      child: const Center(
-        child: Icon(
-          Icons.medical_services_outlined,
-          color: Color(0xFF003465),
-          size: 40,
-        ),
+      child: Center(
+        child: Icon(icon, color: const Color(0xFF003465), size: 32),
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (_auth.currentUser == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('All Donations'),
-        elevation: 0,
+  Widget _infoChip(IconData icon, String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: getAllDonations(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text('Error: ${snapshot.error}'),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushReplacementNamed(context, '/login');
-                    },
-                    child: const Text('Go to Login'),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.inbox, size: 64, color: Colors.grey.shade400),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No donations available',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyLarge
-                        ?.copyWith(color: Colors.grey),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          final docs = snapshot.data!.docs;
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final data = docs[index].data() as Map<String, dynamic>;
-              final imageIds = List<String>.from(data['imageIds'] ?? []);
-              final itemName = data['itemName'] ?? 'Unknown Item';
-              final quantity = data['quantity'] ?? 0;
-              final status = data['status'] ?? 'pending';
-              final createdAt = data['createdAt'] as Timestamp?;
-              
-              String formattedDate = 'N/A';
-              if (createdAt != null) {
-                final date = createdAt.toDate();
-                formattedDate =
-                    '${date.day} ${_getMonthName(date.month)} ${date.year}';
-              }
-
-              Color statusColor = status == 'approved' 
-                  ? Colors.green 
-                  : status == 'rejected' 
-                      ? Colors.red 
-                      : Colors.orange;
-
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.all(12),
-                  leading: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: imageIds.isNotEmpty
-                        ? _buildImageFromHive(imageIds.first)
-                        : Container(
-                            width: 70,
-                            height: 70,
-                            color: Colors.grey.shade300,
-                            child: const Icon(Icons.image_not_supported),
-                          ),
-                  ),
-                  title: Text(
-                    itemName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 6),
-                      Text('Qty: $quantity'),
-                      Text(
-                        'Submitted: $formattedDate',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: statusColor),
-                        ),
-                        child: Text(
-                          status.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: statusColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  trailing: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => AdminDonationDetails(
-                            donationId: docs[index].id,
-                            donationData: data,
-                          ),
-                        ),
-                      );
-                    },
-                    child: const Text('View'),
-                  ),
-                ),
-              );
-            },
-          );
-        },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _emptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.inbox_outlined, size: 70, color: Color(0xFFAAA6B2)),
+          SizedBox(height: 16),
+          Text(
+            'No donations available',
+            style: TextStyle(
+              color: Color(0xFF003465),
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: 6),
+          Text(
+            'New submissions will appear here',
+            style: TextStyle(color: Color(0xFFAAA6B2), fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _errorState(String error) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 70, color: Color(0xFFF44336)),
+          const SizedBox(height: 14),
+          const Text(
+            'Something went wrong',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF003465),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: Text(
+              error,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, color: Color(0xFFAAA6B2)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return const Color(0xFFFFA726);
+      case 'approved':
+        return const Color(0xFF4CAF50);
+      case 'rejected':
+        return const Color(0xFFF44336);
+      default:
+        return const Color(0xFFAAA6B2);
+    }
+  }
+
+  String _getStatusText(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'Pending';
+      case 'approved':
+        return 'Approved';
+      case 'rejected':
+        return 'Rejected';
+      default:
+        return status;
+    }
   }
 
   String _getMonthName(int month) {

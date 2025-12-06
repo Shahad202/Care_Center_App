@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'donation_form.dart';
 import 'donation_item.dart';
+import '../navigation_transitions.dart';
 
 class DonateTabPage extends StatelessWidget {
   final Function(DonationItem)? onDonationAdded;
@@ -187,9 +188,7 @@ class DonateTabPage extends StatelessWidget {
           
           final result = await Navigator.push<DonationItem>(
             context,
-            MaterialPageRoute(
-              builder: (context) => const DonationFormPage(),
-            ),
+            slideUpRoute(const DonationFormPage()),
           );
 
           if (result != null) {
