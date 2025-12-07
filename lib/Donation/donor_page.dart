@@ -18,7 +18,7 @@ class DonorPage extends StatefulWidget {
 }
 
 class _DonorPageState extends State<DonorPage> {
-  int _selectedTabIndex = 0;
+  int _selectedTabIndex = 0;  // 0=About, 1=Donate, 2=Tracking
   String _userRole = 'guest';
 
   @override
@@ -282,13 +282,15 @@ class _DonorPageState extends State<DonorPage> {
   Widget _tabBtn(String label, int index) {
     final selected = _selectedTabIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _selectedTabIndex = index),
+      onTap: () => setState(() => _selectedTabIndex = index),  // Switch tabs
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(50),
           boxShadow: selected
               ? [const BoxShadow(color: Color(0x14000000), offset: Offset(0, 4), blurRadius: 6)]
               : null,
+          // Selected: Dark blue with shadow
+          // Unselected: Light background with border
           color: selected ? const Color(0xFF003465) : const Color(0xFFF7FBFF),
           border: selected ? null : Border.all(color: const Color(0xFFAAA6B2), width: 1),
         ),
@@ -325,11 +327,11 @@ class _DonorPageState extends State<DonorPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _makeDifferenceCard(),
+          _makeDifferenceCard(),      // "Make a Difference" banner
           const SizedBox(height: 30),
-          _howItWorks(),
+          _howItWorks(),              // 3-step process explanation
           const SizedBox(height: 30),
-          _beforeDonateCard(),
+          _beforeDonateCard(),        // 4-point checklist
           const SizedBox(height: 30),
         ],
       ),
@@ -385,18 +387,24 @@ class _DonorPageState extends State<DonorPage> {
           style: TextStyle(color: Color(0xFF003465), fontSize: 20, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 30),
+        
+        // Step 1
         _stepCard(
           'lib/images/Level1.png',
           'Submit Your Donation',
           'Fill out the donation form with equipment details and photos',
         ),
         const SizedBox(height: 30),
+        
+        // Step 2
         _stepCard(
           'lib/images/2circled.png',
           'Admin Review',
           'Our team will review your submission within 24-48 hours',
         ),
         const SizedBox(height: 30),
+        
+        // Step 3
         _stepCard(
           'lib/images/Circled3.png',
           'Help Someone',
@@ -417,6 +425,7 @@ class _DonorPageState extends State<DonorPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Icon/Image (49x49)
           Container(
             width: 49,
             height: 49,
@@ -425,6 +434,8 @@ class _DonorPageState extends State<DonorPage> {
             ),
           ),
           const SizedBox(width: 10),
+          
+          // Title + Description
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
