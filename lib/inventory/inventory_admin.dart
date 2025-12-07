@@ -13,70 +13,21 @@ class NewinventoryWidget extends StatefulWidget {
 class _NewinventoryWidgetState extends State<NewinventoryWidget> {
   late TextEditingController _searchController;
   String _filterStatus = 'All';
-  List<Map<String, String>> _filteredItems = [];
   String _userRole = 'user';
-
-  final List<Map<String, String>> _inventoryItems = [
-    {
-      'name': 'Wheelchair',
-      'category': 'Mobility Aid',
-      'status': 'Available',
-      'location': 'Ward A - Room 101',
-      'quantity': '5',
-    },
-    {
-      'name': 'Walker',
-      'category': 'Mobility Aid',
-      'status': 'Rented',
-      'location': 'Ward B - Room 205',
-      'quantity': '3',
-    },
-    {
-      'name': 'Blood Pressure Monitor',
-      'category': 'Medical Device',
-      'status': 'Available',
-      'location': 'Clinic Room 3',
-      'quantity': '8',
-    },
-    {
-      'name': 'Hospital Bed',
-      'category': 'Furniture',
-      'status': 'Maintenance',
-      'location': 'Storage Room A',
-      'quantity': '2',
-    },
-    {
-      'name': 'Thermometer',
-      'category': 'Medical Device',
-      'status': 'Available',
-      'location': 'Clinic Room 1',
-      'quantity': '15',
-    },
-  ];
 
   @override
   void initState() {
     super.initState();
     _searchController = TextEditingController();
-    _searchController.addListener(_filterItems);
-    _filteredItems = _inventoryItems;
+    _searchController.addListener(() {
+      setState(() {}); // Rebuild when search text changes
+    });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  void _filterItems() {
-    setState(() {
-      _filteredItems = _inventoryItems.where((item) {
-        final matchesSearch = item['name']!.toLowerCase().contains(_searchController.text.toLowerCase()) ||
-            item['category']!.toLowerCase().contains(_searchController.text.toLowerCase());
-        final matchesStatus = _filterStatus == 'All' || item['status'] == _filterStatus;
-        return matchesSearch && matchesStatus;
-      }).toList();
-    });
   }
 
   Color _getStatusColor(String status) {
@@ -90,6 +41,11 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
       default:
         return const Color.fromRGBO(106, 114, 130, 1);
     }
+  }
+
+  String _capitalizeStatus(String status) {
+    if (status.isEmpty) return 'Available';
+    return status[0].toUpperCase() + status.substring(1).toLowerCase();
   }
 
   @override
@@ -221,10 +177,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => NewinventoryWidget()),
-                );
+                Navigator.pushNamed(context, '/inventory');
               },
             ),
             ListTile(
@@ -235,7 +188,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/inventory');
+                Navigator.pushNamed(context, '/renter');
               },
             ),
             ListTile(
@@ -332,9 +285,9 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            '${_filteredItems.length} items',
-                            style: const TextStyle(
+                          const Text(
+                            'Manage Items',
+                            style: TextStyle(
                               color: Color.fromRGBO(255, 255, 255, 0.7),
                               fontFamily: 'Arimo',
                               fontSize: 13,
@@ -403,7 +356,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
                                 ? GestureDetector(
                                     onTap: () {
                                       _searchController.clear();
-                                      _filterItems();
+                                      setState(() {});
                                     },
                                     child: const Icon(
                                       Icons.close,
@@ -456,7 +409,6 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
                           onSelected: (value) {
                             setState(() {
                               _filterStatus = value;
-                              _filterItems();
                             });
                           },
                           itemBuilder: (BuildContext context) => [
@@ -493,27 +445,84 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
             // Inventory Cards List
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              child: _filteredItems.isEmpty
-                  ? _buildEmptyState()
-                  : Column(
-                      children: List.generate(
-                        _filteredItems.length,
-                        (index) {
-                          final item = _filteredItems[index];
-                          return Padding(
-                            padding: EdgeInsets.only(bottom: index < _filteredItems.length - 1 ? 16 : 80),
-                            child: _buildInventoryCard(
-                              name: item['name']!,
-                              category: item['category']!,
-                              status: item['status']!,
-                              statusColor: _getStatusColor(item['status']!),
-                              location: item['location']!,
-                              quantity: item['quantity']!,
-                            ),
-                          );
-                        },
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('inventory')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                            const SizedBox(height: 16),
+                            Text('Error: ${snapshot.error}'),
+                            const SizedBox(height: 8),
+                            const Text('Check console for details', style: TextStyle(fontSize: 12)),
+                          ],
+                        ),
                       ),
-                    ),
+                    );
+                  }
+
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(40),
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return _buildEmptyState();
+                  }
+
+                  // Filter items based on search and status
+                  final searchQuery = _searchController.text.toLowerCase();
+                  final filteredDocs = snapshot.data!.docs.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final name = (data['name'] ?? '').toString().toLowerCase();
+                    final category = (data['category'] ?? '').toString().toLowerCase();
+                    final status = (data['status'] ?? 'available').toString();
+                    
+                    final matchesSearch = searchQuery.isEmpty ||
+                        name.contains(searchQuery) ||
+                        category.contains(searchQuery);
+                    
+                    final matchesStatus = _filterStatus == 'All' ||
+                        status.toLowerCase() == _filterStatus.toLowerCase();
+                    
+                    return matchesSearch && matchesStatus;
+                  }).toList();
+
+                  if (filteredDocs.isEmpty) {
+                    return _buildEmptyState();
+                  }
+
+                  return Column(
+                    children: filteredDocs.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final doc = entry.value;
+                      final data = doc.data() as Map<String, dynamic>;
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: index < filteredDocs.length - 1 ? 16 : 80),
+                        child: _buildInventoryCard(
+                          name: data['name'] ?? 'Unknown',
+                          category: data['category'] ?? 'Other',
+                          status: _capitalizeStatus(data['status'] ?? 'available'),
+                          statusColor: _getStatusColor(_capitalizeStatus(data['status'] ?? 'available')),
+                          location: data['location'] ?? 'N/A',
+                          quantity: (data['quantity'] ?? 0).toString(),
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
             ),
               ],
             ),
@@ -538,7 +547,6 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
       onSelected: (selected) {
         setState(() {
           _filterStatus = label;
-          _filterItems();
         });
       },
       selected: isSelected,

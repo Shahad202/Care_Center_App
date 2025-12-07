@@ -168,6 +168,7 @@ class _DonorPageState extends State<DonorPage> {
               ),
               onTap: () {
                 Navigator.pop(context);
+                Navigator.pushNamed(context, '/inventory');
               },
             ),
             ListTile(
@@ -178,7 +179,7 @@ class _DonorPageState extends State<DonorPage> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/inventory');
+                Navigator.pushNamed(context, '/renter');
               },
             ),
             ListTile(

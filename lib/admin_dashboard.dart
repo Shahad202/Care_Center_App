@@ -44,7 +44,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: const BoxDecoration(color: Color(0xFF003465)),
+              decoration: const BoxDecoration(
+                color: Color(0xFF003465),
+              ),
               child: FirebaseAuth.instance.currentUser == null
                   ? Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -54,7 +56,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             Navigator.pop(context);
                             final result = await Navigator.push(
                               context,
-                              slideUpRoute(const LoginPage()),
+                              MaterialPageRoute(
+                                builder: (_) => const LoginPage(),
+                              ),
                             );
                             if (result == true && mounted) {
                               setState(() {});
@@ -106,7 +110,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 Navigator.pop(context);
                                 final updated = await Navigator.push<bool?>(
                                   context,
-                                  slideUpRoute(const ProfilePage()),
+                                  MaterialPageRoute(
+                                    builder: (_) => const ProfilePage(),
+                                  ),
                                 );
                                 if (updated == true && mounted) {
                                   setState(() {});
@@ -152,25 +158,43 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             ListTile(
               leading: const Icon(Icons.inventory),
-              title: const Text('Inventory Management'),
-              onTap: () => Navigator.pop(context),
+              title: const Text(
+                'Inventory Management',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/inventory');
+              },
             ),
             ListTile(
               leading: const Icon(Icons.calendar_month),
-              title: const Text('Reservation & Rental'),
-              onTap: () => Navigator.pop(context),
+              title: const Text(
+                'Reservation & Rental',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/renter');
+              },
             ),
             ListTile(
               leading: const Icon(Icons.volunteer_activism),
-              title: const Text('Donations'),
+              title: const Text('Donations', style: TextStyle(fontSize: 14)),
               onTap: () {
+                Navigator.pop(context);
                 Navigator.pushNamed(context, '/donor');
               },
             ),
             ListTile(
               leading: const Icon(Icons.bar_chart),
-              title: const Text('Tracking & Reports'),
-              onTap: () => Navigator.pop(context),
+              title: const Text(
+                'Tracking & Reports',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+              },
             ),
             Padding(
               padding: const EdgeInsets.all(16.0),

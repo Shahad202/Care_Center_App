@@ -9,6 +9,8 @@ import 'firebase_options.dart';
 import 'reservation/reservation.dart';
 import 'Donation/donor_page.dart';
 import 'inventory/inventory_admin.dart';
+import 'inventory/inventory_admin_new.dart';
+import 'inventory/inventory_user.dart';
 import 'login.dart';
 import 'signup.dart';
 import 'admin_dashboard.dart';
@@ -93,8 +95,9 @@ class MyApp extends StatelessWidget {
         '/admin': (c) => const AdminPage(userName: ''),
         '/login': (c) => const LoginPage(),
         '/signup': (c) => const SignupPage(),
-        "/inventory": (c) => const InventoryListScreen(),
-        "/dates": (c) => const ReservationDatesScreen(inventoryItemId: '', itemName: '', requestedQuantity: 8,),
+        "/inventory": (c) => InventoryUserWidget(),
+        "/inventory_admin": (c) => InventoryAdminWidget(),
+        "/renter": (c) => const RenterPage(),
         "/confirm": (c) => const Placeholder(),
         "/success": (c) => const ReservationSuccessScreen(),
         "/tracking": (c) => const ReservationTrackingScreen(),
@@ -386,10 +389,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => NewinventoryWidget()),
-                );
+                Navigator.pushNamed(context, '/inventory_admin');
               },
             ),
             ListTile(
@@ -400,7 +400,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/inventory');
+                Navigator.pushNamed(context, '/renter');
               },
             ),
             ListTile(

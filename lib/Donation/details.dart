@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class DonationDetailsPage extends StatefulWidget {
   final Map<String, dynamic> donation;
@@ -10,6 +11,128 @@ class DonationDetailsPage extends StatefulWidget {
 }
 
 class _DonationDetailsPageState extends State<DonationDetailsPage> {
+  bool _isProcessing = false;
+
+  Future<void> _approveDonation() async {
+    setState(() => _isProcessing = true);
+    
+    try {
+      final donationId = widget.donation['id'];
+      
+      // Validate and ensure quantity is valid (must be > 0)
+      int quantity = widget.donation['quantity'] ?? 0;
+      if (quantity <= 0) {
+        quantity = 1; // Default to 1 if invalid
+      }
+      
+      // 1. Add to inventory collection
+      await FirebaseFirestore.instance.collection('inventory').add({
+        'name': widget.donation['itemName'],
+        'category': _getCategoryFromIcon(widget.donation['iconKey']),
+        'status': 'available',
+        'quantity': quantity,
+        'condition': widget.donation['condition'],
+        'description': widget.donation['description'] ?? '',
+        'location': widget.donation['location'] ?? 'N/A',
+        'source': 'donation',
+        'donationId': donationId,
+        'addedAt': FieldValue.serverTimestamp(),
+        'iconKey': widget.donation['iconKey'],
+      });
+      
+      // 2. Update donation status to approved
+      await FirebaseFirestore.instance
+          .collection('donations')
+          .doc(donationId)
+          .update({'status': 'approved'});
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Donation approved and added to inventory!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _rejectDonation() async {
+    setState(() => _isProcessing = true);
+    
+    try {
+      final donationId = widget.donation['id'];
+      
+      // Update donation status to rejected
+      await FirebaseFirestore.instance
+          .collection('donations')
+          .doc(donationId)
+          .update({'status': 'rejected'});
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Donation rejected'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  String _getCategoryFromIcon(String? iconKey) {
+    switch (iconKey) {
+      case 'wheelchair':
+      case 'walker':
+      case 'crutches':
+        return 'Mobility Aid';
+      case 'hospital_bed':
+        return 'Furniture';
+      case 'shower_chair':
+        return 'Medical Device';
+      default:
+        return 'Other';
+    }
+  }
+
+  Future<String> _getUserRole() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return 'guest';
+    
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      return (doc.data()?['role'] ?? 'user').toString().toLowerCase();
+    } catch (_) {
+      return 'user';
+    }
+  }
   
   // Condition Color
   Color _getConditionColor(String condition) {
@@ -246,7 +369,72 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
               ),
             ],
             
-            const SizedBox(height: 30),  // Bottom spacing
+            const SizedBox(height: 30),
+            
+            // Admin Action Buttons
+            FutureBuilder<String>(
+              future: _getUserRole(),
+              builder: (context, snapshot) {
+                final isAdmin = snapshot.data == 'admin';
+                final status = widget.donation['status']?.toString().toLowerCase() ?? 'pending';
+                
+                if (!isAdmin || status != 'pending') {
+                  return const SizedBox.shrink();
+                }
+                
+                return Column(
+                  children: [
+                    _sectionTitle('Admin Actions'),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _isProcessing ? null : _approveDonation,
+                            icon: _isProcessing
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.check_circle),
+                            label: const Text('Approve'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF4CAF50),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _isProcessing ? null : _rejectDonation,
+                            icon: const Icon(Icons.cancel),
+                            label: const Text('Reject'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFF44336),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 30),
+                  ],
+                );
+              },
+            ),
           ],
         ),
       ),

@@ -32,12 +32,16 @@ class DonationItem {
   // Factory Constructor - converts Firestore document to DonationItem
   factory DonationItem.fromDoc(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    // Ensure quantity is always > 0 (default to 1 if missing or invalid)
+    int qty = data['quantity'] ?? 0;
+    if (qty <= 0) qty = 1;
+    
     return DonationItem(
       id: doc.id,                                              // Document ID from Firestore
       itemName: data['itemName'] ?? '',                        // Get from Firestore or empty string
       condition: data['condition'] ?? '',
       description: data['description'] ?? '',
-      quantity: data['quantity'] ?? 0,                         // Default to 0 if missing
+      quantity: qty,                                           // Validated quantity (always > 0)
       location: data['location'] ?? '',
       status: data['status'] ?? 'pending',                     // Default to 'pending' if missing
       donorId: data['donorId'] ?? '',

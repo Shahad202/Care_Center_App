@@ -14,67 +14,69 @@ class ReservationTrackingScreen extends StatelessWidget {
         ),
       ),
 
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Reservation Status",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 24),
-
-            _statusStep(
-              title: "Request Sent",
-              subtitle: "Your reservation request has been created.",
-              isDone: true,
-            ),
-
-            _statusStep(
-              title: "Pending Approval",
-              subtitle: "Waiting for the admin to review your request.",
-              isDone: false,
-            ),
-
-            _statusStep(
-              title: "Approved",
-              subtitle: "Your reservation will start soon.",
-              isDone: false,
-            ),
-
-            _statusStep(
-              title: "Ready for Pickup",
-              subtitle: "Your equipment is available now.",
-              isDone: false,
-            ),
-
-            _statusStep(
-              title: "Returned",
-              subtitle: "Reservation completed successfully.",
-              isDone: false,
-            ),
-
-            const Spacer(),
-
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.popUntil(
-                    context,
-                    ModalRoute.withName("/inventory"),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0A66C2),
-                ),
-                child: const Text("Back to Inventory"),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Reservation Status",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-            ),
-          ],
+
+              const SizedBox(height: 24),
+
+              _statusStep(
+                title: "Request Sent",
+                subtitle: "Your reservation request has been created.",
+                isDone: true,
+              ),
+
+              _statusStep(
+                title: "Pending Approval",
+                subtitle: "Waiting for the admin to review your request.",
+                isDone: false,
+              ),
+
+              _statusStep(
+                title: "Approved",
+                subtitle: "Your reservation will start soon.",
+                isDone: false,
+              ),
+
+              _statusStep(
+                title: "Ready for Pickup",
+                subtitle: "Your equipment is available now.",
+                isDone: false,
+              ),
+
+              _statusStep(
+                title: "Returned",
+                subtitle: "Reservation completed successfully.",
+                isDone: false,
+              ),
+
+              const SizedBox(height: 24),
+
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.popUntil(
+                      context,
+                      ModalRoute.withName("/inventory"),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0A66C2),
+                  ),
+                  child: const Text("Back to Inventory"),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
