@@ -21,7 +21,7 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
 
 
-  // Instance of AuthService 
+  // Instance of AuthService. 
   final AuthService _authService = AuthService();
   // Loading state
   bool _isLoading = false;
