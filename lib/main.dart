@@ -6,17 +6,17 @@ import 'package:project444/signup.dart';
 import 'login.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'reservation.dart';
+import 'Reservation/reservation.dart';
 import 'Donation/donor_page.dart';
 import 'inventory/inventory_admin.dart';
 import 'login.dart';
 import 'signup.dart';
 import 'admin_dashboard.dart';
 import 'inventory_list_screen.dart';
-import 'reservation_dates_screen.dart';
-import 'reservation_confirm_screen.dart';
-import 'reservation_success_screen.dart';
-import 'reservation_tracking_screen.dart';
+import 'reservation/reservation_dates_screen.dart';
+import 'reservation/reservation_confirm_screen.dart';
+import 'reservation/reservation_success_screen.dart';
+import 'reservation/reservation_tracking_screen.dart';
 import 'profilePage.dart';
 
 final ColorScheme colorScheme = ColorScheme.fromSeed(seedColor: Colors.blue);
@@ -94,7 +94,7 @@ class MyApp extends StatelessWidget {
         '/login': (c) => const LoginPage(),
         '/signup': (c) => const SignupPage(),
         "/inventory": (c) => const InventoryListScreen(),
-        "/dates": (c) => const ReservationDatesScreen(),
+        // "/dates": (c) => const ReservationDatesScreen(),
         "/confirm": (c) => const Placeholder(),
         "/success": (c) => const ReservationSuccessScreen(),
         "/tracking": (c) => const ReservationTrackingScreen(),
@@ -200,123 +200,68 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(70),
-        child: AppBar(
-          backgroundColor: const Color(0xFF003465),
-          elevation: 0,
-          toolbarHeight: 70,
-          leading: Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu, color: Colors.white, size: 24),
-              tooltip: 'Open menu',
-              onPressed: () => Scaffold.of(context).openDrawer(),
-            ),
+      appBar: AppBar(
+        title: const Text('Care Center'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginPage()),
+              );
+            },
+            child: const Text('Login', style: TextStyle(color: Colors.white)),
           ),
-          centerTitle: false,
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginPage()),
-                );
-              },
-              child: const Text(
-                'Login',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const SignupPage()),
-                  );
-                },
-                style: TextButton.styleFrom(
-                  backgroundColor: Colors.white.withOpacity(0.2),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text(
-                  'Sign Up',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+          TextButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SignupPage()),
+              );
+            },
+            child: const Text('Sign Up', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
+drawer: Drawer(
+  child: ListView(
+    padding: EdgeInsets.zero,
+    children: [
+DrawerHeader(
+  decoration: BoxDecoration(
+    color: Theme.of(context).colorScheme.primary,
+  ),
+  child: FirebaseAuth.instance.currentUser == null
+      ? Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            DrawerHeader(
-              decoration: const BoxDecoration(
-                color: Color(0xFF003465),
+            CircleAvatar(
+              radius: 35,
+              backgroundImage:
+                  AssetImage('lib/images/ellipse5.svg'),
+            ),
+            SizedBox(height: 10),
+            Text(
+              "Welcome, Guest!",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
-              child: FirebaseAuth.instance.currentUser == null
-                  ? Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        GestureDetector(
-                          onTap: () async {
-                            Navigator.pop(context);
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const LoginPage(),
-                              ),
-                            );
-                            if (result == true && mounted) {
-                              setState(() {});
-                            }
-                          },
-                          child: const CircleAvatar(
-                            radius: 35,
-                            backgroundImage: AssetImage(
-                              'lib/images/default_profile.png',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          "Welcome, Guest!",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    )
-                  : FutureBuilder<DocumentSnapshot>(
-                      future: FirebaseFirestore.instance
-                          .collection("users")
-                          .doc(FirebaseAuth.instance.currentUser!.uid)
-                          .get(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                            ),
-                          );
-                        }
+            )
+          ],
+        )
+      : FutureBuilder<DocumentSnapshot>(
+          future: FirebaseFirestore.instance
+              .collection("users")
+              .doc(FirebaseAuth.instance.currentUser!.uid)
+              .get(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              );
+            }
 
                         var data =
                             snapshot.data!.data() as Map<String, dynamic>;
