@@ -8,10 +8,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'reservation/reservation.dart';
 import 'Donation/donor_page.dart';
-import 'inventory/inventory_admin.dart';
 import 'inventory/inventory_admin_new.dart';
 import 'inventory/inventory_user.dart';
-import 'login.dart';
 import 'signup.dart';
 import 'admin_dashboard.dart';
 import 'inventory_list_screen.dart';
@@ -389,7 +387,12 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/inventory_admin');
+                final role = _userRole.toLowerCase();
+                if (role == 'admin') {
+                  Navigator.pushReplacementNamed(context, '/inventory_admin');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/inventory');
+                }
               },
             ),
             ListTile(

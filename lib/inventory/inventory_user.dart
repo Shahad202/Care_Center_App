@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:project444/login.dart';
+import 'package:project444/profilePage.dart';
 
 class InventoryUserWidget extends StatefulWidget {
   @override
@@ -12,7 +14,7 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
   String _filterStatus = 'Available';
   String _selectedCategory = 'All';
   String _sourceFilter = 'All';
-  String _viewMode = 'grid'; // 'grid' or 'list'
+  String _userRole = 'guest';
 
   final List<String> _statusFilters = ['All', 'Available', 'Rented', 'Maintenance', 'Donated'];
   final List<String> _categoryFilters = ['All', 'Mobility Aid', 'Medical Device', 'Furniture', 'Other'];
@@ -25,6 +27,19 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
     _searchController.addListener(() {
       setState(() {});
     });
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final snap = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final role = (snap.data()?['role'] ?? 'user').toString();
+      if (mounted) setState(() => _userRole = role);
+    } catch (_) {
+      // keep default role
+    }
   }
 
   @override
@@ -63,16 +78,193 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(_viewMode == 'grid' ? Icons.view_list : Icons.grid_view),
-            onPressed: () {
-              setState(() {
-                _viewMode = _viewMode == 'grid' ? 'list' : 'grid';
-              });
-            },
-          ),
-        ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: const BoxDecoration(
+                color: Color(0xFF003465),
+              ),
+              child: FirebaseAuth.instance.currentUser == null
+                  ? Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: () async {
+                            Navigator.pop(context);
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const LoginPage(),
+                              ),
+                            );
+                            if (result == true && mounted) {
+                              setState(() {});
+                            }
+                          },
+                          child: const CircleAvatar(
+                            radius: 35,
+                            backgroundImage: AssetImage(
+                              'lib/images/default_profile.png',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          "Welcome, Guest!",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    )
+                  : FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection("users")
+                          .doc(FirebaseAuth.instance.currentUser!.uid)
+                          .get(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          );
+                        }
+
+                        var data =
+                            snapshot.data!.data() as Map<String, dynamic>;
+                        String name = (data["name"] ?? "User").toString();
+                        String? imageUrl = data["profileImage"] as String?;
+                        _userRole = (data['role'] ?? 'user').toString();
+
+                        return Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            GestureDetector(
+                              onTap: () async {
+                                Navigator.pop(context);
+                                final updated = await Navigator.push<bool?>(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const ProfilePage(),
+                                  ),
+                                );
+                                if (updated == true && mounted) {
+                                  setState(() {});
+                                }
+                              },
+                              child: CircleAvatar(
+                                radius: 35,
+                                backgroundImage:
+                                    (imageUrl != null && imageUrl.isNotEmpty)
+                                        ? NetworkImage(imageUrl)
+                                        : const AssetImage(
+                                                'lib/images/default_profile.png',
+                                              )
+                                            as ImageProvider,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              "Welcome, $name!",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.home),
+              title: const Text('Home'),
+              onTap: () {
+                Navigator.pop(context);
+                final role = _userRole.toLowerCase();
+                if (role == 'admin') {
+                  Navigator.pushReplacementNamed(context, '/admin');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/home');
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.inventory),
+              title: const Text(
+                'Inventory Management',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                final role = _userRole.toLowerCase();
+                if (role == 'admin') {
+                  Navigator.pushReplacementNamed(context, '/inventory_admin');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/inventory');
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_month),
+              title: const Text(
+                'Reservation & Rental',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/renter');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.volunteer_activism),
+              title: const Text('Donations', style: TextStyle(fontSize: 14)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/donor');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.bar_chart),
+              title: const Text(
+                'Tracking & Reports',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: FirebaseAuth.instance.currentUser != null
+                  ? ListTile(
+                      leading: const Icon(Icons.logout, color: Colors.red),
+                      title: const Text(
+                        "Logout",
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      onTap: () async {
+                        await FirebaseAuth.instance.signOut();
+                        if (mounted) {
+                          Navigator.pop(context);
+                          Navigator.pushReplacementNamed(context, '/home');
+                        }
+                      },
+                    )
+                  : const SizedBox(),
+            ),
+          ],
+        ),
       ),
       body: Column(
         children: [
@@ -104,30 +296,137 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _statusFilters.map(_buildStatusChip).toList(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _categoryFilters.map(_buildCategoryChip).toList(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Wrap(
-                    spacing: 8,
-                    children: _sourceFilters.map(_buildSourceChip).toList(),
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            PopupMenuButton<String>(
+                              icon: const Icon(Icons.tune, color: Color(0xFF6B7280)),
+                              tooltip: 'Filters',
+                              onSelected: (value) {
+                                setState(() {});
+                              },
+                              itemBuilder: (BuildContext context) {
+                                return [
+                                  PopupMenuItem<String>(
+                                    enabled: false,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Text(
+                                          'Status',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF6B7280),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 6,
+                                          children: _statusFilters.map((label) {
+                                            final isSelected = _filterStatus == label;
+                                            return FilterChip(
+                                              label: Text(label),
+                                              selected: isSelected,
+                                              onSelected: (_) {
+                                                setState(() => _filterStatus = label);
+                                                Navigator.pop(context);
+                                              },
+                                              backgroundColor: const Color(0xFFF3F4F6),
+                                              selectedColor: const Color(0xFF003465),
+                                              labelStyle: TextStyle(
+                                                color: isSelected ? Colors.white : const Color(0xFF374151),
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 12,
+                                              ),
+                                              side: BorderSide.none,
+                                            );
+                                          }).toList(),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        const Text(
+                                          'Category',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF6B7280),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 6,
+                                          children: _categoryFilters.map((label) {
+                                            final isSelected = _selectedCategory == label;
+                                            return FilterChip(
+                                              label: Text(label),
+                                              selected: isSelected,
+                                              onSelected: (_) {
+                                                setState(() => _selectedCategory = label);
+                                                Navigator.pop(context);
+                                              },
+                                              backgroundColor: const Color(0xFFF3F4F6),
+                                              selectedColor: const Color(0xFF003465),
+                                              labelStyle: TextStyle(
+                                                color: isSelected ? Colors.white : const Color(0xFF374151),
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 12,
+                                              ),
+                                              side: BorderSide.none,
+                                            );
+                                          }).toList(),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        const Text(
+                                          'Source',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF6B7280),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 6,
+                                          children: _sourceFilters.map((label) {
+                                            final isSelected = _sourceFilter == label;
+                                            return ChoiceChip(
+                                              label: Text(label),
+                                              selected: isSelected,
+                                              onSelected: (_) {
+                                                setState(() => _sourceFilter = label);
+                                                Navigator.pop(context);
+                                              },
+                                              selectedColor: const Color(0xFF003465),
+                                              backgroundColor: const Color(0xFFF3F4F6),
+                                              labelStyle: TextStyle(
+                                                color: isSelected ? Colors.white : const Color(0xFF374151),
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 12,
+                                              ),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                            );
+                                          }).toList(),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ];
+                              },
+                            ),
+                            const SizedBox(width: 12),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -202,9 +501,7 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
                     );
                   }
 
-                  return _viewMode == 'grid'
-                      ? _buildGridView(filteredDocs)
-                      : _buildListView(filteredDocs);
+                  return _buildListView(filteredDocs);
                 },
               ),
             ),
@@ -214,390 +511,211 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
     );
   }
 
-  Widget _buildGridView(List<QueryDocumentSnapshot> docs) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 0.7,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-        ),
-        itemCount: docs.length,
-        itemBuilder: (context, index) {
-          final data = docs[index].data() as Map<String, dynamic>;
-          return _buildGridCard(data);
-        },
-      ),
-    );
-  }
-
   Widget _buildListView(List<QueryDocumentSnapshot> docs) {
     return Padding(
-      padding: const EdgeInsets.all(16),
-      child: ListView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: docs.length,
-        itemBuilder: (context, index) {
-          final data = docs[index].data() as Map<String, dynamic>;
-          return _buildListCard(data);
-        },
-      ),
-    );
-  }
-
-  Widget _buildStatusChip(String label) {
-    final isSelected = _filterStatus == label;
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (_) {
-        setState(() => _filterStatus = label);
-      },
-      backgroundColor: const Color(0xFFF3F4F6),
-      selectedColor: const Color(0xFF003465),
-      labelStyle: TextStyle(
-        color: isSelected ? Colors.white : const Color(0xFF374151),
-        fontWeight: FontWeight.w600,
-        fontSize: 13,
-      ),
-      side: BorderSide.none,
-    );
-  }
-
-  Widget _buildCategoryChip(String label) {
-    final isSelected = _selectedCategory == label;
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (_) {
-        setState(() => _selectedCategory = label);
-      },
-      backgroundColor: const Color(0xFFF3F4F6),
-      selectedColor: const Color(0xFF003465),
-      labelStyle: TextStyle(
-        color: isSelected ? Colors.white : const Color(0xFF374151),
-        fontWeight: FontWeight.w600,
-        fontSize: 13,
-      ),
-      side: BorderSide.none,
-    );
-  }
-
-  Widget _buildSourceChip(String label) {
-    final isSelected = _sourceFilter == label;
-    return ChoiceChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (_) {
-        setState(() => _sourceFilter = label);
-      },
-      selectedColor: const Color(0xFF003465),
-      backgroundColor: const Color(0xFFF3F4F6),
-      labelStyle: TextStyle(
-        color: isSelected ? Colors.white : const Color(0xFF374151),
-        fontWeight: FontWeight.w600,
-        fontSize: 13,
-      ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    );
-  }
-
-  Widget _buildGridCard(Map<String, dynamic> data) {
-    final rentalPrice = data['rentalPricePerDay'];
-    final status = data['status'] ?? 'available';
-    final statusColor = _getStatusColor(status);
-    final category = data['type'] ?? data['category'] ?? 'Other';
-    final source = (data['source'] ?? 'manual').toString();
-    final location = data['location'] ?? '';
-    final itemId = data['itemId'];
-
-    String _statusLabel(String value) {
-      final lower = value.toString().toLowerCase();
-      if (lower == 'maintenance') return 'Maintenance';
-      return lower[0].toUpperCase() + lower.substring(1);
-    }
-    
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () => _showItemDetails(data),
-        borderRadius: BorderRadius.circular(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image placeholder
-            Container(
-              height: 120,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE5E7EB),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF003465).withOpacity(0.1),
-                    const Color(0xFF1874CF).withOpacity(0.1),
-                  ],
-                ),
-              ),
-              child: Center(
-                child: Icon(
-                  _getIconFromCategory(category),
-                  size: 48,
-                  color: const Color(0xFF003465),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    data['name'] ?? 'Unknown',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF111827),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    category,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF6B7280),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          _statusLabel(status),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: statusColor,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: source == 'donation'
-                              ? const Color(0xFFE0E7FF)
-                              : const Color(0xFFE5E7EB),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          source == 'donation' ? 'Donated' : 'Rentable',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: source == 'donation'
-                                ? const Color(0xFF1D4ED8)
-                                : const Color(0xFF4B5563),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.inventory_2_outlined, size: 16, color: Color(0xFF6B7280)),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Qty: ${data['quantity'] ?? 0}',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
-                      ),
-                    ],
-                  ),
-                  if (rentalPrice != null) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      'SR $rentalPrice/day',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF003465),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      child: Column(
+        children: docs.asMap().entries.map((entry) {
+          final index = entry.key;
+          final doc = entry.value;
+          final data = doc.data() as Map<String, dynamic>;
+          return Padding(
+            padding: EdgeInsets.only(bottom: index < docs.length - 1 ? 16 : 80),
+            child: _buildListCard(data),
+          );
+        }).toList(),
       ),
     );
   }
 
   Widget _buildListCard(Map<String, dynamic> data) {
-    final rentalPrice = data['rentalPricePerDay'];
     final status = data['status'] ?? 'available';
     final statusColor = _getStatusColor(status);
     final category = data['type'] ?? data['category'] ?? 'Other';
-    final source = (data['source'] ?? 'manual').toString();
     final location = data['location'] ?? '';
-    final itemId = data['itemId'];
+    final quantity = data['quantity'] ?? 0;
 
     String _statusLabel(String value) {
       final lower = value.toString().toLowerCase();
       if (lower == 'maintenance') return 'Maintenance';
       return lower[0].toUpperCase() + lower.substring(1);
     }
-    
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+
+    return Material(
+      color: Colors.transparent,
       child: InkWell(
         onTap: () => _showItemDetails(data),
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE5E7EB),
-                  borderRadius: BorderRadius.circular(8),
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFF003465).withOpacity(0.1),
-                      const Color(0xFF1874CF).withOpacity(0.1),
-                    ],
-                  ),
-                ),
-                child: Icon(
-                  _getIconFromCategory(category),
-                  size: 40,
-                  color: const Color(0xFF003465),
-                ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: const Color.fromRGBO(0, 0, 0, 0.08),
+                offset: const Offset(0, 2),
+                blurRadius: 8,
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      data['name'] ?? 'Unknown',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF111827),
-                      ),
+            ],
+            color: Colors.white,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Image Section with Status Badge
+                Container(
+                  width: double.infinity,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE5E7EB),
+                    gradient: LinearGradient(
+                      colors: [
+                        statusColor.withOpacity(0.15),
+                        statusColor.withOpacity(0.05),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      category,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF6B7280),
+                  ),
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: Icon(
+                          _getIconFromCategory(category),
+                          size: 60,
+                          color: const Color(0xFF003465),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      Positioned(
+                        top: 12,
+                        right: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(6),
+                            color: statusColor,
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color.fromRGBO(0, 0, 0, 0.2),
+                                offset: Offset(0, 2),
+                                blurRadius: 4,
+                              ),
+                            ],
                           ),
                           child: Text(
                             _statusLabel(status),
-                            style: TextStyle(
-                              fontSize: 11,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: statusColor,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: source == 'donation'
-                                ? const Color(0xFFE0E7FF)
-                                : const Color(0xFFE5E7EB),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            source == 'donation' ? 'Donated' : 'Rentable',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: source == 'donation'
-                                  ? const Color(0xFF1D4ED8)
-                                  : const Color(0xFF4B5563),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.inventory_2_outlined, size: 16, color: Color(0xFF6B7280)),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Qty: ${data['quantity'] ?? 0}',
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
-                        ),
-                        if (itemId != null && itemId.toString().isNotEmpty) ...[
-                          const SizedBox(width: 8),
-                          const Icon(Icons.tag, size: 14, color: Color(0xFF9CA3AF)),
-                          const SizedBox(width: 2),
-                          Text(
-                            itemId.toString(),
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF4B5563)),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ],
-                    ),
-                    if (location.isNotEmpty) ...[
-                      const SizedBox(height: 6),
+                      ),
+                    ],
+                  ),
+                ),
+                // Content Section
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Name and Category
                       Text(
-                        location,
-                        style: const TextStyle(color: Color(0xFF4B5563), fontSize: 12),
+                        data['name'] ?? 'Unknown',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF111827),
+                        ),
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                    if (rentalPrice != null) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 2),
                       Text(
-                        'SR $rentalPrice/day',
+                        category,
                         style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF003465),
+                          fontSize: 13,
+                          color: Color(0xFF6B7280),
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      // Condition Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: const Color(0xFFDCFCE7),
+                          border: Border.all(
+                            color: const Color(0xFFB8F7CF),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          data['condition'] ?? 'Good Condition',
+                          style: const TextStyle(
+                            color: Color(0xFF008235),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Location
+                      if (location.isNotEmpty)
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on_outlined,
+                              size: 18,
+                              color: Color(0xFF9CA3AF),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                location,
+                                style: const TextStyle(
+                                  color: Color(0xFF495565),
+                                  fontSize: 13,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      if (location.isNotEmpty) const SizedBox(height: 8),
+                      // Quantity
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.inventory_2_outlined,
+                            size: 18,
+                            color: Color(0xFF9CA3AF),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Quantity: ',
+                            style: TextStyle(
+                              color: Color(0xFF495565),
+                              fontSize: 13,
+                            ),
+                          ),
+                          Text(
+                            quantity.toString(),
+                            style: const TextStyle(
+                              color: Color(0xFF111827),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
-                  ],
+                  ),
                 ),
-              ),
-              const Icon(Icons.chevron_right, color: Color(0xFF9CA3AF)),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -773,3 +891,4 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
     );
   }
 }
+

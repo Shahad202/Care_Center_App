@@ -168,7 +168,12 @@ class _DonorPageState extends State<DonorPage> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/inventory');
+                final role = _userRole.toLowerCase();
+                if (role == 'admin') {
+                  Navigator.pushReplacementNamed(context, '/inventory_admin');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/inventory');
+                }
               },
             ),
             ListTile(

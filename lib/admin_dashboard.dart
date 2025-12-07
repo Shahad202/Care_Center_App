@@ -164,7 +164,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/inventory');
+                final role = _userRole.toLowerCase();
+                if (role == 'admin') {
+                  Navigator.pushReplacementNamed(context, '/inventory_admin');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/inventory');
+                }
               },
             ),
             ListTile(
@@ -281,9 +286,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       title: 'Inventory Management',
                       subtitle: 'Manage items in inventory',
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Coming soon...')),
-                        );
+                        Navigator.pushReplacementNamed(context, '/inventory_admin');
                       },
                     ),
                     const SizedBox(height: 20),
