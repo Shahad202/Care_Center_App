@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminDonationDetails extends StatefulWidget {
-  final String donationId;
-  final Map<String, dynamic> donationData;
+  final String donationId;                    // Document ID from Firestore
+  final Map<String, dynamic> donationData;    // Donation object data
 
   const AdminDonationDetails({
-    super.key,
     required this.donationId,
     required this.donationData,
   });
@@ -17,7 +16,7 @@ class AdminDonationDetails extends StatefulWidget {
 
 class _AdminDonationDetailsState extends State<AdminDonationDetails> {
   final _firestore = FirebaseFirestore.instance;
-  bool _isLoading = false;
+  bool _isLoading = false;  // For disable buttons during API call
 
   IconData _mapIcon(String key) {
     switch (key) {
@@ -122,18 +121,19 @@ class _AdminDonationDetailsState extends State<AdminDonationDetails> {
   }
 
   Future<void> _approveDonation() async {
-    if (_isLoading) return;
-
-    setState(() => _isLoading = true);
+    if (_isLoading) return;  // Prevent double-tap
+    setState(() => _isLoading = true);  // Disable buttons
 
     try {
       final data = widget.donationData;
 
+      // STEP 1: Update donation status to 'approved'
       await _firestore.collection('donations').doc(widget.donationId).update({
         'status': 'approved',
-        'approvedAt': Timestamp.now(),
+        'approvedAt': Timestamp.now(),  // Track approval timestamp
       });
 
+      // STEP 2: Create inventory entry from donation
       await _firestore.collection('inventory').add({
         'name': data['itemName'] ?? 'Unknown',
         'condition': data['condition'] ?? 'Good',
@@ -141,24 +141,26 @@ class _AdminDonationDetailsState extends State<AdminDonationDetails> {
         'quantity': data['quantity'] ?? 0,
         'location': data['location'] ?? 'Not specified',
         'imageIds': data['imageIds'] ?? [],
-        'status': 'available',
-        'source': 'donation',
+        'status': 'available',  // Ready for rental
+        'source': 'donation',   // Track origin
         'donorId': data['donorId'] ?? '',
-        'donationId': widget.donationId,
+        'donationId': widget.donationId,  // Link back to donation
         'createdAt': Timestamp.now(),
       });
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Donation approved and added to inventory!'),
-            backgroundColor: Color(0xFF4CAF50),
-          ),
-        );
-        Future.delayed(const Duration(milliseconds: 400), () {
-          if (mounted) Navigator.pop(context, 'approved');
-        });
-      }
+      // STEP 3: Show success message (green)
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Donation approved and added to inventory!'),
+          backgroundColor: Color(0xFF4CAF50),  // Green
+        ),
+      );
+
+      // STEP 4: Delay 400ms then navigate back
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (mounted) Navigator.pop(context, 'approved');  // Return result
+      });
+
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -169,15 +171,15 @@ class _AdminDonationDetailsState extends State<AdminDonationDetails> {
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      // STEP 6: Re-enable buttons
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _rejectDonation() async {
     if (_isLoading) return;
 
+    // STEP 1: Show confirmation dialog
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -205,27 +207,30 @@ class _AdminDonationDetailsState extends State<AdminDonationDetails> {
       ),
     );
 
-    if (confirm != true) return;
-
+    if (confirm != true) return;  // User clicked Cancel
+    
     setState(() => _isLoading = true);
 
     try {
+      // STEP 2: Update status to 'rejected'
       await _firestore.collection('donations').doc(widget.donationId).update({
         'status': 'rejected',
         'rejectedAt': Timestamp.now(),
       });
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Donation rejected'),
-            backgroundColor: Color(0xFFFFA726),
-          ),
-        );
-        Future.delayed(const Duration(milliseconds: 400), () {
-          if (mounted) Navigator.pop(context, 'rejected');
-        });
-      }
+      // STEP 3: Show orange snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Donation rejected'),
+          backgroundColor: Color(0xFFFFA726),  // Orange
+        ),
+      );
+
+      // STEP 4: Navigate back with result
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (mounted) Navigator.pop(context, 'rejected');
+      });
+
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -236,20 +241,20 @@ class _AdminDonationDetailsState extends State<AdminDonationDetails> {
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // STEP 1: Extract donation data
     final data = widget.donationData;
     final status = data['status'] ?? 'pending';
     final iconKey = (data['iconKey'] ?? 'default').toString();
     final statusColor = _getStatusColor(status);
     final conditionColor = _getConditionColor(data['condition'] ?? 'good');
 
+    // STEP 2: Return Scaffold with AppBar
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFF),
       appBar: AppBar(
@@ -257,8 +262,11 @@ class _AdminDonationDetailsState extends State<AdminDonationDetails> {
         elevation: 0,
         title: const Text('Donation Details'),
       ),
+
+      // STEP 3: Build body with Stack
       body: Stack(
         children: [
+          // STEP 4: Scrollable donation details (center)
           SingleChildScrollView(
             padding: const EdgeInsets.all(20).copyWith(bottom: 120),
             child: Column(
@@ -387,6 +395,7 @@ class _AdminDonationDetailsState extends State<AdminDonationDetails> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
+                    // REJECT button (Red #F44336)
                     Expanded(
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
@@ -419,6 +428,7 @@ class _AdminDonationDetailsState extends State<AdminDonationDetails> {
                       ),
                     ),
                     const SizedBox(width: 16),
+                    // APPROVE button (Green #4CAF50)
                     Expanded(
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(

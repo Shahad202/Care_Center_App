@@ -56,7 +56,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
         return '${dt.day}/${dt.month}/${dt.year}';
       }
       if (createdAt is DateTime) {
-        return '${createdAt.day}/${createdAt.month}/${createdAt.year}';
+        return '${createdAt.day}/${createdAt.month}/${createdAt.year}'; // e.g., "7/12/2025"
       }
       return createdAt.toString();
     } catch (_) {
@@ -66,25 +66,30 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
 
   @override
   Widget build(BuildContext context) {
+    // STEP 1: Get current user ID
     final uid = FirebaseAuth.instance.currentUser?.uid;
+    
+    // STEP 2: Create Firestore query - ONLY this user's donations
     Query query = FirebaseFirestore.instance.collection('donations');
     if (uid != null) {
-      query = query.where('donorId', isEqualTo: uid);
+      query = query.where('donorId', isEqualTo: uid);  // Filter by donor
     }
+    
+    // STEP 3: Order by creation date (newest first)
     final stream = query.orderBy('createdAt', descending: true).snapshots();
 
+    // STEP 4: Build UI with StreamBuilder for real-time updates
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // STEP 5: Show login prompt if not authenticated
           if (uid == null)
             Container(
-              width: double.infinity,
               padding: const EdgeInsets.all(12),
-              margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF3E0),
+                color: const Color(0xFFFFF3E0),  // Orange background
                 border: Border.all(color: const Color(0xFFFFA726)),
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -93,14 +98,11 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                   const Icon(Icons.info_outline, color: Color(0xFFFFA726)),
                   const SizedBox(width: 8),
                   const Expanded(
-                    child: Text(
-                      'Please log in to see your donations.',
-                      style: TextStyle(color: Color(0xFF8D6E63)),
-                    ),
+                    child: Text('Please log in to see your donations.'),
                   ),
                   TextButton(
                     onPressed: () => Navigator.pushNamed(context, '/login'),
-                    child: const Text('Login', style: TextStyle(color: Color(0xFFFFA726))),
+                    child: const Text('Login'),
                   ),
                 ],
               ),
@@ -125,8 +127,9 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
           else
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: stream,
+                stream: stream,  // Real-time updates from Firestore
                 builder: (context, snapshot) {
+                  // STEP 1: Handle loading state
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
                       child: CircularProgressIndicator(
@@ -135,14 +138,19 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                       ),
                     );
                   }
+                  
+                  // STEP 2: Handle errors
                   if (snapshot.hasError) {
                     return _errorState(snapshot.error.toString());
                   }
+                  
+                  // STEP 3: Get all donations from Firestore
                   final docs = snapshot.data?.docs ?? [];
                   if (docs.isEmpty) {
-                    return _emptyState();
+                    return _emptyState();  // "No donations yet"
                   }
 
+                  // STEP 4: Apply search + status filters
                   final filtered = docs.where((d) {
                     final data = d.data() as Map<String, dynamic>;
                     final name =
@@ -150,11 +158,13 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                     final status =
                         (data['status'] ?? '').toString().toLowerCase();
 
+                    // Check if matches search query
                     final matchesSearch = _query.isEmpty
                         ? true
                         : name.contains(_query.toLowerCase()) ||
                             status.contains(_query.toLowerCase());
 
+                    // Check if matches selected status
                     final matchesStatus = _selectedStatus == null
                         ? true
                         : status == _selectedStatus;
@@ -162,10 +172,12 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                     return matchesSearch && matchesStatus;
                   }).toList();
 
+                  // STEP 5: Show empty state if no results after filtering
                   if (filtered.isEmpty) {
-                    return _emptyFiltered();
+                    return _emptyFiltered();  // "No matching results"
                   }
 
+                  // STEP 6: Build list of donation cards
                   return ListView.builder(
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
@@ -195,6 +207,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
       ),
       child: Row(
         children: [
+          // SEARCH FIELD
           Expanded(
             child: TextField(
               controller: _searchController,
@@ -231,6 +244,8 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
             ),
           ),
           const SizedBox(width: 12),
+          
+          // FILTER BUTTON (Status filter)
           Container(
             width: 52,
             height: 52,
@@ -254,6 +269,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
               child: InkWell(
                 borderRadius: BorderRadius.circular(26),
                 onTap: () async {
+                  // Show modal bottom sheet with status options
                   final chosen = await showModalBottomSheet<String?>(
                     context: context,
                     isScrollControlled: true,
@@ -340,6 +356,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () {
+            // Navigate to DonationDetailsPage when tapped
             Navigator.push(
               context,
               slideUpRoute(DonationDetailsPage(donation: data)),
@@ -349,6 +366,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
+                // ICON SECTION (88x88)
                 Hero(
                   tag: 'donation_${data['itemName']}_${data.hashCode}',
                   child: Container(
@@ -366,19 +384,22 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                         ),
                       ],
                     ),
-                    child: _iconTile(iconKey),
+                    child: _iconTile(iconKey),  // Shows wheelchair, walker, etc.
                   ),
                 ),
                 const SizedBox(width: 12),
+                
+                // CONTENT SECTION
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Item name + Date
                       Row(
                         children: [
                           Expanded(
                             child: Text(
-                              data['itemName'] ?? 'Unknown',
+                              data['itemName'] ?? 'Unknown',  // e.g., "Wheelchair"
                               style: const TextStyle(
                                 fontSize: 16.5,
                                 fontWeight: FontWeight.w700,
@@ -391,7 +412,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            _formatCreatedAt(data['createdAt']),
+                            _formatCreatedAt(data['createdAt']),  // e.g., "7/12/2025"
                             style: const TextStyle(
                               fontSize: 11,
                               color: Color(0xFF7A869A),
@@ -401,22 +422,26 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                         ],
                       ),
                       const SizedBox(height: 6),
+                      
+                      // Condition + Quantity chips
                       Row(
                         children: [
                           _infoChip(
                             Icons.inventory_2_outlined,
-                            data['condition'] ?? 'N/A',
+                            data['condition'] ?? 'N/A',  // e.g., "Good"
                             const Color(0xFF1976D2),
                           ),
                           const SizedBox(width: 8),
                           _infoChip(
                             Icons.numbers,
-                            '${data['quantity'] ?? 1}',
+                            '${data['quantity'] ?? 1}',  // e.g., "2"
                             const Color(0xFF7B1FA2),
                           ),
                         ],
                       ),
                       const SizedBox(height: 8),
+                      
+                      // Status badge + Arrow button
                       Row(
                         children: [
                           Expanded(
@@ -434,6 +459,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  // Status dot
                                   Container(
                                     width: 6,
                                     height: 6,
@@ -461,6 +487,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                             ),
                           ),
                           const SizedBox(width: 8),
+                          // Forward arrow button
                           Material(
                             color: const Color(0xFF003465),
                             shape: const CircleBorder(),

@@ -12,14 +12,14 @@ class DonationFormPage extends StatefulWidget {
 }
 
 class _DonationFormPageState extends State<DonationFormPage> {
-  final _formKey = GlobalKey<FormState>();
-  final _itemNameController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _quantityController = TextEditingController();
-  final _locationController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();           // For form validation
+  final _itemNameController = TextEditingController();     // Item name input
+  final _descriptionController = TextEditingController();  // Description input
+  final _quantityController = TextEditingController();     // Quantity input
+  final _locationController = TextEditingController();     // Location input
 
-  String? _selectedCondition;
-  String? _selectedIconKey;
+  String? _selectedCondition;  // Dropdown: New, Like New, Good, Fair, Needs Repair
+  String? _selectedIconKey;    // User's selected icon (wheelchair, walker, etc.)
 
   final List<String> _conditions = ['New', 'Like New', 'Good', 'Fair', 'Needs Repair'];
   final Map<String, Map<String, dynamic>> _iconOptions = {
@@ -36,8 +36,8 @@ class _DonationFormPageState extends State<DonationFormPage> {
       'label': 'Crutches',
     },
     'shower_chair': {
-      'icon': Icons.chair,
-      'label': 'Shower Chair',
+      'icon': Icons.gas_meter,
+      'label': 'Oxygen Machines',
     },
     'hospital_bed': {
       'icon': Icons.bed,
@@ -67,20 +67,27 @@ class _DonationFormPageState extends State<DonationFormPage> {
   }
 
   Future<void> _submitDonation() async {
+    // STEP 1: Validate the form fields
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    
+    // STEP 2: Check if icon is selected
     if (_selectedIconKey == null) {
       _showMessage('Please select an icon for the item.', color: Colors.red);
       return;
     }
+    
+    // STEP 3: Authentication check - redirect to login if not logged in
     if (FirebaseAuth.instance.currentUser == null) {
       Navigator.pushNamed(context, '/login');
       return;
     }
 
     try {
+      // STEP 4: Parse quantity from text field
       final qty = int.tryParse(_quantityController.text.trim()) ?? 1;
       final itemName = _itemNameController.text.trim();
       
+      // STEP 5: Call DonationService to save to Firestore
       final donation = await DonationService().addDonation(
         itemName: itemName,
         condition: _selectedCondition ?? 'Good',
@@ -89,9 +96,15 @@ class _DonationFormPageState extends State<DonationFormPage> {
         location: _locationController.text.trim(),
         iconKey: _selectedIconKey!,
       );
+      
+      // STEP 6: Show success message
       _showMessage('Donation submitted successfully!', color: Colors.green);
+      
+      // STEP 7: Return to previous screen with the donation result
       if (mounted) Navigator.pop(context, donation);
+      
     } catch (e) {
+      // STEP 8: Handle errors and show error message
       _showMessage('Error: $e', color: Colors.red);
     }
   }
@@ -101,6 +114,7 @@ class _DonationFormPageState extends State<DonationFormPage> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
     if (uid == null) {
+      // Shows login screen if user not authenticated
       return Scaffold(
         appBar: AppBar(title: const Text('Donate Equipment')),
         body: Center(

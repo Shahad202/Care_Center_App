@@ -198,7 +198,7 @@ class DonateTabPage extends StatelessWidget {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Donation "${result.itemName}" submitted successfully!'),
+                  content: Text('Donation submitted successfully!'),
                   backgroundColor: const Color(0xFF4CAF50),
                   duration: const Duration(seconds: 3),
                 ),
