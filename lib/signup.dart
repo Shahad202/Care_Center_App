@@ -171,7 +171,7 @@ bool _isLoading = false;
   }
   Future<void> _signup() async {
     if (!_formKey.currentState!.validate()){
-      // form is invalide, dont proceed
+      // form is invalid, dont proceed
       return;
       }
 
@@ -195,7 +195,9 @@ bool _isLoading = false;
       if (user != null){
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Sign Up Successful')),
-        ); } else {
+        ); 
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginPage()));
+        } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Sign Up failed. check the information you provided'))
         );

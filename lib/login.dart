@@ -1,6 +1,12 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'auth.dart';
 import 'signup.dart';
+import 'reservation.dart';
+import 'main.dart';
+import 'Donation/donor_page.dart';
+
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -104,22 +110,55 @@ class _LoginPageState extends State<LoginPage> {
       // form is invalid, dont proceed
       return;
     }
-
+    
     setState(() => _isLoading = true);
 
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    final user  = await _authService.signIn(email, password);
+
+    try {
+    final user  = await _authService.signIn(email: email, password:password);
 
     setState(() => _isLoading = false);
 
     if (user != null){
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login Successful!')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login failed. check creditials.')));
-    }
+
+      // get users date from the firestore 
+      final doc = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(user.uid)
+      .get();
+
+
+    if (doc.exists){
+      final name= doc['name'];
+      final role = doc['role'];
+
+
+       ScaffoldMessenger.of(context).showSnackBar(
+         SnackBar(content: Text('Welcome, $name!')));
+
+        // Navigate based on role:
+        if (role == 'Admin'){
+          // to remove the login page from history, so user can't press back and return to guest home or login screen sisnce there are already buttons for these
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => AdminPage(userName: name)));
+        } else if (role == 'Donor'){
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => DonorPage(userName: name)));
+        } else if (role == 'Renter'){
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => RenterPage(userName: name)));
+        }
+      }
+    }  
+  } catch (e) {
+    setState(() {
+      _isLoading = false;
+    });
+    print('Login error details: $e'); // طباعة التفاصيل
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Login failed: ${e.toString()}'))
+    );
   }
+}
+
 }
