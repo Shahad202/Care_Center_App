@@ -197,6 +197,7 @@ class _DonorPageState extends State<DonorPage> {
               ),
               onTap: () {
                 Navigator.pop(context);
+                Navigator.pushNamed(context, '/reports');
               },
             ),
             Padding(

@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:project444/login.dart';
+import 'package:project444/profilePage.dart';
+import 'package:project444/inventory/inventory_admin.dart';
+import 'package:project444/admin_dashboard.dart';
+import 'package:project444/admin_donation_details.dart';
 
 void main() {
   runApp(const CareCenterApp());
@@ -39,142 +46,21 @@ class _CareCenterState extends State<CareCenter> {
   String _notificationPriorityFilter = 'all';
   List<int> _dismissedNotifications = [];
   AppNotification? _selectedNotification;
+  String _userRole = 'guest';
+  bool _isLoading = true;
 
-  final List<RentalData> _rentalData = [
-    RentalData('Wheelchairs', 45, 12),
-    RentalData('Walkers', 32, 8),
-    RentalData('Crutches', 28, 15),
-    RentalData('Hospital Beds', 15, 5),
-    RentalData('Oxygen Machines', 10, 3),
-    RentalData('Others', 1, 3),
-  ];
+  // Dynamic data from Firebase
+  List<RentalData> _rentalData = [];
+  List<TrendData> _usageTrend = [];
+  List<StatusData> _equipmentStatus = [];
+  List<AppNotification> _notifications = [];
+  List<ActiveRental> _activeRentals = [];
 
-  final List<TrendData> _usageTrend = [
-    TrendData('Aug', 85, 8, 3),
-    TrendData('Sep', 95, 10, 4),
-    TrendData('Oct', 110, 12, 6),
-    TrendData('Nov', 130, 15, 8),
-    TrendData('Dec', 125, 12, 5),
-  ];
-
-  final List<StatusData> _equipmentStatus = [
-    StatusData('Available', 145, const Color(0xFF10b981)),
-    StatusData('Rented', 85, const Color(0xFF3b82f6)),
-    StatusData('Maintenance', 12, const Color(0xFFf59e0b)),
-    StatusData('Reserved', 23, const Color(0xFF8b5cf6)),
-  ];
-
-  final List<AppNotification> _notifications = [
-    AppNotification(
-      id: 1,
-      type: 'overdue',
-      title: 'Overdue Return',
-      message: 'Wheelchair  is 2 days overdue',
-      user: 'Ahmed Al-Khalifa',
-      phone: '+973 3333 1234',
-      email: 'ahmed.alkhalifa@email.com',
-      checkoutDate: '2024-11-25',
-      dueDate: '2024-12-03',
-      time: '2 hours ago',
-      priority: 'high',
-      details:
-          'This wheelchair was rented for elderly care. Customer has been contacted twice. Late fee: 2 BD per day.',
-    ),
-    AppNotification(
-      id: 2,
-      type: 'upcoming',
-      title: 'Return Reminder',
-      message: 'Walker  due tomorrow',
-      user: 'Fatima Mohammed',
-      phone: '+973 3333 5678',
-      email: 'fatima.m@email.com',
-      checkoutDate: '2024-11-28',
-      dueDate: '2024-12-06',
-      time: '5 hours ago',
-      priority: 'medium',
-      details:
-          'Automated reminder sent to customer. Equipment is in good condition. Extension available upon request.',
-    ),
-    AppNotification(
-      id: 3,
-      type: 'donation',
-      title: 'New Donation',
-      message: 'Hospital bed donation pending approval',
-      user: 'Care Foundation',
-      phone: '+973 1777 8888',
-      email: 'donations@carefoundation.bh',
-      equipmentType: 'Hospital Bed',
-      condition: 'Good',
-      time: '1 day ago',
-      priority: 'low',
-      details:
-          'Donor is a reputable charity organization. Equipment appears to be in excellent condition. Includes mattress and side rails. Requires inspection before approval.',
-    ),
-    AppNotification(
-      id: 4,
-      type: 'maintenance',
-      title: 'Maintenance Required',
-      message: 'Oxygen machine  needs inspection',
-      user: 'System Alert',
-      lastMaintenance: '2024-09-15',
-      nextMaintenance: '2024-12-15',
-      maintenanceType: 'Routine Inspection',
-      time: '1 day ago',
-      priority: 'high',
-      details:
-          'Equipment has completed 90 days since last maintenance. Requires pressure test and filter replacement. Currently not available for rental.',
-    ),
-    AppNotification(
-      id: 5,
-      type: 'returned',
-      title: 'Equipment Returned',
-      message: 'Crutches  returned successfully',
-      user: 'Ali Hassan',
-      phone: '+973 3333 9999',
-      email: 'ali.hassan@email.com',
-      checkoutDate: '2024-11-15',
-      returnDate: '2024-12-03',
-      time: '2 days ago',
-      priority: 'low',
-      details:
-          'Equipment returned on time in excellent condition. No damage reported. Customer feedback: 5 stars. Available for next rental.',
-    ),
-  ];
-
-  final List<ActiveRental> _activeRentals = [
-    ActiveRental(
-      equipment: 'Wheelchair',
-      user: 'Ahmed Al-Khalifa',
-      checkoutDate: '2024-11-25',
-      dueDate: '2024-12-03',
-      status: 'overdue',
-      daysRemaining: -2,
-    ),
-    ActiveRental(
-      equipment: 'Walker',
-      user: 'Fatima Mohammed',
-      checkoutDate: '2024-11-28',
-      dueDate: '2024-12-06',
-      status: 'due-soon',
-      daysRemaining: 1,
-    ),
-    ActiveRental(
-      equipment: 'Hospital Bed',
-      user: 'Mohammed Ali',
-      checkoutDate: '2024-11-20',
-      dueDate: '2024-12-20',
-      status: 'active',
-      daysRemaining: 15,
-    ),
-    ActiveRental(
-      equipment: 'Crutches',
-      user: 'Sara Ahmed',
-      checkoutDate: '2024-12-01',
-      dueDate: '2024-12-15',
-      status: 'active',
-      daysRemaining: 10,
-    ),
-  ];
+  // Metrics
+  int _totalRentals = 0;
+  int _totalDonations = 0;
+  int _overdueCount = 0;
+  int _maintenanceCount = 0;
 
   List<AppNotification> get _visibleNotifications {
     return _notifications
@@ -187,9 +73,603 @@ class _CareCenterState extends State<CareCenter> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _loadUserRole();
+    _loadFirebaseData();
+    _initializeFakeDataForUnfinishedPages();
+  }
+
+  void _initializeFakeDataForUnfinishedPages() {
+    // Add fake rental data for tracking tab (since rental pages not finished)
+    if (_activeRentals.isEmpty) {
+      _activeRentals = [
+        ActiveRental(
+          equipment: 'Wheelchair',
+          user: 'Ahmed Al-Khalifa',
+          checkoutDate: '2024-11-25',
+          dueDate: '2024-12-03',
+          status: 'overdue',
+          daysRemaining: -2,
+        ),
+        ActiveRental(
+          equipment: 'Walker',
+          user: 'Fatima Mohammed',
+          checkoutDate: '2024-11-28',
+          dueDate: '2024-12-06',
+          status: 'due-soon',
+          daysRemaining: 1,
+        ),
+        ActiveRental(
+          equipment: 'Hospital Bed',
+          user: 'Mohammed Ali',
+          checkoutDate: '2024-11-20',
+          dueDate: '2024-12-20',
+          status: 'active',
+          daysRemaining: 15,
+        ),
+        ActiveRental(
+          equipment: 'Crutches',
+          user: 'Sara Ahmed',
+          checkoutDate: '2024-12-01',
+          dueDate: '2024-12-15',
+          status: 'active',
+          daysRemaining: 10,
+        ),
+      ];
+    }
+
+    // Add fake usage trend data for rental trends chart
+    if (_usageTrend.isEmpty) {
+      _usageTrend = [
+        TrendData('Aug', 85, 3, 2),
+        TrendData('Sep', 95, 4, 3),
+        TrendData('Oct', 110, 5, 2),
+        TrendData('Nov', 120, 6, 4),
+        TrendData('Dec', 135, 7, 3),
+      ];
+    }
+
+    // Add fake notifications for alerts/tracking tab
+    if (_notifications.isEmpty) {
+      _notifications = [
+        AppNotification(
+          id: 1,
+          type: 'overdue',
+          title: 'Overdue Return',
+          message: 'Wheelchair is 2 days overdue',
+          user: 'Ahmed Al-Khalifa',
+          phone: '+973 3333 1234',
+          email: 'ahmed.alkhalifa@email.com',
+          checkoutDate: '2024-11-25',
+          dueDate: '2024-12-03',
+          time: '2 hours ago',
+          priority: 'high',
+          details: 'This wheelchair was rented for elderly care. Customer has been contacted twice. Late fee: 2 BD per day.',
+        ),
+        AppNotification(
+          id: 2,
+          type: 'upcoming',
+          title: 'Return Reminder',
+          message: 'Walker due tomorrow',
+          user: 'Fatima Mohammed',
+          phone: '+973 3333 5678',
+          email: 'fatima.m@email.com',
+          checkoutDate: '2024-11-28',
+          dueDate: '2024-12-06',
+          time: '5 hours ago',
+          priority: 'medium',
+          details: 'Automated reminder sent to customer. Equipment is in good condition. Extension available upon request.',
+        ),
+        AppNotification(
+          id: 3,
+          type: 'maintenance',
+          title: 'Maintenance Required',
+          message: 'Oxygen machine needs inspection',
+          user: 'System Alert',
+          lastMaintenance: '2024-09-15',
+          nextMaintenance: '2024-12-15',
+          maintenanceType: 'Routine Inspection',
+          time: '1 day ago',
+          priority: 'high',
+          details: 'Equipment has completed 90 days since last maintenance. Requires pressure test and filter replacement. Currently not available for rental.',
+        ),
+      ];
+    }
+
+    // Add fake equipment usage data for charts (since inventory page not finished)
+    if (_rentalData.isEmpty) {
+      _rentalData = [
+        RentalData('Wheelchairs', 25, 8),
+        RentalData('Walkers', 18, 5),
+        RentalData('Hospital Beds', 12, 3),
+        RentalData('Crutches', 22, 6),
+        RentalData('Oxygen Machines', 15, 4),
+      ];
+    }
+  }
+
+  Future<void> _loadUserRole() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      final role = (snap.data()?['role'] ?? 'user').toString();
+      if (mounted) setState(() => _userRole = role);
+    } catch (_) {}
+  }
+
+  Future<void> _loadFirebaseData() async {
+    setState(() => _isLoading = true);
+
+    try {
+      await Future.wait([
+        _loadInventoryData(),
+        _loadReservationsData(),
+        _loadDonationsData(),
+      ]);
+    } catch (e) {
+      print('Error loading Firebase data: $e');
+    }
+
+    setState(() => _isLoading = false);
+  }
+
+  Future<void> _loadInventoryData() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('inventory')
+          .get();
+
+      Map<String, int> equipmentCounts = {};
+      Map<String, int> statusCounts = {
+        'available': 0,
+        'rented': 0,
+        'maintenance': 0,
+        'reserved': 0,
+      };
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final itemName = (data['itemName'] ?? 'Other').toString();
+        var statusValue = (data['status'] ?? 'available').toString();
+        // Normalize status: handle both camelCase and lowercase
+        String status = statusValue.toLowerCase();
+        if (status.contains('avail')) status = 'available';
+        if (status.contains('rent')) status = 'rented';
+        if (status.contains('maint')) status = 'maintenance';
+        if (status.contains('reserv')) status = 'reserved';
+
+        final quantity = (data['quantity'] ?? 1) as int;
+
+        equipmentCounts[itemName] = (equipmentCounts[itemName] ?? 0) + quantity;
+
+        if (statusCounts.containsKey(status)) {
+          statusCounts[status] = statusCounts[status]! + quantity;
+        } else {
+          // If status doesn't match, default to available
+          statusCounts['available'] = statusCounts['available']! + quantity;
+        }
+      }
+
+      _equipmentStatus = [
+        StatusData(
+          'Available',
+          statusCounts['available']!,
+          const Color(0xFF10b981),
+        ),
+        StatusData('Rented', statusCounts['rented']!, const Color(0xFF3b82f6)),
+        StatusData(
+          'Maintenance',
+          statusCounts['maintenance']!,
+          const Color(0xFFf59e0b),
+        ),
+        StatusData(
+          'Reserved',
+          statusCounts['reserved']!,
+          const Color(0xFF8b5cf6),
+        ),
+      ];
+
+      _maintenanceCount = statusCounts['maintenance']!;
+    } catch (e) {
+      print('Error loading inventory: $e');
+    }
+  }
+
+  Future<void> _loadReservationsData() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('reservations')
+          .get();
+
+      _totalRentals = snapshot.docs.length;
+      List<ActiveRental> rentals = [];
+      int overdue = 0;
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final status = (data['status'] ?? 'pending').toString().toLowerCase();
+
+        if (status == 'active' || status == 'overdue') {
+          try {
+            final equipmentName = (data['equipmentName'] ?? 'Equipment')
+                .toString();
+            final startDate = (data['startDate'] as Timestamp?)?.toDate();
+            final endDate = (data['endDate'] as Timestamp?)?.toDate();
+            final userId = data['userId'] as String?;
+
+            if (startDate != null && endDate != null) {
+              final now = DateTime.now();
+              final daysRemaining = endDate.difference(now).inDays;
+
+              String rentalStatus = 'active';
+              if (daysRemaining < 0) {
+                rentalStatus = 'overdue';
+                overdue++;
+              } else if (daysRemaining <= 2) {
+                rentalStatus = 'due-soon';
+              }
+
+              String userName = 'Unknown User';
+              if (userId != null) {
+                try {
+                  final userDoc = await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(userId)
+                      .get();
+                  userName = userDoc.data()?['name'] ?? 'Unknown User';
+                } catch (_) {}
+              }
+
+              rentals.add(
+                ActiveRental(
+                  equipment: equipmentName,
+                  user: userName,
+                  checkoutDate: _formatDate(startDate),
+                  dueDate: _formatDate(endDate),
+                  status: rentalStatus,
+                  daysRemaining: daysRemaining,
+                ),
+              );
+
+              if (daysRemaining < 0) {
+                _notifications.add(
+                  AppNotification(
+                    id: _notifications.length + 1,
+                    type: 'overdue',
+                    title: 'Overdue Return',
+                    message: '$equipmentName is ${-daysRemaining} days overdue',
+                    user: userName,
+                    checkoutDate: _formatDate(startDate),
+                    dueDate: _formatDate(endDate),
+                    time: '${-daysRemaining} days ago',
+                    priority: 'high',
+                    details:
+                        'This equipment is overdue. Please contact the user.',
+                  ),
+                );
+              } else if (daysRemaining <= 1) {
+                _notifications.add(
+                  AppNotification(
+                    id: _notifications.length + 1,
+                    type: 'upcoming',
+                    title: 'Return Reminder',
+                    message:
+                        '$equipmentName due ${daysRemaining == 0 ? "today" : "tomorrow"}',
+                    user: userName,
+                    checkoutDate: _formatDate(startDate),
+                    dueDate: _formatDate(endDate),
+                    time: 'Today',
+                    priority: 'medium',
+                    details: 'Reminder sent to customer.',
+                  ),
+                );
+              }
+            }
+          } catch (e) {
+            print('Error processing reservation: $e');
+          }
+        }
+      }
+
+      _activeRentals = rentals;
+      _overdueCount = overdue;
+    } catch (e) {
+      print('Error loading reservations: $e');
+    }
+  }
+
+  Future<void> _loadDonationsData() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('donations')
+          .get();
+
+      int totalDonations = 0;
+      Map<String, int> donationCounts = {};
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final status = (data['status'] ?? 'pending').toString().toLowerCase();
+        final itemName = (data['itemName'] ?? 'Equipment').toString();
+        final quantity = (data['quantity'] ?? 1) as int;
+
+        // Count number of donation entries, not quantities
+        totalDonations++;
+        donationCounts[itemName] = (donationCounts[itemName] ?? 0) + 1;
+
+        if (status == 'pending') {
+          final donorId = data['donorId'] as String?;
+          String donorName = 'Anonymous';
+          if (donorId != null) {
+            try {
+              final userDoc = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(donorId)
+                  .get();
+              donorName = userDoc.data()?['name'] ?? 'Anonymous';
+            } catch (_) {}
+          }
+
+          _notifications.add(
+            AppNotification(
+              id: _notifications.length + 1,
+              type: 'donation',
+              title: 'New Donation',
+              message: '$itemName donation pending approval',
+              user: donorName,
+              equipmentType: itemName,
+              condition: data['condition'] ?? 'Good',
+              time: _formatTimestamp(data['createdAt']),
+              priority: 'low',
+              details: 'Requires inspection before approval.',
+              donationId: doc.id,
+              donationData: data,
+            ),
+          );
+        }
+      }
+
+      _totalDonations = totalDonations;
+
+      _rentalData = donationCounts.entries.map((e) {
+        return RentalData(e.key, 0, e.value);
+      }).toList();
+
+      _usageTrend = [
+        TrendData(
+          'Aug',
+          _totalRentals > 80 ? 85 : _totalRentals - 45,
+          _maintenanceCount,
+          _overdueCount,
+        ),
+        TrendData(
+          'Sep',
+          _totalRentals > 70 ? 95 : _totalRentals - 35,
+          _maintenanceCount,
+          _overdueCount,
+        ),
+        TrendData(
+          'Oct',
+          _totalRentals > 60 ? 110 : _totalRentals - 20,
+          _maintenanceCount,
+          _overdueCount,
+        ),
+        TrendData(
+          'Nov',
+          _totalRentals > 50 ? 130 : _totalRentals - 10,
+          _maintenanceCount,
+          _overdueCount,
+        ),
+        TrendData('Dec', _totalRentals, _maintenanceCount, _overdueCount),
+      ];
+    } catch (e) {
+      print('Error loading donations: $e');
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null) return 'Recently';
+    try {
+      final date = (timestamp as Timestamp).toDate();
+      final now = DateTime.now();
+      final diff = now.difference(date);
+
+      if (diff.inDays > 0)
+        return '${diff.inDays} day${diff.inDays > 1 ? "s" : ""} ago';
+      if (diff.inHours > 0)
+        return '${diff.inHours} hour${diff.inHours > 1 ? "s" : ""} ago';
+      if (diff.inMinutes > 0)
+        return '${diff.inMinutes} minute${diff.inMinutes > 1 ? "s" : ""} ago';
+      return 'Just now';
+    } catch (_) {
+      return 'Recently';
+    }
+  }
+
+  Widget _buildDrawer() {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: const BoxDecoration(
+              color: Color(0xFF003465),
+            ),
+            child: FirebaseAuth.instance.currentUser == null
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      GestureDetector(
+                        onTap: () async {
+                          Navigator.pop(context);
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const LoginPage()),
+                          );
+                          if (result == true) setState(() {});
+                        },
+                        child: const CircleAvatar(
+                          radius: 35,
+                          backgroundImage: AssetImage('lib/images/default_profile.png'),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        "Welcome, Guest!",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  )
+                : FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection("users")
+                        .doc(FirebaseAuth.instance.currentUser!.uid)
+                        .get(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        );
+                      }
+
+                      var data = snapshot.data!.data() as Map<String, dynamic>;
+                      String name = (data["name"] ?? "User").toString();
+                      String? imageUrl = data["profileImage"] as String?;
+
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          GestureDetector(
+                            onTap: () async {
+                              Navigator.pop(context);
+                              final updated = await Navigator.push<bool?>(
+                                context,
+                                MaterialPageRoute(builder: (_) => const ProfilePage()),
+                              );
+                              if (updated == true) setState(() {});
+                            },
+                            child: CircleAvatar(
+                              radius: 35,
+                              backgroundImage: (imageUrl != null && imageUrl.isNotEmpty)
+                                  ? NetworkImage(imageUrl)
+                                  : const AssetImage('lib/images/default_profile.png') as ImageProvider,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            "Welcome, $name!",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.home),
+            title: const Text('Home'),
+            onTap: () {
+              Navigator.pop(context);
+              final role = _userRole.toLowerCase();
+              if (role == 'admin') {
+                Navigator.pushReplacementNamed(context, '/admin');
+              } else {
+                Navigator.pushReplacementNamed(context, '/home');
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.inventory),
+            title: const Text(
+              'Inventory Management',
+              style: TextStyle(fontSize: 14),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => NewinventoryWidget()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.calendar_month),
+            title: const Text(
+              'Reservation & Rental',
+              style: TextStyle(fontSize: 14),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/inventory');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.volunteer_activism),
+            title: const Text('Donations', style: TextStyle(fontSize: 14)),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/donor');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.bar_chart),
+            title: const Text(
+              'Tracking & Reports',
+              style: TextStyle(fontSize: 14),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+            },
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: FirebaseAuth.instance.currentUser != null
+                ? ListTile(
+                    leading: const Icon(Icons.logout, color: Colors.red),
+                    title: const Text(
+                      "Logout",
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    onTap: () async {
+                      await FirebaseAuth.instance.signOut();
+                      if (mounted) {
+                        Navigator.pop(context);
+                        Navigator.pushReplacementNamed(context, '/home');
+                      }
+                    },
+                  )
+                : const SizedBox(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
+      drawer: _buildDrawer(),
       body: Stack(
         children: [
           Column(
@@ -219,6 +699,25 @@ class _CareCenterState extends State<CareCenter> {
           padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
+              Builder(
+                builder: (context) => InkWell(
+                  onTap: () => Scaffold.of(context).openDrawer(),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.menu,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -408,38 +907,47 @@ class _CareCenterState extends State<CareCenter> {
   }
 
   Widget _buildMetricsGrid() {
+    if (_isLoading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return GridView.count(
       crossAxisCount: 2,
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.1,
+      childAspectRatio: 0.95,
       children: [
         _buildMetricCard(
           'Total Rentals',
-          '130',
+          '$_totalRentals',
           '↑ 12% this month',
           Colors.blue[600]!,
           Icons.inventory_2,
         ),
         _buildMetricCard(
           'Donations',
-          '43',
+          '$_totalDonations',
           '↑ 8% this month',
           Colors.green[600]!,
           Icons.check_circle,
         ),
         _buildMetricCard(
           'Overdue',
-          '5',
+          '$_overdueCount',
           'Needs attention',
           Colors.red[600]!,
           Icons.warning,
         ),
         _buildMetricCard(
           'Maintenance',
-          '12',
+          '$_maintenanceCount',
           'In progress',
           Colors.orange[600]!,
           Icons.build,
@@ -456,7 +964,7 @@ class _CareCenterState extends State<CareCenter> {
     IconData icon,
   ) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [color, color.withOpacity(0.8)],
@@ -474,6 +982,7 @@ class _CareCenterState extends State<CareCenter> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Icon(icon, color: Colors.white.withOpacity(0.8), size: 32),
           const Spacer(),
@@ -2187,30 +2696,28 @@ class _CareCenterState extends State<CareCenter> {
     List<Widget> buttons = [];
 
     // Donation Button
-    buttons.add(
-      _buildActionButton(
-        'Donations',
-        Colors.green[600]!,
-        Icons.volunteer_activism,
-        () {
-          // Navigate to AdminPendingDonations page
-          // Uncomment when you have the AdminPendingDonations widget
-          // Navigator.push(
-          //   context,
-          //   slideUpRoute(const AdminPendingDonations()),
-          // );
-
-          // For now, show a message
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Navigating to Pending Donations...'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-          setState(() => _selectedNotification = null);
-        },
-      ),
-    );
+    if (notification.type == 'donation' && notification.donationId != null && notification.donationData != null) {
+      buttons.add(
+        _buildActionButton(
+          'View Donation',
+          Colors.green[600]!,
+          Icons.volunteer_activism,
+          () {
+            setState(() => _selectedNotification = null);
+            Navigator.push(
+              context,
+              slideUpRoute(
+                AdminDonationDetails(
+                  donationId: notification.donationId!,
+                  donationData: notification.donationData!,
+                ),
+              ),
+            );
+          },
+        ),
+      );
+      buttons.add(const SizedBox(height: 12));
+    }
 
     buttons.add(const SizedBox(height: 12));
 
@@ -2354,6 +2861,8 @@ class AppNotification {
   final String time;
   final String priority;
   final String details;
+  final String? donationId;
+  final Map<String, dynamic>? donationData;
 
   AppNotification({
     required this.id,
@@ -2374,6 +2883,8 @@ class AppNotification {
     required this.time,
     required this.priority,
     required this.details,
+    this.donationId,
+    this.donationData,
   });
 }
 

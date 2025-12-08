@@ -6,6 +6,7 @@ import 'package:project444/signup.dart';
 import 'login.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'reports.dart';
 import 'reservation/reservation.dart';
 import 'Donation/donor_page.dart';
 import 'inventory/inventory_admin.dart';
@@ -94,6 +95,7 @@ class MyApp extends StatelessWidget {
         '/login': (c) => const LoginPage(),
         '/signup': (c) => const SignupPage(),
         "/inventory": (c) => const RenterPage(),
+        "/reports": (c) => const CareCenter(),
         //"/dates": (c) => const ReservationDatesScreen(inventoryItemId: '', itemName: '', requestedQuantity: 8,),
         "/confirm": (c) => const Placeholder(),
         "/success": (c) => const ReservationSuccessScreen(),
@@ -419,6 +421,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               onTap: () {
                 Navigator.pop(context);
+                Navigator.pushNamed(context, '/reports');
               },
             ),
             Padding(

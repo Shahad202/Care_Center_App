@@ -254,6 +254,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
               ),
               onTap: () {
                 Navigator.pop(context);
+                Navigator.pushNamed(context, '/reports');
               },
             ),
             Padding(
