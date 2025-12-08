@@ -1,17 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DonationItem {
-  final String id;
-  final String itemName;
-  final String condition;
-  final String description;
-  final int quantity;
-  final String location;
-  final String status;
-  final DateTime createdAt;
-  final List<String> imageUrls;
-  final String? donorId;
+  // All the properties/fields of a donation
+  String id;                    // Unique document ID from Firestore
+  String itemName;              // What's being donated (e.g., "Wheelchair")
+  String condition;             // Condition level (New, Like New, Good, Fair, Needs Repair)
+  String description;           // Optional details about the item
+  int quantity;                 // How many items being donated
+  String location;              // Pickup location (e.g., "Downtown")
+  String status;                // Status: pending, approved, or rejected
+  String donorId;               // User ID of the person donating
+  List<String> imageIds;        // List of image IDs (for future image uploads)
+  DateTime createdAt;           // When the donation was submitted
+  String iconKey;               // Icon type: wheelchair, walker, crutches, etc.
 
+  // Constructor - creates a new DonationItem with all required fields
   DonationItem({
     required this.id,
     required this.itemName,
@@ -20,29 +23,31 @@ class DonationItem {
     required this.quantity,
     required this.location,
     required this.status,
-    required this.createdAt,
-    required this.imageUrls,
     required this.donorId,
+    required this.imageIds,
+    required this.createdAt,
+    required this.iconKey,
   });
 
+  // Factory Constructor - converts Firestore document to DonationItem
   factory DonationItem.fromDoc(DocumentSnapshot doc) {
-    final d = doc.data() as Map<String, dynamic>? ?? {};
+    final data = doc.data() as Map<String, dynamic>;
     return DonationItem(
-      id: doc.id,
-      itemName: d['itemName'] ?? '',
-      condition: d['condition'] ?? '',
-      description: d['description'] ?? '',
-      quantity: int.tryParse(d['quantity']?.toString() ?? '0') ?? 0,
-      location: d['location'] ?? '',
-      status: d['status'] ?? 'pending',
-      createdAt: (d['createdAt'] is Timestamp)
-          ? (d['createdAt'] as Timestamp).toDate()
-          : DateTime.now(),
-      imageUrls: (d['imageUrls'] as List?)?.cast<String>() ?? [],
-      donorId: d['donorId'],
+      id: doc.id,                                              // Document ID from Firestore
+      itemName: data['itemName'] ?? '',                        // Get from Firestore or empty string
+      condition: data['condition'] ?? '',
+      description: data['description'] ?? '',
+      quantity: data['quantity'] ?? 0,                         // Default to 0 if missing
+      location: data['location'] ?? '',
+      status: data['status'] ?? 'pending',                     // Default to 'pending' if missing
+      donorId: data['donorId'] ?? '',
+      imageIds: List<String>.from(data['imageIds'] ?? []),    // Convert to List<String>
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),  // Convert Timestamp to DateTime
+      iconKey: data['iconKey'] ?? 'default',                   // Default icon if missing
     );
   }
 
+  // Convert DonationItem back to Map for storage
   Map<String, dynamic> toMap() {
     return {
       'itemName': itemName,
@@ -51,9 +56,10 @@ class DonationItem {
       'quantity': quantity,
       'location': location,
       'status': status,
-      'imageUrls': imageUrls,
       'donorId': donorId,
+      'imageIds': imageIds,
       'createdAt': createdAt,
+      'iconKey': iconKey,
     };
   }
 }
