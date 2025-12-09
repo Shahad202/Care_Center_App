@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project444/profilePage.dart';
 import 'package:project444/login.dart';
 import 'package:project444/inventory/add_item.dart';
+import 'package:project444/inventory/edit_item.dart';
+import 'package:project444/inventory/item_detail.dart';
 
 class NewinventoryWidget extends StatefulWidget {
   @override
@@ -14,7 +16,7 @@ class NewinventoryWidget extends StatefulWidget {
 class _NewinventoryWidgetState extends State<NewinventoryWidget> {
   late TextEditingController _searchController;
   String _filterStatus = 'All';
-  List<Map<String, String>> _filteredItems = [];
+  List<Map<String, dynamic>> _filteredItems = [];
   String _userRole = 'user';
 
   // Filter state variables
@@ -22,6 +24,13 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
   List<String> _selectedAvailabilityStatus = [];
   List<String> _selectedConditions = [];
   String _selectedLocation = 'All Locations';
+
+  // Sort state variables
+  String _sortBy = 'Default Order';
+  bool _sortAscending = true;
+
+  // View toggle state
+  bool _isGridView = false; // false = List view, true = Grid view
 
   final List<String> _itemTypes = [
     'Mobility Aid',
@@ -47,13 +56,28 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
     'Storage Room A',
   ];
 
-  final List<Map<String, String>> _inventoryItems = [
+  final List<String> _sortOptions = [
+    'Default Order',
+    'Name (A → Z)',
+    'Name (Z → A)',
+    'Price (Low → High)',
+    'Price (High → Low)',
+    'Quantity (Low → High)',
+    'Quantity (High → Low)',
+  ];
+
+  final List<Map<String, dynamic>> _inventoryItems = [
     {
       'name': 'Wheelchair',
       'category': 'Mobility Aid',
       'status': 'Available',
       'location': 'Ward A - Room 101',
       'quantity': '5',
+      'price': '6.000',
+      'description':
+          'Standard manual wheelchair with adjustable footrests and armrests. Suitable for indoor and outdoor use. Weight capacity up to 250 lbs.',
+      'condition': 'Excellent',
+      'tags': ['Mobility', 'Medical Equipment', 'Daily Use'],
     },
     {
       'name': 'Walker',
@@ -61,6 +85,11 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
       'status': 'Rented',
       'location': 'Ward B - Room 205',
       'quantity': '3',
+      'price': '4.500',
+      'description':
+          'Lightweight aluminum walker with rubber grips. Easy to fold and carry. Ideal for patients with limited mobility.',
+      'condition': 'Good',
+      'tags': ['Mobility', 'Lightweight', 'Portable'],
     },
     {
       'name': 'Blood Pressure Monitor',
@@ -68,6 +97,11 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
       'status': 'Available',
       'location': 'Clinic Room 3',
       'quantity': '8',
+      'price': '3.000',
+      'description':
+          'Digital blood pressure monitor with automatic readings. Large LED display. Battery operated.',
+      'condition': 'Excellent',
+      'tags': ['Medical', 'Monitoring', 'Digital'],
     },
     {
       'name': 'Hospital Bed',
@@ -75,6 +109,11 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
       'status': 'Maintenance',
       'location': 'Storage Room A',
       'quantity': '2',
+      'price': '50.000',
+      'description':
+          'Adjustable electric hospital bed with side rails and mattress. Multiple position settings for patient comfort.',
+      'condition': 'Fair',
+      'tags': ['Hospital Equipment', 'Adjustable', 'Electric'],
     },
     {
       'name': 'Thermometer',
@@ -82,6 +121,11 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
       'status': 'Available',
       'location': 'Clinic Room 1',
       'quantity': '15',
+      'price': '2.000',
+      'description':
+          'Digital thermometer with fast reading capability. Water resistant design. Automatic shutdown.',
+      'condition': 'Excellent',
+      'tags': ['Medical', 'Temperature', 'Portable'],
     },
   ];
 
@@ -384,6 +428,252 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
           },
         );
       },
+    );
+  }
+
+  void _showSortDialog(BuildContext ctx) {
+    showDialog(
+      context: ctx,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: SingleChildScrollView(
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Title
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Sort By',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Color.fromRGBO(31, 41, 55, 1),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => Navigator.pop(context),
+                            child: const Icon(Icons.close, size: 24),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Sort Options
+                      ...List.generate(_sortOptions.length, (index) {
+                        final option = _sortOptions[index];
+                        return Column(
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                setDialogState(() {
+                                  _sortBy = option;
+                                  _applySort();
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                  horizontal: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  color: _sortBy == option
+                                      ? const Color.fromRGBO(21, 93, 252, 0.1)
+                                      : Colors.transparent,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      option,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        color: _sortBy == option
+                                            ? const Color.fromRGBO(
+                                                21,
+                                                93,
+                                                252,
+                                                1,
+                                              )
+                                            : const Color.fromRGBO(
+                                                73,
+                                                85,
+                                                101,
+                                                1,
+                                              ),
+                                      ),
+                                    ),
+                                    if (_sortBy == option)
+                                      const Icon(
+                                        Icons.check,
+                                        color: Color.fromRGBO(21, 93, 252, 1),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            if (index < _sortOptions.length - 1)
+                              const Divider(height: 16),
+                          ],
+                        );
+                      }),
+
+                      const SizedBox(height: 24),
+
+                      // Buttons
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: Color.fromRGBO(107, 114, 128, 1),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color.fromRGBO(
+                                21,
+                                93,
+                                252,
+                                1,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _applySort();
+                              });
+                              Navigator.pop(context);
+                            },
+                            child: const Text(
+                              'Apply',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _applySort() {
+    setState(() {
+      switch (_sortBy) {
+        case 'Name (A → Z)':
+          _filteredItems.sort(
+            (a, b) =>
+                a['name']!.toLowerCase().compareTo(b['name']!.toLowerCase()),
+          );
+          break;
+        case 'Name (Z → A)':
+          _filteredItems.sort(
+            (a, b) =>
+                b['name']!.toLowerCase().compareTo(a['name']!.toLowerCase()),
+          );
+          break;
+        case 'Price (Low → High)':
+          _filteredItems.sort(
+            (a, b) => int.parse(
+              a['price'] ?? '0',
+            ).compareTo(int.parse(b['price'] ?? '0')),
+          );
+          break;
+        case 'Price (High → Low)':
+          _filteredItems.sort(
+            (a, b) => int.parse(
+              b['price'] ?? '0',
+            ).compareTo(int.parse(a['price'] ?? '0')),
+          );
+          break;
+        case 'Quantity (Low → High)':
+          _filteredItems.sort(
+            (a, b) =>
+                int.parse(a['quantity']!).compareTo(int.parse(b['quantity']!)),
+          );
+          break;
+        case 'Quantity (High → Low)':
+          _filteredItems.sort(
+            (a, b) =>
+                int.parse(b['quantity']!).compareTo(int.parse(a['quantity']!)),
+          );
+          break;
+        default:
+          // Default Order - reset to original
+          _filteredItems = List.from(_inventoryItems);
+          break;
+      }
+    });
+  }
+
+  void _showItemDetailsDialog(
+    BuildContext ctx,
+    String name,
+    String category,
+    String status,
+    String location,
+    String quantity,
+  ) {
+    // Find the item in inventory to get all details
+    final item = _inventoryItems.firstWhere(
+      (item) => item['name'] == name,
+      orElse: () => {
+        'name': name,
+        'category': category,
+        'status': status,
+        'location': location,
+        'quantity': quantity,
+        'price': '0.000',
+        'description': 'No description available',
+        'condition': 'Good',
+        'tags': [],
+      },
+    );
+
+    Navigator.push(
+      ctx,
+      MaterialPageRoute(
+        builder: (context) => ItemDetailScreen(
+          name: item['name'] ?? name,
+          category: item['category'] ?? category,
+          status: item['status'] ?? status,
+          location: item['location'] ?? location,
+          quantity: item['quantity'] ?? quantity,
+          description: item['description'] ?? 'No description available',
+          condition: item['condition'] ?? 'Good',
+          tags: List<String>.from(item['tags'] ?? []),
+          rentalPrice: item['price'] ?? '0.000',
+        ),
+      ),
     );
   }
 
@@ -755,14 +1045,37 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
                               ),
                               color: const Color.fromRGBO(249, 250, 251, 1),
                             ),
-                            child: const IconButton(
-                              icon: Icon(
+                            child: IconButton(
+                              icon: const Icon(
                                 Icons.swap_vert,
                                 color: Color.fromRGBO(73, 85, 101, 1),
                                 size: 20,
                               ),
-                              onPressed: null,
-                              padding: EdgeInsets.all(8),
+                              onPressed: () => _showSortDialog(context),
+                              padding: const EdgeInsets.all(8),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // View Toggle Button
+                          Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color.fromRGBO(208, 213, 219, 1),
+                                width: 1.2,
+                              ),
+                              color: const Color.fromRGBO(249, 250, 251, 1),
+                            ),
+                            child: IconButton(
+                              icon: Icon(
+                                _isGridView ? Icons.view_list : Icons.grid_view,
+                                color: const Color.fromRGBO(73, 85, 101, 1),
+                                size: 20,
+                              ),
+                              onPressed: () => setState(() {
+                                _isGridView = !_isGridView;
+                              }),
+                              padding: const EdgeInsets.all(8),
                             ),
                           ),
                         ],
@@ -775,6 +1088,39 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                   child: _filteredItems.isEmpty
                       ? _buildEmptyState()
+                      : _isGridView
+                      ? GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 16,
+                                crossAxisSpacing: 16,
+                                childAspectRatio: 0.75,
+                              ),
+                          itemCount: _filteredItems.length,
+                          itemBuilder: (context, index) {
+                            final item = _filteredItems[index];
+                            return _buildInventoryCard(
+                              context: context,
+                              name: item['name']!,
+                              category: item['category']!,
+                              status: item['status']!,
+                              statusColor: _getStatusColor(item['status']!),
+                              location: item['location']!,
+                              quantity: item['quantity']!,
+                              onTap: () => _showItemDetailsDialog(
+                                context,
+                                item['name']!,
+                                item['category']!,
+                                item['status']!,
+                                item['location']!,
+                                item['quantity']!,
+                              ),
+                            );
+                          },
+                        )
                       : Column(
                           children: List.generate(_filteredItems.length, (
                             index,
@@ -790,6 +1136,14 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
                                 statusColor: _getStatusColor(item['status']!),
                                 location: item['location']!,
                                 quantity: item['quantity']!,
+                                onTap: () => _showItemDetailsDialog(
+                                  context,
+                                  item['name']!,
+                                  item['category']!,
+                                  item['status']!,
+                                  item['location']!,
+                                  item['quantity']!,
+                                ),
                               ),
                             );
                           }),
@@ -892,160 +1246,103 @@ Widget _buildInventoryCard({
   required Color statusColor,
   required String location,
   required String quantity,
+  required VoidCallback onTap,
 }) {
   return Material(
     color: Colors.transparent,
     child: InkWell(
-      onTap: () => _showItemDetailsDialog(
-        context,
-        name,
-        category,
-        status,
-        location,
-        quantity,
-      ),
+      onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
-              color: const Color.fromRGBO(0, 0, 0, 0.08),
-              offset: const Offset(0, 2),
+              color: Color.fromRGBO(0, 0, 0, 0.08),
+              offset: Offset(0, 2),
               blurRadius: 8,
             ),
           ],
-          color: const Color.fromRGBO(255, 255, 255, 1),
+          color: Colors.white,
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Image Section with Status Badge
               Container(
-                width: double.infinity,
                 height: 180,
                 decoration: const BoxDecoration(
-                  color: Color.fromRGBO(243, 244, 246, 1),
                   image: DecorationImage(
                     image: AssetImage('assets/images/Imagewithfallback.png'),
                     fit: BoxFit.cover,
                   ),
                 ),
-                child: Stack(
-                  children: [
-                    Positioned(
-                      top: 12,
-                      right: 12,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusColor,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          status,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontFamily: 'Arimo',
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: Container(
+                    margin: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      status,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
-              // Content Section
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Name and Category
                     Text(
                       name,
                       style: const TextStyle(
-                        color: Color.fromRGBO(31, 41, 55, 1),
-                        fontFamily: 'Arimo',
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
                       category,
                       style: const TextStyle(
-                        color: Color.fromRGBO(107, 114, 128, 1),
-                        fontFamily: 'Arimo',
                         fontSize: 12,
+                        color: Color.fromRGBO(107, 114, 128, 1),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    // Condition Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color.fromRGBO(242, 244, 246, 1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        'Good',
-                        style: TextStyle(
-                          color: Color.fromRGBO(73, 85, 101, 1),
-                          fontFamily: 'Arimo',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
                     const SizedBox(height: 12),
-                    // Location
                     Row(
                       children: [
-                        const Icon(
-                          Icons.location_on_outlined,
-                          color: Color.fromRGBO(107, 114, 128, 1),
-                          size: 14,
-                        ),
+                        const Icon(Icons.location_on_outlined, size: 14),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             location,
-                            style: const TextStyle(
-                              color: Color.fromRGBO(107, 114, 128, 1),
-                              fontFamily: 'Arimo',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: const TextStyle(fontSize: 12),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    // Quantity
                     Row(
                       children: [
-                        const Icon(
-                          Icons.inventory_2_outlined,
-                          color: Color.fromRGBO(107, 114, 128, 1),
-                          size: 14,
-                        ),
+                        const Icon(Icons.inventory_2_outlined, size: 14),
                         const SizedBox(width: 4),
                         Text(
                           'Qty: $quantity',
                           style: const TextStyle(
-                            color: Color.fromRGBO(107, 114, 128, 1),
-                            fontFamily: 'Arimo',
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1060,95 +1357,6 @@ Widget _buildInventoryCard({
         ),
       ),
     ),
-  );
-}
-
-void _showItemDetailsDialog(
-  BuildContext ctx,
-  String name,
-  String category,
-  String status,
-  String location,
-  String quantity,
-) {
-  showDialog(
-    context: ctx,
-    builder: (BuildContext context) {
-      return Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: SingleChildScrollView(
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Item Details',
-                      style: TextStyle(
-                        color: Color.fromRGBO(31, 41, 55, 1),
-                        fontFamily: 'Arimo',
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: const Icon(Icons.close, size: 24),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                _buildDetailRow('Name', name),
-                _buildDetailRow('Category', category),
-                _buildDetailRow('Status', status),
-                _buildDetailRow('Location', location),
-                _buildDetailRow('Quantity', quantity),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text(
-                        'Close',
-                        style: TextStyle(
-                          color: Color.fromRGBO(156, 163, 175, 1),
-                          fontFamily: 'Arimo',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color.fromRGBO(21, 93, 252, 1),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text(
-                        'Edit',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'Arimo',
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    },
   );
 }
 
