@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'details.dart';
+import '../navigation_transitions.dart';
 
 class TrackingTabPage extends StatefulWidget {
   const TrackingTabPage({super.key});
@@ -13,7 +14,7 @@ class TrackingTabPage extends StatefulWidget {
 class _TrackingTabPageState extends State<TrackingTabPage> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
-  String? _selectedStatus; // null = no status filter
+  String? _selectedStatus;
 
   @override
   void dispose() {
@@ -29,8 +30,6 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
         return const Color(0xFF4CAF50);
       case 'rejected':
         return const Color(0xFFF44336);
-      case 'in review':
-        return const Color(0xFF2196F3);
       default:
         return const Color(0xFFAAA6B2);
     }
@@ -44,8 +43,6 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
         return 'Approved';
       case 'rejected':
         return 'Rejected';
-      case 'in review':
-        return 'In Review';
       default:
         return status;
     }
@@ -59,7 +56,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
         return '${dt.day}/${dt.month}/${dt.year}';
       }
       if (createdAt is DateTime) {
-        return '${createdAt.day}/${createdAt.month}/${createdAt.year}';
+        return '${createdAt.day}/${createdAt.month}/${createdAt.year}'; // e.g., "7/12/2025"
       }
       return createdAt.toString();
     } catch (_) {
@@ -69,28 +66,30 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
 
   @override
   Widget build(BuildContext context) {
+    // STEP 1: Get current user ID
     final uid = FirebaseAuth.instance.currentUser?.uid;
-
-    // Base query
+    
+    // STEP 2: Create Firestore query - ONLY this user's donations
     Query query = FirebaseFirestore.instance.collection('donations');
     if (uid != null) {
-      query = query.where('donorId', isEqualTo: uid);
+      query = query.where('donorId', isEqualTo: uid);  // Filter by donor
     }
+    
+    // STEP 3: Order by creation date (newest first)
     final stream = query.orderBy('createdAt', descending: true).snapshots();
 
+    // STEP 4: Build UI with StreamBuilder for real-time updates
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Login-required banner (auto-hides when uid != null)
+          // STEP 5: Show login prompt if not authenticated
           if (uid == null)
             Container(
-              width: double.infinity,
               padding: const EdgeInsets.all(12),
-              margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF3E0),
+                color: const Color(0xFFFFF3E0),  // Orange background
                 border: Border.all(color: const Color(0xFFFFA726)),
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -99,14 +98,11 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                   const Icon(Icons.info_outline, color: Color(0xFFFFA726)),
                   const SizedBox(width: 8),
                   const Expanded(
-                    child: Text(
-                      'Please log in to see your donations.',
-                      style: TextStyle(color: Color(0xFF8D6E63)),
-                    ),
+                    child: Text('Please log in to see your donations.'),
                   ),
                   TextButton(
-                    onPressed: () => Navigator.pushNamed(context, '/login'), // Changed to navigate to login
-                    child: const Text('Register', style: TextStyle(color: Color(0xFFFFA726))),
+                    onPressed: () => Navigator.pushNamed(context, '/login'),
+                    child: const Text('Login'),
                   ),
                 ],
               ),
@@ -126,15 +122,14 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
           const SizedBox(height: 20),
           _buildSearchBar(),
           const SizedBox(height: 20),
-
-          // If not logged in, show an empty state instead of hooking a stream to all data
           if (uid == null)
             Expanded(child: _emptyState())
           else
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: stream,
+                stream: stream,  // Real-time updates from Firestore
                 builder: (context, snapshot) {
+                  // STEP 1: Handle loading state
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
                       child: CircularProgressIndicator(
@@ -143,26 +138,33 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                       ),
                     );
                   }
+                  
+                  // STEP 2: Handle errors
                   if (snapshot.hasError) {
                     return _errorState(snapshot.error.toString());
                   }
+                  
+                  // STEP 3: Get all donations from Firestore
                   final docs = snapshot.data?.docs ?? [];
                   if (docs.isEmpty) {
-                    return _emptyState();
+                    return _emptyState();  // "No donations yet"
                   }
 
-                  final filtered = (snapshot.data?.docs ?? []).where((d) {
+                  // STEP 4: Apply search + status filters
+                  final filtered = docs.where((d) {
                     final data = d.data() as Map<String, dynamic>;
                     final name =
                         (data['itemName'] ?? '').toString().toLowerCase();
                     final status =
                         (data['status'] ?? '').toString().toLowerCase();
 
+                    // Check if matches search query
                     final matchesSearch = _query.isEmpty
                         ? true
                         : name.contains(_query.toLowerCase()) ||
                             status.contains(_query.toLowerCase());
 
+                    // Check if matches selected status
                     final matchesStatus = _selectedStatus == null
                         ? true
                         : status == _selectedStatus;
@@ -170,10 +172,12 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                     return matchesSearch && matchesStatus;
                   }).toList();
 
+                  // STEP 5: Show empty state if no results after filtering
                   if (filtered.isEmpty) {
-                    return _emptyFiltered();
+                    return _emptyFiltered();  // "No matching results"
                   }
 
+                  // STEP 6: Build list of donation cards
                   return ListView.builder(
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
@@ -203,6 +207,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
       ),
       child: Row(
         children: [
+          // SEARCH FIELD
           Expanded(
             child: TextField(
               controller: _searchController,
@@ -239,6 +244,8 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
             ),
           ),
           const SizedBox(width: 12),
+          
+          // FILTER BUTTON (Status filter)
           Container(
             width: 52,
             height: 52,
@@ -262,6 +269,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
               child: InkWell(
                 borderRadius: BorderRadius.circular(26),
                 onTap: () async {
+                  // Show modal bottom sheet with status options
                   final chosen = await showModalBottomSheet<String?>(
                     context: context,
                     isScrollControlled: true,
@@ -274,52 +282,42 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                         'pending',
                         'approved',
                         'rejected',
-                        'in review'
                       ];
-                      return FractionallySizedBox(
-                        widthFactor: 1,
-                        child: Padding(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Filter by Status',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF003465),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
                               children: [
-                                const Text(
-                                  'Filter by Status',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF003465),
+                                ChoiceChip(
+                                  label: const Text('All'),
+                                  selected: _selectedStatus == null,
+                                  onSelected: (_) => Navigator.pop(context, null),
+                                ),
+                                ...statuses.map(
+                                  (s) => ChoiceChip(
+                                    label: Text(s),
+                                    selected: _selectedStatus == s,
+                                    onSelected: (_) => Navigator.pop(context, s),
                                   ),
                                 ),
-                                const SizedBox(height: 12),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: [
-                                    ChoiceChip(
-                                      label: const Text('All'),
-                                      selected: _selectedStatus == null,
-                                      onSelected: (_) =>
-                                          Navigator.pop(context, null),
-                                    ),
-                                    ...statuses.map(
-                                      (s) => ChoiceChip(
-                                        label: Text(s),
-                                        selected: _selectedStatus == s,
-                                        onSelected: (_) =>
-                                            Navigator.pop(context, s),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
                               ],
                             ),
-                          ),
+                            const SizedBox(height: 12),
+                          ],
                         ),
                       );
                     },
@@ -337,7 +335,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
 
   Widget _donationCard(Map<String, dynamic> data) {
     final statusColor = _getStatusColor(data['status'] ?? 'pending');
-    final images = (data['imageUrls'] as List?)?.cast<String>() ?? [];
+    final iconKey = (data['iconKey'] ?? 'default').toString();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -358,17 +356,17 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () {
+            // Navigate to DonationDetailsPage when tapped
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => DonationDetailsPage(donation: data),
-              ),
+              slideUpRoute(DonationDetailsPage(donation: data)),
             );
           },
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
+                // ICON SECTION (88x88)
                 Hero(
                   tag: 'donation_${data['itemName']}_${data.hashCode}',
                   child: Container(
@@ -377,8 +375,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       color: Colors.white,
-                      border:
-                          Border.all(color: const Color(0xFFE6E8EB), width: 1),
+                      border: Border.all(color: const Color(0xFFE6E8EB), width: 1),
                       boxShadow: [
                         BoxShadow(
                           color: const Color(0xFF003465).withOpacity(0.06),
@@ -387,31 +384,22 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                         ),
                       ],
                     ),
-                    child: images.isNotEmpty
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              images.first,
-                              height: 80,
-                              width: 80,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  _placeholderIcon(),
-                            ),
-                          )
-                        : _placeholderIcon(),
+                    child: _iconTile(iconKey),  // Shows wheelchair, walker, etc.
                   ),
                 ),
                 const SizedBox(width: 12),
+                
+                // CONTENT SECTION
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Item name + Date
                       Row(
                         children: [
                           Expanded(
                             child: Text(
-                              data['itemName'] ?? 'Unknown',
+                              data['itemName'] ?? 'Unknown',  // e.g., "Wheelchair"
                               style: const TextStyle(
                                 fontSize: 16.5,
                                 fontWeight: FontWeight.w700,
@@ -424,7 +412,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            _formatCreatedAt(data['createdAt']),
+                            _formatCreatedAt(data['createdAt']),  // e.g., "7/12/2025"
                             style: const TextStyle(
                               fontSize: 11,
                               color: Color(0xFF7A869A),
@@ -434,22 +422,26 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                         ],
                       ),
                       const SizedBox(height: 6),
+                      
+                      // Condition + Quantity chips
                       Row(
                         children: [
                           _infoChip(
                             Icons.inventory_2_outlined,
-                            data['condition'] ?? 'N/A',
+                            data['condition'] ?? 'N/A',  // e.g., "Good"
                             const Color(0xFF1976D2),
                           ),
                           const SizedBox(width: 8),
                           _infoChip(
                             Icons.numbers,
-                            '${data['quantity'] ?? 1}',
+                            '${data['quantity'] ?? 1}',  // e.g., "2"
                             const Color(0xFF7B1FA2),
                           ),
                         ],
                       ),
                       const SizedBox(height: 8),
+                      
+                      // Status badge + Arrow button
                       Row(
                         children: [
                           Expanded(
@@ -467,6 +459,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  // Status dot
                                   Container(
                                     width: 6,
                                     height: 6,
@@ -494,6 +487,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                             ),
                           ),
                           const SizedBox(width: 8),
+                          // Forward arrow button
                           Material(
                             color: const Color(0xFF003465),
                             shape: const CircleBorder(),
@@ -502,9 +496,8 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                               onTap: () {
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(
-                                    builder: (_) => DonationDetailsPage(
-                                        donation: data),
+                                  slideUpRoute(
+                                    DonationDetailsPage(donation: data),
                                   ),
                                 );
                               },
@@ -529,25 +522,44 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
     );
   }
 
-  Widget _placeholderIcon() {
+  Widget _iconTile(String iconKey) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFF003465).withOpacity(0.1),
+            const Color(0xFF003465).withOpacity(0.08),
             const Color(0xFF1976D2).withOpacity(0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Center(
+      child: Center(
         child: Icon(
-          Icons.medical_services_outlined,
-          color: Color(0xFF003465),
-          size: 40,
+          _mapIcon(iconKey),
+          color: const Color(0xFF003465),
+          size: 36,
         ),
       ),
     );
+  }
+
+  IconData _mapIcon(String key) {
+    switch (key) {
+      case 'wheelchair':
+        return Icons.wheelchair_pickup;
+      case 'walker':
+        return Icons.elderly;
+      case 'crutches':
+        return Icons.accessibility;
+      case 'shower_chair':
+        return Icons.chair;
+      case 'hospital_bed':
+        return Icons.bed;
+      case 'other':
+        return Icons.volunteer_activism;
+      default:
+        return Icons.inventory_2_outlined;
+    }
   }
 
   Widget _infoChip(IconData icon, String label, Color color) {

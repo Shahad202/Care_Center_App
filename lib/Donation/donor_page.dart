@@ -1,21 +1,49 @@
 import 'package:flutter/material.dart';
 import 'donate_tab.dart';
 import 'tracking_tab.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:project444/signup.dart';
+import 'package:project444/login.dart';
+import 'package:project444/profilePage.dart';
+
 
 class DonorPage extends StatefulWidget {
-  const DonorPage({super.key});
+  final String? userName;
+  const DonorPage({super.key, this.userName});
+  
   @override
   State<DonorPage> createState() => _DonorPageState();
 }
 
 class _DonorPageState extends State<DonorPage> {
-  int _selectedTabIndex = 0;
+  int _selectedTabIndex = 0;  // 0=About, 1=Donate, 2=Tracking
+  String _userRole = 'guest';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final snap = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final role = (snap.data()?['role'] ?? 'user').toString();
+      if (mounted) setState(() => _userRole = role);
+    } catch (_) {
+      // keep default role
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFF),
-      drawer: Drawer(
+ drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
@@ -23,16 +51,114 @@ class _DonorPageState extends State<DonorPage> {
               decoration: const BoxDecoration(
                 color: Color(0xFF003465),
               ),
-              child: const Center(
-                child: Text(
-                  'App Features',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+              child: FirebaseAuth.instance.currentUser == null
+                  ? Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: () async {
+                            Navigator.pop(context);
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const LoginPage(),
+                              ),
+                            );
+                            if (result == true && mounted) {
+                              setState(() {});
+                            }
+                          },
+                          child: const CircleAvatar(
+                            radius: 35,
+                            backgroundImage: AssetImage(
+                              'lib/images/default_profile.png',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          "Welcome, Guest!",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    )
+                  : FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection("users")
+                          .doc(FirebaseAuth.instance.currentUser!.uid)
+                          .get(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          );
+                        }
+
+                        var data =
+                            snapshot.data!.data() as Map<String, dynamic>;
+                        String name = (data["name"] ?? "User").toString();
+                        String? imageUrl = data["profileImage"] as String?;
+                        _userRole = (data['role'] ?? 'user').toString();
+
+                        return Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            GestureDetector(
+                              onTap: () async {
+                                Navigator.pop(context);
+                                final updated = await Navigator.push<bool?>(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const ProfilePage(),
+                                  ),
+                                );
+                                if (updated == true && mounted) {
+                                  setState(() {});
+                                }
+                              },
+                              child: CircleAvatar(
+                                radius: 35,
+                                backgroundImage:
+                                    (imageUrl != null && imageUrl.isNotEmpty)
+                                        ? NetworkImage(imageUrl)
+                                        : const AssetImage(
+                                                'lib/images/default_profile.png',
+                                              )
+                                            as ImageProvider,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              "Welcome, $name!",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.home),
+              title: const Text('Home'),
+              onTap: () {
+                Navigator.pop(context);
+                final role = _userRole.toLowerCase();
+                if (role == 'admin') {
+                  Navigator.pushReplacementNamed(context, '/admin');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/home');
+                }
+              },
             ),
             ListTile(
               leading: const Icon(Icons.inventory),
@@ -52,14 +178,12 @@ class _DonorPageState extends State<DonorPage> {
               ),
               onTap: () {
                 Navigator.pop(context);
+                Navigator.pushNamed(context, '/inventory');
               },
             ),
             ListTile(
               leading: const Icon(Icons.volunteer_activism),
-              title: const Text(
-                'Donations',
-                style: TextStyle(fontSize: 14),
-              ),
+              title: const Text('Donations', style: TextStyle(fontSize: 14)),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushNamed(context, '/donor');
@@ -75,9 +199,32 @@ class _DonorPageState extends State<DonorPage> {
                 Navigator.pop(context);
               },
             ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: FirebaseAuth.instance.currentUser != null
+                  ? ListTile(
+                      leading: const Icon(Icons.logout, color: Colors.red),
+                      title: const Text(
+                        "Logout",
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      onTap: () async {
+                        await FirebaseAuth.instance.signOut();
+                        if (mounted) {
+                          Navigator.pop(context);
+                          Navigator.pushReplacementNamed(context, '/home');
+                        }
+                      },
+                    )
+                  : const SizedBox(),
+            ),
           ],
         ),
       ),
+    
       body: Column(
         children: [
           _buildHeader(),
@@ -101,12 +248,12 @@ class _DonorPageState extends State<DonorPage> {
       color: const Color(0xFF003465),
       child: Row(
         children: [
-          const SizedBox(width: 8), // subtle left padding
+          const SizedBox(width: 8),
           Builder(
             builder: (context) => IconButton(
               icon: const Icon(Icons.menu, color: Colors.white),
-              padding: EdgeInsetsGeometry.all(18), // avoids extra internal padding
-              constraints: const BoxConstraints(), // keeps button compact
+              padding: const EdgeInsets.all(18),
+              constraints: const BoxConstraints(),
               onPressed: () => Scaffold.of(context).openDrawer(),
               tooltip: 'Menu',
             ),
@@ -135,13 +282,15 @@ class _DonorPageState extends State<DonorPage> {
   Widget _tabBtn(String label, int index) {
     final selected = _selectedTabIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _selectedTabIndex = index),
+      onTap: () => setState(() => _selectedTabIndex = index),  // Switch tabs
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(50),
           boxShadow: selected
               ? [const BoxShadow(color: Color(0x14000000), offset: Offset(0, 4), blurRadius: 6)]
               : null,
+          // Selected: Dark blue with shadow
+          // Unselected: Light background with border
           color: selected ? const Color(0xFF003465) : const Color(0xFFF7FBFF),
           border: selected ? null : Border.all(color: const Color(0xFFAAA6B2), width: 1),
         ),
@@ -178,11 +327,11 @@ class _DonorPageState extends State<DonorPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _makeDifferenceCard(),
+          _makeDifferenceCard(),      // "Make a Difference" banner
           const SizedBox(height: 30),
-          _howItWorks(),
+          _howItWorks(),              // 3-step process explanation
           const SizedBox(height: 30),
-          _beforeDonateCard(),
+          _beforeDonateCard(),        // 4-point checklist
           const SizedBox(height: 30),
         ],
       ),
@@ -238,18 +387,24 @@ class _DonorPageState extends State<DonorPage> {
           style: TextStyle(color: Color(0xFF003465), fontSize: 20, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 30),
+        
+        // Step 1
         _stepCard(
           'lib/images/Level1.png',
           'Submit Your Donation',
           'Fill out the donation form with equipment details and photos',
         ),
         const SizedBox(height: 30),
+        
+        // Step 2
         _stepCard(
           'lib/images/2circled.png',
           'Admin Review',
           'Our team will review your submission within 24-48 hours',
         ),
         const SizedBox(height: 30),
+        
+        // Step 3
         _stepCard(
           'lib/images/Circled3.png',
           'Help Someone',
@@ -270,6 +425,7 @@ class _DonorPageState extends State<DonorPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Icon/Image (49x49)
           Container(
             width: 49,
             height: 49,
@@ -278,6 +434,8 @@ class _DonorPageState extends State<DonorPage> {
             ),
           ),
           const SizedBox(width: 10),
+          
+          // Title + Description
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -318,6 +476,15 @@ class _DonorPageState extends State<DonorPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          const Text(
+            'Before You Donate',
+            style: TextStyle(
+              color: Color.fromARGB(255, 56, 55, 55),
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
           _bullet('Ensure the equipment is clean and in working condition.'),
           const SizedBox(height: 16),
           _bullet('Provide clear, well-lit photos from multiple angles.'),

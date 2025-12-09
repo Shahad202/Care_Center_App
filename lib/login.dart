@@ -3,8 +3,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'auth.dart';
 import 'signup.dart';
-import 'reservation.dart';
-import 'main.dart';
+import 'reservation/reservation.dart';
+import 'Donation/donor_page.dart';
+import 'reservation/reservation_dates_screen.dart';
+import 'admin_dashboard.dart'; // Make sure AdminDashboard class exists in this file
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -19,7 +21,7 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
 
 
-  // Instance of AuthService 
+  // Instance of AuthService. 
   final AuthService _authService = AuthService();
   // Loading state
   bool _isLoading = false;
@@ -32,9 +34,13 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
+      appBar: AppBar(
+        title: const Text('Login'),
+        backgroundColor: const Color(0xFF0A66C2),
+      ),
       body: Center(
         child: Padding(padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -87,12 +93,14 @@ class _LoginPageState extends State<LoginPage> {
                _isLoading
                ? const CircularProgressIndicator()
                : ElevatedButton(onPressed: _login,
-                child: const Text('Login'),
+                child: const Text('Login', style: TextStyle(color: Colors.white),),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0A66C2)),
                 ),
                 TextButton(onPressed: (){
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const SignupPage())
                   );
-                }, child: const Text("Dont have an account? Sign Up"))
+                }, child: const Text("Dont have an account? Sign Up")
+                )
             ],
             ),
         ), 
@@ -138,13 +146,12 @@ class _LoginPageState extends State<LoginPage> {
 
         // Navigate based on role:
         if (role == 'Admin'){
-
           // to remove the login page from history, so user can't press back and return to guest home or login screen sisnce there are already buttons for these
-          Navigator.pushReplacementNamed(context, '/admin');
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AdminDashboard()));
         } else if (role == 'Donor'){
-          Navigator.pushReplacementNamed(context, '/donor');
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => DonorPage(userName: name)));
         } else if (role == 'Renter'){
-          Navigator.pushReplacementNamed(context, '/renter');
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => RenterPage(userName: name)));
         }
       }
     }  
