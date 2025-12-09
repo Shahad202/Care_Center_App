@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:project444/inventory/inventory_admin.dart';
 import 'package:project444/login.dart';
 import 'package:project444/profilePage.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -27,7 +28,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     try {
-      final snap = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       final role = (snap.data()?['role'] ?? 'user').toString();
       if (mounted) setState(() => _userRole = role);
     } catch (_) {
@@ -116,11 +120,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 radius: 35,
                                 backgroundImage:
                                     (imageUrl != null && imageUrl.isNotEmpty)
-                                        ? NetworkImage(imageUrl)
-                                        : const AssetImage(
-                                                'lib/images/default_profile.png',
-                                              )
-                                            as ImageProvider,
+                                    ? NetworkImage(imageUrl)
+                                    : const AssetImage(
+                                            'lib/images/default_profile.png',
+                                          )
+                                          as ImageProvider,
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -219,7 +223,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 440),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 24,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -257,8 +264,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       title: 'Inventory Management',
                       subtitle: 'Manage items in inventory',
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Coming soon...')),
+                        Navigator.push(
+                          context,
+                          slideUpRoute(NewinventoryWidget()),
                         );
                       },
                     ),
@@ -320,7 +328,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ),
                   ],
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 16,
+                ),
                 child: Row(
                   children: [
                     Expanded(

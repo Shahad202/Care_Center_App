@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project444/profilePage.dart';
 import 'package:project444/login.dart';
+import 'package:project444/inventory/add_item.dart';
 
 class NewinventoryWidget extends StatefulWidget {
   @override
@@ -15,6 +16,36 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
   String _filterStatus = 'All';
   List<Map<String, String>> _filteredItems = [];
   String _userRole = 'user';
+
+  // Filter state variables
+  List<String> _selectedItemTypes = [];
+  List<String> _selectedAvailabilityStatus = [];
+  List<String> _selectedConditions = [];
+  String _selectedLocation = 'All Locations';
+
+  final List<String> _itemTypes = [
+    'Mobility Aid',
+    'Medical Device',
+    'Furniture',
+    'Equipment',
+  ];
+
+  final List<String> _availabilityStatuses = [
+    'Available',
+    'Rented',
+    'Donated',
+    'Maintenance',
+  ];
+
+  final List<String> _conditions = ['Excellent', 'Good', 'Fair', 'Poor'];
+
+  final List<String> _locations = [
+    'All Locations',
+    'Ward A',
+    'Ward B',
+    'Clinic',
+    'Storage Room A',
+  ];
 
   final List<Map<String, String>> _inventoryItems = [
     {
@@ -71,10 +102,29 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
   void _filterItems() {
     setState(() {
       _filteredItems = _inventoryItems.where((item) {
-        final matchesSearch = item['name']!.toLowerCase().contains(_searchController.text.toLowerCase()) ||
-            item['category']!.toLowerCase().contains(_searchController.text.toLowerCase());
-        final matchesStatus = _filterStatus == 'All' || item['status'] == _filterStatus;
-        return matchesSearch && matchesStatus;
+        final matchesSearch =
+            item['name']!.toLowerCase().contains(
+              _searchController.text.toLowerCase(),
+            ) ||
+            item['category']!.toLowerCase().contains(
+              _searchController.text.toLowerCase(),
+            );
+        final matchesStatus =
+            _filterStatus == 'All' || item['status'] == _filterStatus;
+        final matchesItemType =
+            _selectedItemTypes.isEmpty ||
+            _selectedItemTypes.contains(item['category']);
+        final matchesAvailability =
+            _selectedAvailabilityStatus.isEmpty ||
+            _selectedAvailabilityStatus.contains(item['status']);
+        final matchesLocation =
+            _selectedLocation == 'All Locations' ||
+            item['location']!.contains(_selectedLocation);
+        return matchesSearch &&
+            matchesStatus &&
+            matchesItemType &&
+            matchesAvailability &&
+            matchesLocation;
       }).toList();
     });
   }
@@ -92,6 +142,251 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
     }
   }
 
+  void _showFilterDialog(BuildContext ctx) {
+    showDialog(
+      context: ctx,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: SingleChildScrollView(
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Title
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Filters',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1F2937),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => Navigator.pop(context),
+                            child: const Icon(Icons.close, size: 24),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // ITEM TYPE
+                      const Text(
+                        'Item Type',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1F2937),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _itemTypes.map((type) {
+                          final isSelected = _selectedItemTypes.contains(type);
+                          return FilterChip(
+                            label: Text(type),
+                            selected: isSelected,
+                            selectedColor: const Color(0xFF155DFC),
+                            onSelected: (selected) {
+                              setDialogState(() {
+                                if (selected) {
+                                  _selectedItemTypes.add(type);
+                                } else {
+                                  _selectedItemTypes.remove(type);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // AVAILABILITY
+                      const Text(
+                        'Availability Status',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1F2937),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _availabilityStatuses.map((status) {
+                          final isSelected = _selectedAvailabilityStatus
+                              .contains(status);
+
+                          return FilterChip(
+                            label: Text(status),
+                            selected: isSelected,
+                            selectedColor: const Color(0xFF155DFC),
+                            onSelected: (selected) {
+                              setDialogState(() {
+                                if (selected) {
+                                  _selectedAvailabilityStatus.add(status);
+                                } else {
+                                  _selectedAvailabilityStatus.remove(status);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // CONDITION
+                      const Text(
+                        'Condition',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1F2937),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _conditions.map((condition) {
+                          final isSelected = _selectedConditions.contains(
+                            condition,
+                          );
+
+                          return FilterChip(
+                            label: Text(condition),
+                            selected: isSelected,
+                            selectedColor: const Color(0xFF155DFC),
+                            onSelected: (selected) {
+                              setDialogState(() {
+                                if (selected) {
+                                  _selectedConditions.add(condition);
+                                } else {
+                                  _selectedConditions.remove(condition);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // LOCATION
+                      const Text(
+                        'Location',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1F2937),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      DropdownButton<String>(
+                        value: _selectedLocation,
+                        isExpanded: true,
+                        items: _locations.map((location) {
+                          return DropdownMenuItem(
+                            value: location,
+                            child: Text(location),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setDialogState(() {
+                            _selectedLocation = value ?? 'All Locations';
+                          });
+                        },
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // BUTTONS
+                      Row(
+                        children: [
+                          // RESET
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () {
+                                setDialogState(() {
+                                  _selectedItemTypes.clear();
+                                  _selectedAvailabilityStatus.clear();
+                                  _selectedConditions.clear();
+                                  _selectedLocation = 'All Locations';
+                                });
+                              },
+                              child: const Text(
+                                'Reset',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF6B7280),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(width: 12),
+
+                          // APPLY
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  _filterItems();
+                                });
+                                Navigator.pop(context);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF155DFC),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                              ),
+                              child: const Text(
+                                'Apply Filters',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -101,30 +396,20 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: const BoxDecoration(
-                color: Color(0xFF003465),
-              ),
+              decoration: const BoxDecoration(color: Color(0xFF003465)),
               child: FirebaseAuth.instance.currentUser == null
                   ? Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         GestureDetector(
-                          onTap: () async {
-                            Navigator.pop(context);
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const LoginPage(),
-                              ),
-                            );
-                            if (result == true && mounted) {
-                              setState(() {});
-                            }
-                          },
+                          onTap: () async {},
                           child: const CircleAvatar(
-                            radius: 35,
-                            backgroundImage: AssetImage(
-                              'lib/images/default_profile.png',
+                            backgroundColor: Colors.grey,
+                            radius: 40,
+                            child: Icon(
+                              Icons.person,
+                              color: Colors.white,
+                              size: 40,
                             ),
                           ),
                         ),
@@ -133,7 +418,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
                           "Welcome, Guest!",
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 18,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -147,9 +432,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
                       builder: (context, snapshot) {
                         if (!snapshot.hasData) {
                           return const Center(
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                            ),
+                            child: CircularProgressIndicator(),
                           );
                         }
 
@@ -162,36 +445,25 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
                         return Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            GestureDetector(
-                              onTap: () async {
-                                Navigator.pop(context);
-                                final updated = await Navigator.push<bool?>(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const ProfilePage(),
-                                  ),
-                                );
-                                if (updated == true && mounted) {
-                                  setState(() {});
-                                }
-                              },
-                              child: CircleAvatar(
-                                radius: 35,
-                                backgroundImage:
-                                    (imageUrl != null && imageUrl.isNotEmpty)
-                                        ? NetworkImage(imageUrl)
-                                        : const AssetImage(
-                                                'lib/images/default_profile.png',
-                                              )
-                                            as ImageProvider,
-                              ),
+                            CircleAvatar(
+                              radius: 40,
+                              backgroundImage: imageUrl != null
+                                  ? NetworkImage(imageUrl)
+                                  : null,
+                              child: imageUrl == null
+                                  ? const Icon(
+                                      Icons.person,
+                                      color: Colors.white,
+                                      size: 40,
+                                    )
+                                  : null,
                             ),
                             const SizedBox(height: 10),
                             Text(
                               "Welcome, $name!",
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 18,
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -282,12 +554,16 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddItemDialog(),
+        onPressed: () => _showAddItemDialog(context),
         backgroundColor: const Color.fromRGBO(21, 93, 252, 1),
         icon: const Icon(Icons.add, size: 24, color: Colors.white),
         label: const Text(
           'Add Item',
-          style: TextStyle(fontFamily: 'Arimo', fontWeight: FontWeight.w600, color: Colors.white),
+          style: TextStyle(
+            fontFamily: 'Arimo',
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
         ),
       ),
       body: Builder(
@@ -308,13 +584,16 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color.fromRGBO(21, 93, 252, 0.3),
+                        color: const Color.fromRGBO(0, 0, 0, 0.1),
                         offset: const Offset(0, 4),
                         blurRadius: 12,
                       ),
                     ],
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: <Widget>[
@@ -322,199 +601,200 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Inventory',
+                            'Inventory Management',
                             style: TextStyle(
-                              color: Color.fromRGBO(255, 255, 255, 1),
+                              color: Colors.white,
                               fontFamily: 'Arimo',
-                              fontSize: 24,
+                              fontSize: 22,
                               fontWeight: FontWeight.w700,
-                              height: 1.2,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             '${_filteredItems.length} items',
                             style: const TextStyle(
-                              color: Color.fromRGBO(255, 255, 255, 0.7),
+                              color: Color.fromRGBO(219, 234, 254, 1),
                               fontFamily: 'Arimo',
-                              fontSize: 13,
-                              height: 1.4,
+                              fontSize: 12,
                             ),
                           ),
                         ],
                       ),
                       Container(
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
                           color: const Color.fromRGBO(255, 255, 255, 0.2),
-                          border: Border.all(
-                            color: const Color.fromRGBO(255, 255, 255, 0.3),
-                            width: 1,
-                          ),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        padding: const EdgeInsets.all(10),
-                        child: GestureDetector(
-                          onTap: () => Scaffold.of(context).openDrawer(),
-                          child: const Icon(
-                            Icons.menu,
-                            color: Color.fromRGBO(255, 255, 255, 1),
-                            size: 22,
-                          ),
+                        padding: const EdgeInsets.all(8),
+                        child: const Icon(
+                          Icons.inventory_2_outlined,
+                          color: Colors.white,
+                          size: 28,
                         ),
                       ),
                     ],
                   ),
                 ),
-            // Search & Filter Bar
-            Container(
-              decoration: const BoxDecoration(
-                color: Color.fromRGBO(255, 255, 255, 1),
-                boxShadow: [
-                  BoxShadow(
-                    color: Color.fromRGBO(0, 0, 0, 0.05),
-                    offset: Offset(0, 2),
-                    blurRadius: 8,
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  // Search Field with Filter Buttons
-                  Row(
-                    children: [
-                      // Search Field
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          decoration: InputDecoration(
-                            hintText: 'Search inventory...',
-                            hintStyle: const TextStyle(
-                              color: Color.fromRGBO(156, 163, 175, 1),
-                              fontFamily: 'Arimo',
-                              fontSize: 14,
-                            ),
-                            prefixIcon: const Icon(
-                              Icons.search,
-                              color: Color.fromRGBO(156, 163, 175, 1),
-                              size: 18,
-                            ),
-                            suffixIcon: _searchController.text.isNotEmpty
-                                ? GestureDetector(
-                                    onTap: () {
-                                      _searchController.clear();
-                                      _filterItems();
-                                    },
-                                    child: const Icon(
-                                      Icons.close,
-                                      color: Color.fromRGBO(156, 163, 175, 1),
-                                      size: 18,
-                                    ),
-                                  )
-                                : null,
-                            filled: true,
-                            fillColor: const Color.fromRGBO(249, 250, 251, 1),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: Color.fromRGBO(208, 213, 219, 1),
-                                width: 1,
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: Color.fromRGBO(208, 213, 219, 1),
-                                width: 1,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: Color.fromRGBO(21, 93, 252, 1),
-                                width: 2,
-                              ),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                          ),
-                          onChanged: (value) => setState(() {}),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Filter Button
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color.fromRGBO(208, 213, 219, 1),
-                            width: 1.2,
-                          ),
-                          color: const Color.fromRGBO(249, 250, 251, 1),
-                        ),
-                        child: PopupMenuButton(
-                          icon: const Icon(Icons.tune, color: Color.fromRGBO(73, 85, 101, 1), size: 20),
-                          onSelected: (value) {
-                            setState(() {
-                              _filterStatus = value;
-                              _filterItems();
-                            });
-                          },
-                          itemBuilder: (BuildContext context) => [
-                            const PopupMenuItem(value: 'All', child: Text('All')),
-                            const PopupMenuItem(value: 'Available', child: Text('Available')),
-                            const PopupMenuItem(value: 'Rented', child: Text('Rented')),
-                            const PopupMenuItem(value: 'Maintenance', child: Text('Maintenance')),
-                          ],
-                          padding: EdgeInsets.zero,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Sort Button
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color.fromRGBO(208, 213, 219, 1),
-                            width: 1.2,
-                          ),
-                          color: const Color.fromRGBO(249, 250, 251, 1),
-                        ),
-                        child: const IconButton(
-                          icon: Icon(Icons.swap_vert, color: Color.fromRGBO(73, 85, 101, 1), size: 20),
-                          onPressed: null,
-                          padding: EdgeInsets.all(8),
-                        ),
+                // Search & Filter Bar
+                Container(
+                  decoration: const BoxDecoration(
+                    color: Color.fromRGBO(255, 255, 255, 1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color.fromRGBO(0, 0, 0, 0.05),
+                        offset: Offset(0, 2),
+                        blurRadius: 8,
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-            // Inventory Cards List
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              child: _filteredItems.isEmpty
-                  ? _buildEmptyState()
-                  : Column(
-                      children: List.generate(
-                        _filteredItems.length,
-                        (index) {
-                          final item = _filteredItems[index];
-                          return Padding(
-                            padding: EdgeInsets.only(bottom: index < _filteredItems.length - 1 ? 16 : 80),
-                            child: _buildInventoryCard(
-                              name: item['name']!,
-                              category: item['category']!,
-                              status: item['status']!,
-                              statusColor: _getStatusColor(item['status']!),
-                              location: item['location']!,
-                              quantity: item['quantity']!,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      // Search Field with Filter Buttons
+                      Row(
+                        children: [
+                          // Search Field
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              decoration: InputDecoration(
+                                hintText: 'Search inventory...',
+                                hintStyle: const TextStyle(
+                                  color: Color.fromRGBO(156, 163, 175, 1),
+                                  fontFamily: 'Arimo',
+                                  fontSize: 14,
+                                ),
+                                prefixIcon: const Icon(
+                                  Icons.search,
+                                  color: Color.fromRGBO(156, 163, 175, 1),
+                                  size: 18,
+                                ),
+                                suffixIcon: _searchController.text.isNotEmpty
+                                    ? GestureDetector(
+                                        onTap: () {
+                                          _searchController.clear();
+                                          _filterItems();
+                                        },
+                                        child: const Icon(
+                                          Icons.close,
+                                          color: Color.fromRGBO(
+                                            156,
+                                            163,
+                                            175,
+                                            1,
+                                          ),
+                                          size: 18,
+                                        ),
+                                      )
+                                    : null,
+                                filled: true,
+                                fillColor: const Color.fromRGBO(
+                                  249,
+                                  250,
+                                  251,
+                                  1,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                    color: Color.fromRGBO(208, 213, 219, 1),
+                                    width: 1,
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                    color: Color.fromRGBO(208, 213, 219, 1),
+                                    width: 1,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                    color: Color.fromRGBO(21, 93, 252, 1),
+                                    width: 2,
+                                  ),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 12,
+                                ),
+                              ),
+                              onChanged: (value) => setState(() {}),
                             ),
-                          );
-                        },
+                          ),
+                          const SizedBox(width: 8),
+                          // Filter Button
+                          Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color.fromRGBO(208, 213, 219, 1),
+                                width: 1.2,
+                              ),
+                              color: const Color.fromRGBO(249, 250, 251, 1),
+                            ),
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.filter_list,
+                                color: Color.fromRGBO(73, 85, 101, 1),
+                                size: 20,
+                              ),
+                              onPressed: () => _showFilterDialog(context),
+                              padding: const EdgeInsets.all(8),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Sort Button
+                          Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color.fromRGBO(208, 213, 219, 1),
+                                width: 1.2,
+                              ),
+                              color: const Color.fromRGBO(249, 250, 251, 1),
+                            ),
+                            child: const IconButton(
+                              icon: Icon(
+                                Icons.swap_vert,
+                                color: Color.fromRGBO(73, 85, 101, 1),
+                                size: 20,
+                              ),
+                              onPressed: null,
+                              padding: EdgeInsets.all(8),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-            ),
+                    ],
+                  ),
+                ),
+                // Inventory Cards List
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  child: _filteredItems.isEmpty
+                      ? _buildEmptyState()
+                      : Column(
+                          children: List.generate(_filteredItems.length, (
+                            index,
+                          ) {
+                            final item = _filteredItems[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: _buildInventoryCard(
+                                context: context,
+                                name: item['name']!,
+                                category: item['category']!,
+                                status: item['status']!,
+                                statusColor: _getStatusColor(item['status']!),
+                                location: item['location']!,
+                                quantity: item['quantity']!,
+                              ),
+                            );
+                          }),
+                        ),
+                ),
               ],
             ),
           );
@@ -522,97 +802,291 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
       ),
     );
   }
+}
 
-  Widget _buildFilterChip(String label) {
-    final isSelected = _filterStatus == label;
-    return FilterChip(
-      label: Text(
-        label,
-        style: TextStyle(
-          color: isSelected ? Colors.white : const Color.fromRGBO(73, 85, 101, 1),
-          fontFamily: 'Arimo',
-          fontWeight: FontWeight.w600,
-          fontSize: 13,
-        ),
+Widget _buildFilterChip(
+  String label,
+  bool isSelected,
+  Function(bool) onSelected,
+) {
+  return FilterChip(
+    label: Text(
+      label,
+      style: TextStyle(
+        color: isSelected ? Colors.white : const Color.fromRGBO(73, 85, 101, 1),
+        fontFamily: 'Arimo',
+        fontWeight: FontWeight.w600,
+        fontSize: 13,
       ),
-      onSelected: (selected) {
-        setState(() {
-          _filterStatus = label;
-          _filterItems();
-        });
-      },
-      selected: isSelected,
-      backgroundColor: const Color.fromRGBO(242, 244, 246, 1),
-      selectedColor: const Color.fromRGBO(21, 93, 252, 1),
-      side: BorderSide(
-        color: isSelected ? const Color.fromRGBO(21, 93, 252, 1) : Colors.transparent,
-        width: 0,
-      ),
-    );
-  }
+    ),
+    onSelected: onSelected,
+    selected: isSelected,
+    backgroundColor: const Color.fromRGBO(242, 244, 246, 1),
+    selectedColor: const Color.fromRGBO(21, 93, 252, 1),
+    side: BorderSide(
+      color: isSelected
+          ? const Color.fromRGBO(21, 93, 252, 1)
+          : Colors.transparent,
+      width: 0,
+    ),
+  );
+}
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 60),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: const Color.fromRGBO(242, 244, 246, 1),
-              ),
-              child: const Icon(
-                Icons.inventory_2_outlined,
-                size: 40,
-                color: Color.fromRGBO(156, 163, 175, 1),
-              ),
+Widget _buildEmptyState() {
+  return Center(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 60),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: const Color.fromRGBO(242, 244, 246, 1),
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'No items found',
-              style: TextStyle(
-                color: Color.fromRGBO(31, 41, 55, 1),
-                fontFamily: 'Arimo',
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+            child: const Icon(
+              Icons.inventory_2_outlined,
+              size: 40,
+              color: Color.fromRGBO(156, 163, 175, 1),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Try adjusting your search or filters',
-              style: TextStyle(
-                color: Color.fromRGBO(156, 163, 175, 1),
-                fontFamily: 'Arimo',
-                fontSize: 13,
-              ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'No items found',
+            style: TextStyle(
+              color: Color.fromRGBO(31, 41, 55, 1),
+              fontFamily: 'Arimo',
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Try adjusting your search or filters',
+            style: TextStyle(
+              color: Color.fromRGBO(156, 163, 175, 1),
+              fontFamily: 'Arimo',
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+void _showAddItemDialog(BuildContext ctx) {
+  Navigator.push(
+    ctx,
+    MaterialPageRoute(builder: (context) => const AddItemScreen()),
+  );
+}
+
+Widget _buildInventoryCard({
+  required BuildContext context,
+  required String name,
+  required String category,
+  required String status,
+  required Color statusColor,
+  required String location,
+  required String quantity,
+}) {
+  return Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: () => _showItemDetailsDialog(
+        context,
+        name,
+        category,
+        status,
+        location,
+        quantity,
+      ),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: const Color.fromRGBO(0, 0, 0, 0.08),
+              offset: const Offset(0, 2),
+              blurRadius: 8,
             ),
           ],
+          color: const Color.fromRGBO(255, 255, 255, 1),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image Section with Status Badge
+              Container(
+                width: double.infinity,
+                height: 180,
+                decoration: const BoxDecoration(
+                  color: Color.fromRGBO(243, 244, 246, 1),
+                  image: DecorationImage(
+                    image: AssetImage('assets/images/Imagewithfallback.png'),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusColor,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          status,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontFamily: 'Arimo',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Content Section
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Name and Category
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        color: Color.fromRGBO(31, 41, 55, 1),
+                        fontFamily: 'Arimo',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      category,
+                      style: const TextStyle(
+                        color: Color.fromRGBO(107, 114, 128, 1),
+                        fontFamily: 'Arimo',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // Condition Badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color.fromRGBO(242, 244, 246, 1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        'Good',
+                        style: TextStyle(
+                          color: Color.fromRGBO(73, 85, 101, 1),
+                          fontFamily: 'Arimo',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Location
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on_outlined,
+                          color: Color.fromRGBO(107, 114, 128, 1),
+                          size: 14,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            location,
+                            style: const TextStyle(
+                              color: Color.fromRGBO(107, 114, 128, 1),
+                              fontFamily: 'Arimo',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Quantity
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.inventory_2_outlined,
+                          color: Color.fromRGBO(107, 114, 128, 1),
+                          size: 14,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Qty: $quantity',
+                          style: const TextStyle(
+                            color: Color.fromRGBO(107, 114, 128, 1),
+                            fontFamily: 'Arimo',
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  void _showAddItemDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+void _showItemDetailsDialog(
+  BuildContext ctx,
+  String name,
+  String category,
+  String status,
+  String location,
+  String quantity,
+) {
+  showDialog(
+    context: ctx,
+    builder: (BuildContext context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: SingleChildScrollView(
           child: Container(
             padding: const EdgeInsets.all(24),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      'Add New Item',
+                      'Item Details',
                       style: TextStyle(
                         color: Color.fromRGBO(31, 41, 55, 1),
                         fontFamily: 'Arimo',
@@ -627,327 +1101,83 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                const Text('Item Name', style: TextStyle(fontFamily: 'Arimo', fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Enter item name',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text('Category', style: TextStyle(fontFamily: 'Arimo', fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Enter category',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  ),
-                ),
+                _buildDetailRow('Name', name),
+                _buildDetailRow('Category', category),
+                _buildDetailRow('Status', status),
+                _buildDetailRow('Location', location),
+                _buildDetailRow('Quantity', quantity),
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel', style: TextStyle(color: Color.fromRGBO(156, 163, 175, 1))),
+                      child: const Text(
+                        'Close',
+                        style: TextStyle(
+                          color: Color.fromRGBO(156, 163, 175, 1),
+                          fontFamily: 'Arimo',
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton(
                       onPressed: () => Navigator.pop(context),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color.fromRGBO(21, 93, 252, 1),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                      child: const Text('Add Item', style: TextStyle(color: Colors.white, fontFamily: 'Arimo')),
+                      child: const Text(
+                        'Edit',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'Arimo',
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ],
             ),
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
-  Widget _buildInventoryCard({
-    required String name,
-    required String category,
-    required String status,
-    required Color statusColor,
-    required String location,
-    required String quantity,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _showItemDetailsDialog(name, category, status, location, quantity),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: const Color.fromRGBO(0, 0, 0, 0.08),
-                offset: const Offset(0, 2),
-                blurRadius: 8,
-              ),
-            ],
-            color: const Color.fromRGBO(255, 255, 255, 1),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Image Section with Status Badge
-                Container(
-                  width: double.infinity,
-                  height: 180,
-                  decoration: const BoxDecoration(
-                    color: Color.fromRGBO(243, 244, 246, 1),
-                    image: DecorationImage(
-                      image: AssetImage('assets/images/Imagewithfallback.png'),
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  child: Stack(
-                    children: [
-                      Positioned(
-                        top: 12,
-                        right: 12,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(6),
-                            color: statusColor,
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color.fromRGBO(0, 0, 0, 0.2),
-                                offset: Offset(0, 2),
-                                blurRadius: 4,
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            status,
-                            style: const TextStyle(
-                              color: Color.fromRGBO(255, 255, 255, 1),
-                              fontFamily: 'Arimo',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Content Section
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Name and Category
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          color: Color.fromRGBO(16, 23, 39, 1),
-                          fontFamily: 'Arimo',
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        category,
-                        style: const TextStyle(
-                          color: Color.fromRGBO(107, 114, 128, 1),
-                          fontFamily: 'Arimo',
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      // Condition Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          color: const Color.fromRGBO(220, 252, 231, 1),
-                          border: Border.all(
-                            color: const Color.fromRGBO(184, 247, 207, 1),
-                            width: 1,
-                          ),
-                        ),
-                        child: const Text(
-                          'Excellent Condition',
-                          style: TextStyle(
-                            color: Color.fromRGBO(0, 130, 53, 1),
-                            fontFamily: 'Arimo',
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Location
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.location_on_outlined,
-                            size: 18,
-                            color: Color.fromRGBO(156, 163, 175, 1),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              location,
-                              style: const TextStyle(
-                                color: Color.fromRGBO(73, 85, 101, 1),
-                                fontFamily: 'Arimo',
-                                fontSize: 13,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      // Quantity
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.inventory_2_outlined,
-                            size: 18,
-                            color: Color.fromRGBO(156, 163, 175, 1),
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Quantity: ',
-                            style: TextStyle(
-                              color: Color.fromRGBO(73, 85, 101, 1),
-                              fontFamily: 'Arimo',
-                              fontSize: 13,
-                            ),
-                          ),
-                          Text(
-                            quantity,
-                            style: const TextStyle(
-                              color: Color.fromRGBO(16, 23, 39, 1),
-                              fontFamily: 'Arimo',
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+Widget _buildDetailRow(String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color.fromRGBO(107, 114, 128, 1),
+            fontFamily: 'Arimo',
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
           ),
         ),
-      ),
-    );
-  }
-
-  void _showItemDetailsDialog(String name, String category, String status, String location, String quantity) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: SingleChildScrollView(
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Item Details',
-                        style: TextStyle(
-                          color: Color.fromRGBO(31, 41, 55, 1),
-                          fontFamily: 'Arimo',
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: const Icon(Icons.close, size: 24),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  _buildDetailRow('Name', name),
-                  _buildDetailRow('Category', category),
-                  _buildDetailRow('Status', status),
-                  _buildDetailRow('Location', location),
-                  _buildDetailRow('Quantity', quantity),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Close', style: TextStyle(color: Color.fromRGBO(156, 163, 175, 1))),
-                      ),
-                      const SizedBox(width: 12),
-                      ElevatedButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color.fromRGBO(21, 93, 252, 1),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: const Text('Edit', style: TextStyle(color: Colors.white, fontFamily: 'Arimo')),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Color.fromRGBO(31, 41, 55, 1),
+            fontFamily: 'Arimo',
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
           ),
-        );
-      },
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color.fromRGBO(107, 114, 128, 1),
-              fontFamily: 'Arimo',
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Color.fromRGBO(31, 41, 55, 1),
-              fontFamily: 'Arimo',
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
 }
