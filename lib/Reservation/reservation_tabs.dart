@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+
 import 'package:project444/signup.dart';
 import 'package:project444/login.dart';
 import 'package:firebase_core/firebase_core.dart';
