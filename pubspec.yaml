@@ -37,6 +37,7 @@ dependencies:
   flutter_svg: ^2.0.0
   image_picker: ^1.0.0
   fl_chart: ^0.65.0
+  
 
 
 
@@ -70,6 +71,7 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
       - lib/images/2circled.png
+      - lib/images/Group 2261.png
       - lib/images/Circled3.png
       - lib/images/Level1.png
       - lib/images/vector.svg
