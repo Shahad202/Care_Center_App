@@ -30,7 +30,7 @@ class HowItWorksTab extends StatelessWidget {
           const SizedBox(height: 20),
           _stepCard('lib/images/Circled3.png', 'Confirm Reservation', 'Submit Reservation and Await admin approval,'),
           const SizedBox(height: 20),
-          _stepCard('lib/images/4circled.png', 'Rental Lifecycle', 'Track Status: Reserved -> Checked Out -> Returned -> Maintenance.'),
+          _stepCard('lib/images/Group 2261.png', 'Rental Lifecycle', 'Track Status: Reserved -> Checked Out -> Returned -> Maintenance.'),
         ],
       ),
     );
