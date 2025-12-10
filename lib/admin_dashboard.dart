@@ -44,9 +44,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: const BoxDecoration(
-                color: Color(0xFF003465),
-              ),
+              decoration: const BoxDecoration(color: Color(0xFF003465)),
               child: FirebaseAuth.instance.currentUser == null
                   ? Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -56,9 +54,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             Navigator.pop(context);
                             final result = await Navigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (_) => const LoginPage(),
-                              ),
+                              slideUpRoute(const LoginPage()),
                             );
                             if (result == true && mounted) {
                               setState(() {});
@@ -110,9 +106,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 Navigator.pop(context);
                                 final updated = await Navigator.push<bool?>(
                                   context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const ProfilePage(),
-                                  ),
+                                  slideUpRoute(const ProfilePage()),
                                 );
                                 if (updated == true && mounted) {
                                   setState(() {});
@@ -158,47 +152,27 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             ListTile(
               leading: const Icon(Icons.inventory),
-              title: const Text(
-                'Inventory Management',
-                style: TextStyle(fontSize: 14),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                final role = _userRole.toLowerCase();
-                if (role == 'admin') {
-                  Navigator.pushReplacementNamed(context, '/inventory_admin');
-                } else {
-                  Navigator.pushReplacementNamed(context, '/inventory');
-                }
-              },
+              title: const Text('Inventory Management'),
+              onTap: () => Navigator.pop(context),
             ),
             ListTile(
               leading: const Icon(Icons.calendar_month),
-              title: const Text(
-                'Reservation & Rental',
-                style: TextStyle(fontSize: 14),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/renter');
-              },
+              title: const Text('Reservation & Rental'),
+              onTap: () => Navigator.pop(context),
             ),
             ListTile(
               leading: const Icon(Icons.volunteer_activism),
-              title: const Text('Donations', style: TextStyle(fontSize: 14)),
+              title: const Text('Donations'),
               onTap: () {
-                Navigator.pop(context);
                 Navigator.pushNamed(context, '/donor');
               },
             ),
             ListTile(
               leading: const Icon(Icons.bar_chart),
-              title: const Text(
-                'Tracking & Reports',
-                style: TextStyle(fontSize: 14),
-              ),
+              title: const Text('Tracking & Reports'),
               onTap: () {
                 Navigator.pop(context);
+                Navigator.pushNamed(context, '/reports');
               },
             ),
             Padding(
@@ -286,7 +260,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       title: 'Inventory Management',
                       subtitle: 'Manage items in inventory',
                       onTap: () {
-                        Navigator.pushReplacementNamed(context, '/inventory_admin');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Coming soon...')),
+                        );
                       },
                     ),
                     const SizedBox(height: 20),

@@ -6,10 +6,11 @@ import 'package:project444/signup.dart';
 import 'login.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'reports.dart';
 import 'reservation/reservation.dart';
 import 'Donation/donor_page.dart';
-import 'inventory/inventory_admin_new.dart';
-import 'inventory/inventory_user.dart';
+import 'inventory/inventory_admin.dart';
+import 'login.dart';
 import 'signup.dart';
 import 'admin_dashboard.dart';
 import 'inventory_list_screen.dart';
@@ -93,9 +94,9 @@ class MyApp extends StatelessWidget {
         '/admin': (c) => const AdminPage(userName: ''),
         '/login': (c) => const LoginPage(),
         '/signup': (c) => const SignupPage(),
-        "/inventory": (c) => InventoryUserWidget(),
-        "/inventory_admin": (c) => InventoryAdminWidget(),
-        "/renter": (c) => const RenterPage(),
+        "/inventory": (c) => const RenterPage(),
+        "/reports": (c) => const CareCenter(),
+        //"/dates": (c) => const ReservationDatesScreen(inventoryItemId: '', itemName: '', requestedQuantity: 8,),
         "/confirm": (c) => const Placeholder(),
         "/success": (c) => const ReservationSuccessScreen(),
         "/tracking": (c) => const ReservationTrackingScreen(),
@@ -387,12 +388,10 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                final role = _userRole.toLowerCase();
-                if (role == 'admin') {
-                  Navigator.pushReplacementNamed(context, '/inventory_admin');
-                } else {
-                  Navigator.pushReplacementNamed(context, '/inventory');
-                }
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => NewinventoryWidget()),
+                );
               },
             ),
             ListTile(
@@ -403,7 +402,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/renter');
+                Navigator.pushNamed(context, '/inventory');
               },
             ),
             ListTile(
@@ -422,6 +421,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               onTap: () {
                 Navigator.pop(context);
+                Navigator.pushNamed(context, '/reports');
               },
             ),
             Padding(

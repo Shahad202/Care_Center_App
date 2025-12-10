@@ -57,7 +57,7 @@ class ReservationTrackingScreen extends StatelessWidget {
                 isDone: false,
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height:24),
 
               SizedBox(
                 width: double.infinity,
