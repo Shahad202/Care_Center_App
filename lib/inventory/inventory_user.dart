@@ -11,14 +11,36 @@ class InventoryUserWidget extends StatefulWidget {
 
 class _InventoryUserWidgetState extends State<InventoryUserWidget> {
   late TextEditingController _searchController;
-  String _filterStatus = 'Available';
+  String _filterStatus = 'All';
   String _selectedCategory = 'All';
   String _sourceFilter = 'All';
   String _userRole = 'guest';
+  String _sortOption = 'Name A-Z';
+  String _viewMode = 'list'; // 'grid' or 'list'
 
-  final List<String> _statusFilters = ['All', 'Available', 'Rented', 'Maintenance', 'Donated'];
-  final List<String> _categoryFilters = ['All', 'Mobility Aid', 'Medical Device', 'Furniture', 'Other'];
+  final List<String> _statusFilters = [
+    'All',
+    'Available',
+    'Rented',
+    'Maintenance',
+    'Donated',
+  ];
+  final List<String> _categoryFilters = [
+    'All',
+    'Mobility Aid',
+    'Medical Device',
+    'Furniture',
+    'Other',
+  ];
   final List<String> _sourceFilters = ['All', 'Donated', 'Rentable'];
+  final List<String> _sortOptions = [
+    'Name A-Z',
+    'Name Z-A',
+    'Quantity (High to Low)',
+    'Quantity (Low to High)',
+    'Status',
+    'Added (Newest)',
+  ];
 
   @override
   void initState() {
@@ -34,7 +56,10 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     try {
-      final snap = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       final role = (snap.data()?['role'] ?? 'user').toString();
       if (mounted) setState(() => _userRole = role);
     } catch (_) {
@@ -63,6 +88,193 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
     }
   }
 
+  Widget _buildDrawer() {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: const BoxDecoration(color: Color(0xFF003465)),
+            child: FirebaseAuth.instance.currentUser == null
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      GestureDetector(
+                        onTap: () async {
+                          Navigator.pop(context);
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const LoginPage(),
+                            ),
+                          );
+                          if (result == true && mounted) {
+                            setState(() {});
+                          }
+                        },
+                        child: const CircleAvatar(
+                          radius: 35,
+                          backgroundImage: AssetImage(
+                            'lib/images/default_profile.png',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Welcome, Guest!',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  )
+                : FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(FirebaseAuth.instance.currentUser!.uid)
+                        .get(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                          ),
+                        );
+                      }
+
+                      var data =
+                          snapshot.data!.data() as Map<String, dynamic>;
+                      String name = (data['name'] ?? 'User').toString();
+                      String? imageUrl = data['profileImage'] as String?;
+                      _userRole = (data['role'] ?? 'user').toString();
+
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          GestureDetector(
+                            onTap: () async {
+                              Navigator.pop(context);
+                              final updated = await Navigator.push<bool?>(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const ProfilePage(),
+                                ),
+                              );
+                              if (updated == true && mounted) {
+                                setState(() {});
+                              }
+                            },
+                            child: CircleAvatar(
+                              radius: 35,
+                              backgroundImage: imageUrl != null
+                                  ? NetworkImage(imageUrl)
+                                  : const AssetImage(
+                                      'lib/images/default_profile.png',
+                                    ) as ImageProvider,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.home),
+            title: const Text('Home'),
+            onTap: () {
+              Navigator.pop(context);
+              final role = _userRole.toLowerCase();
+              if (role == 'admin') {
+                Navigator.pushReplacementNamed(context, '/admin');
+              } else {
+                Navigator.pushReplacementNamed(context, '/home');
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.inventory),
+            title: const Text(
+              'Inventory Management',
+              style: TextStyle(fontSize: 14),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              final role = _userRole.toLowerCase();
+              if (role == 'admin') {
+                Navigator.pushReplacementNamed(context, '/inventory_admin');
+              } else {
+                Navigator.pushReplacementNamed(context, '/inventory');
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.calendar_month),
+            title: const Text(
+              'Reservation & Rental',
+              style: TextStyle(fontSize: 14),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/renter');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.volunteer_activism),
+            title: const Text('Donations', style: TextStyle(fontSize: 14)),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/donor');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.bar_chart),
+            title: const Text(
+              'Tracking & Reports',
+              style: TextStyle(fontSize: 14),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/reports');
+            },
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: FirebaseAuth.instance.currentUser != null
+                ? ListTile(
+                    leading: const Icon(Icons.logout, color: Colors.red),
+                    title: const Text(
+                      'Logout',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    onTap: () async {
+                      await FirebaseAuth.instance.signOut();
+                      if (mounted) {
+                        Navigator.pop(context);
+                        Navigator.pushReplacementNamed(context, '/home');
+                      }
+                    },
+                  )
+                : const SizedBox(),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -71,7 +283,7 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
         elevation: 0,
         backgroundColor: const Color(0xFF003465),
         title: const Text(
-          'Available Equipment',
+          'Equipment Inventory',
           style: TextStyle(
             fontFamily: 'Arimo',
             fontSize: 20,
@@ -84,9 +296,7 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: const BoxDecoration(
-                color: Color(0xFF003465),
-              ),
+              decoration: const BoxDecoration(color: Color(0xFF003465)),
               child: FirebaseAuth.instance.currentUser == null
                   ? Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -162,11 +372,11 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
                                 radius: 35,
                                 backgroundImage:
                                     (imageUrl != null && imageUrl.isNotEmpty)
-                                        ? NetworkImage(imageUrl)
-                                        : const AssetImage(
-                                                'lib/images/default_profile.png',
-                                              )
-                                            as ImageProvider,
+                                    ? NetworkImage(imageUrl)
+                                    : const AssetImage(
+                                            'lib/images/default_profile.png',
+                                          )
+                                          as ImageProvider,
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -239,6 +449,7 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
               ),
               onTap: () {
                 Navigator.pop(context);
+                Navigator.pushNamed(context, '/reports');
               },
             ),
             Padding(
@@ -273,159 +484,55 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search equipment...',
-                    prefixIcon: const Icon(Icons.search, color: Color(0xFF6B7280)),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, color: Color(0xFF6B7280)),
-                            onPressed: () {
-                              _searchController.clear();
-                            },
-                          )
-                        : null,
-                    filled: true,
-                    fillColor: const Color(0xFFF3F4F6),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search equipment...',
+                          prefixIcon: const Icon(
+                            Icons.search,
+                            color: Color(0xFF6B7280),
+                          ),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(
+                                    Icons.clear,
+                                    color: Color(0xFF6B7280),
+                                  ),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                  },
+                                )
+                              : null,
+                          filled: true,
+                          fillColor: const Color(0xFFF3F4F6),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
+                    const SizedBox(width: 12),
+                    _buildFilterMenu(),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            PopupMenuButton<String>(
-                              icon: const Icon(Icons.tune, color: Color(0xFF6B7280)),
-                              tooltip: 'Filters',
-                              onSelected: (value) {
-                                setState(() {});
-                              },
-                              itemBuilder: (BuildContext context) {
-                                return [
-                                  PopupMenuItem<String>(
-                                    enabled: false,
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Text(
-                                          'Status',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: Color(0xFF6B7280),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Wrap(
-                                          spacing: 6,
-                                          runSpacing: 6,
-                                          children: _statusFilters.map((label) {
-                                            final isSelected = _filterStatus == label;
-                                            return FilterChip(
-                                              label: Text(label),
-                                              selected: isSelected,
-                                              onSelected: (_) {
-                                                setState(() => _filterStatus = label);
-                                                Navigator.pop(context);
-                                              },
-                                              backgroundColor: const Color(0xFFF3F4F6),
-                                              selectedColor: const Color(0xFF003465),
-                                              labelStyle: TextStyle(
-                                                color: isSelected ? Colors.white : const Color(0xFF374151),
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 12,
-                                              ),
-                                              side: BorderSide.none,
-                                            );
-                                          }).toList(),
-                                        ),
-                                        const SizedBox(height: 16),
-                                        const Text(
-                                          'Category',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: Color(0xFF6B7280),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Wrap(
-                                          spacing: 6,
-                                          runSpacing: 6,
-                                          children: _categoryFilters.map((label) {
-                                            final isSelected = _selectedCategory == label;
-                                            return FilterChip(
-                                              label: Text(label),
-                                              selected: isSelected,
-                                              onSelected: (_) {
-                                                setState(() => _selectedCategory = label);
-                                                Navigator.pop(context);
-                                              },
-                                              backgroundColor: const Color(0xFFF3F4F6),
-                                              selectedColor: const Color(0xFF003465),
-                                              labelStyle: TextStyle(
-                                                color: isSelected ? Colors.white : const Color(0xFF374151),
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 12,
-                                              ),
-                                              side: BorderSide.none,
-                                            );
-                                          }).toList(),
-                                        ),
-                                        const SizedBox(height: 16),
-                                        const Text(
-                                          'Source',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: Color(0xFF6B7280),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Wrap(
-                                          spacing: 6,
-                                          runSpacing: 6,
-                                          children: _sourceFilters.map((label) {
-                                            final isSelected = _sourceFilter == label;
-                                            return ChoiceChip(
-                                              label: Text(label),
-                                              selected: isSelected,
-                                              onSelected: (_) {
-                                                setState(() => _sourceFilter = label);
-                                                Navigator.pop(context);
-                                              },
-                                              selectedColor: const Color(0xFF003465),
-                                              backgroundColor: const Color(0xFFF3F4F6),
-                                              labelStyle: TextStyle(
-                                                color: isSelected ? Colors.white : const Color(0xFF374151),
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 12,
-                                              ),
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                            );
-                                          }).toList(),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ];
-                              },
-                            ),
-                            const SizedBox(width: 12),
-                          ],
-                        ),
-                      ),
-                    ),
+                    if (_filterStatus != 'All' ||
+                        _selectedCategory != 'All' ||
+                        _sourceFilter != 'All')
+                    const Spacer(),
+                    _buildViewToggle(),
+                    const SizedBox(width: 12),
+                    _buildSortDropdown(),
                   ],
                 ),
               ],
@@ -455,10 +562,7 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
                   }
 
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return SizedBox(
-                      height: 300,
-                      child: _buildEmptyState(),
-                    );
+                    return SizedBox(height: 300, child: _buildEmptyState());
                   }
 
                   // Filter items
@@ -466,48 +570,109 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
                   final filteredDocs = snapshot.data!.docs.where((doc) {
                     final data = doc.data() as Map<String, dynamic>;
                     final name = (data['name'] ?? '').toString().toLowerCase();
-                    final category = (data['type'] ?? data['category'] ?? '').toString();
-                    final status = (data['status'] ?? 'available').toString().toLowerCase();
-                    final source = (data['source'] ?? 'manual').toString().toLowerCase();
-                    final itemId = (data['itemId'] ?? '').toString().toLowerCase();
-                    final tags = (data['tags'] as List?)?.join(' ').toLowerCase() ?? '';
+                    final category = (data['type'] ?? data['category'] ?? '')
+                        .toString();
+                    final status = (data['status'] ?? 'available')
+                        .toString()
+                        .toLowerCase();
+                    final source = (data['source'] ?? 'manual')
+                        .toString()
+                        .toLowerCase();
+                    final itemId = (data['itemId'] ?? '')
+                        .toString()
+                        .toLowerCase();
+                    final tags =
+                        (data['tags'] as List?)?.join(' ').toLowerCase() ?? '';
 
-                    final matchesSearch = searchQuery.isEmpty ||
+                    final matchesSearch =
+                        searchQuery.isEmpty ||
                         name.contains(searchQuery) ||
                         category.toLowerCase().contains(searchQuery) ||
                         itemId.contains(searchQuery) ||
                         tags.contains(searchQuery);
 
-                    final matchesStatus = _filterStatus == 'All' ||
+                    final matchesStatus =
+                        _filterStatus == 'All' ||
                         status == _filterStatus.toLowerCase();
 
-                    final matchesCategory = _selectedCategory == 'All' ||
-                        category.toLowerCase() == _selectedCategory.toLowerCase();
+                    final matchesCategory =
+                        _selectedCategory == 'All' ||
+                        category.toLowerCase() ==
+                            _selectedCategory.toLowerCase();
 
                     bool matchesSource = true;
                     if (_sourceFilter == 'Donated') {
-                      matchesSource = source == 'donation' || status == 'donated';
+                      matchesSource =
+                          source == 'donation' || status == 'donated';
                     } else if (_sourceFilter == 'Rentable') {
-                      matchesSource = source != 'donation' && status != 'donated';
+                      matchesSource =
+                          source != 'donation' && status != 'donated';
                     }
 
-                    return matchesSearch && matchesStatus && matchesCategory && matchesSource;
+                    return matchesSearch &&
+                        matchesStatus &&
+                        matchesCategory &&
+                        matchesSource;
                   }).toList();
 
+                  _sortDocuments(filteredDocs);
+
                   if (filteredDocs.isEmpty) {
-                    return SizedBox(
-                      height: 300,
-                      child: _buildEmptyState(),
-                    );
+                    return SizedBox(height: 300, child: _buildEmptyState());
                   }
 
-                  return _buildListView(filteredDocs);
+                  if (_viewMode == 'grid') {
+                    return _buildGridView(filteredDocs);
+                  } else {
+                    return _buildListView(filteredDocs);
+                  }
                 },
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildViewToggle() {
+    final isList = _viewMode == 'list';
+    return ToggleButtons(
+      borderRadius: BorderRadius.circular(12),
+      constraints: const BoxConstraints(minHeight: 36, minWidth: 40),
+      isSelected: [!isList, isList],
+      onPressed: (index) {
+        setState(() {
+          _viewMode = index == 0 ? 'grid' : 'list';
+        });
+      },
+      fillColor: const Color(0xFF003465),
+      selectedColor: Colors.white,
+      color: const Color(0xFF6B7280),
+      children: const [
+        Icon(Icons.grid_view, size: 18),
+        Icon(Icons.view_list, size: 18),
+      ],
+    );
+  }
+
+  Widget _buildGridView(List<QueryDocumentSnapshot> docs) {
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: docs.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.60,
+      ),
+      itemBuilder: (context, index) {
+        final doc = docs[index];
+        final data = doc.data() as Map<String, dynamic>;
+        return _buildGridCard(data);
+      },
     );
   }
 
@@ -528,7 +693,7 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
     );
   }
 
-  Widget _buildListCard(Map<String, dynamic> data) {
+  Widget _buildGridCard(Map<String, dynamic> data) {
     final status = data['status'] ?? 'available';
     final statusColor = _getStatusColor(status);
     final category = data['type'] ?? data['category'] ?? 'Other';
@@ -566,7 +731,7 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
                 // Image Section with Status Badge
                 Container(
                   width: double.infinity,
-                  height: 200,
+                  height: 120,
                   decoration: BoxDecoration(
                     color: const Color(0xFFE5E7EB),
                     gradient: LinearGradient(
@@ -589,7 +754,10 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
                         top: 12,
                         right: 12,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(6),
                             color: statusColor,
@@ -616,7 +784,7 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
                 ),
                 // Content Section
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -639,10 +807,13 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
                           color: Color(0xFF6B7280),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       // Condition Badge
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(20),
                           color: const Color(0xFFDCFCE7),
@@ -660,7 +831,7 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       // Location
                       if (location.isNotEmpty)
                         Row(
@@ -684,7 +855,7 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
                             ),
                           ],
                         ),
-                      if (location.isNotEmpty) const SizedBox(height: 8),
+                      if (location.isNotEmpty) const SizedBox(height: 6),
                       // Quantity
                       Row(
                         children: [
@@ -722,16 +893,169 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
     );
   }
 
+  Widget _buildListCard(Map<String, dynamic> data) {
+    final status = data['status'] ?? 'available';
+    final statusColor = _getStatusColor(status);
+    final category = data['type'] ?? data['category'] ?? 'Other';
+    final source = (data['source'] ?? 'manual').toString();
+    final rentalPrice = data['rentalPricePerDay'];
+    final location = data['location'] ?? '';
+    final itemId = data['itemId'];
+
+    String _statusLabel(String value) {
+      final lower = value.toString().toLowerCase();
+      if (lower == 'maintenance') return 'Maintenance';
+      return lower[0].toUpperCase() + lower.substring(1);
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _showItemDetails(data),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  _getIconFromCategory(data['category'] ?? ''),
+                  color: const Color(0xFF003465),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      data['name'] ?? 'Unknown',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '$category • Qty: ${data['quantity'] ?? 0}',
+                      style: const TextStyle(color: Color(0xFF6B7280)),
+                    ),
+                    if (location.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        location,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF4B5563),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                    if (itemId != null && itemId.toString().isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'ID: ${itemId.toString()}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF9CA3AF),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                    if (rentalPrice != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'SR $rentalPrice/day',
+                        style: const TextStyle(
+                          color: Color(0xFF003465),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 116,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _statusLabel(status),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: statusColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: source == 'donation'
+                            ? const Color(0xFFE0E7FF)
+                            : const Color(0xFFE5E7EB),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        source == 'donation' ? 'Donated' : 'Rentable',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: source == 'donation'
+                              ? const Color(0xFF1D4ED8)
+                              : const Color(0xFF4B5563),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.inventory_2_outlined,
-            size: 80,
-            color: Colors.grey[300],
-          ),
+          Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey[300]),
           const SizedBox(height: 16),
           const Text(
             'No equipment available',
@@ -744,14 +1068,216 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
           const SizedBox(height: 8),
           const Text(
             'Check back later for new items',
-            style: TextStyle(
-              fontSize: 14,
-              color: Color(0xFF9CA3AF),
-            ),
+            style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildFilterMenu() {
+    return PopupMenuButton<String>(
+      icon: const Icon(
+        Icons.tune,
+        color: Color(0xFF6B7280),
+      ),
+      tooltip: 'Filters',
+      onSelected: (_) {
+        setState(() {});
+      },
+      itemBuilder: (BuildContext context) {
+        return [
+          PopupMenuItem<String>(
+            enabled: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Status',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B7280),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: _statusFilters.map((label) {
+                    final isSelected = _filterStatus == label;
+                    return FilterChip(
+                      label: Text(label),
+                      selected: isSelected,
+                      onSelected: (_) {
+                        setState(() => _filterStatus = label);
+                        Navigator.pop(context);
+                      },
+                      backgroundColor: const Color(0xFFF3F4F6),
+                      selectedColor: const Color(0xFF003465),
+                      labelStyle: TextStyle(
+                        color: isSelected
+                            ? Colors.white
+                            : const Color(0xFF374151),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                      side: BorderSide.none,
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Category',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B7280),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: _categoryFilters.map((label) {
+                    final isSelected = _selectedCategory == label;
+                    return FilterChip(
+                      label: Text(label),
+                      selected: isSelected,
+                      onSelected: (_) {
+                        setState(() => _selectedCategory = label);
+                        Navigator.pop(context);
+                      },
+                      backgroundColor: const Color(0xFFF3F4F6),
+                      selectedColor: const Color(0xFF003465),
+                      labelStyle: TextStyle(
+                        color: isSelected
+                            ? Colors.white
+                            : const Color(0xFF374151),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                      side: BorderSide.none,
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Source',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B7280),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: _sourceFilters.map((label) {
+                    final isSelected = _sourceFilter == label;
+                    return ChoiceChip(
+                      label: Text(label),
+                      selected: isSelected,
+                      onSelected: (_) {
+                        setState(() => _sourceFilter = label);
+                        Navigator.pop(context);
+                      },
+                      selectedColor: const Color(0xFF003465),
+                      backgroundColor: const Color(0xFFF3F4F6),
+                      labelStyle: TextStyle(
+                        color: isSelected
+                            ? Colors.white
+                            : const Color(0xFF374151),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+        ];
+      },
+    );
+  }
+
+  Widget _buildSortDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _sortOption,
+          icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF6B7280)),
+          items: _sortOptions
+              .map(
+                (option) => DropdownMenuItem(
+                  value: option,
+                  child: Text(
+                    option,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF374151),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (value) {
+            if (value == null) return;
+            setState(() => _sortOption = value);
+          },
+        ),
+      ),
+    );
+  }
+
+  void _sortDocuments(List<QueryDocumentSnapshot> docs) {
+    docs.sort((a, b) {
+      final aData = a.data() as Map<String, dynamic>;
+      final bData = b.data() as Map<String, dynamic>;
+
+      String nameOf(Map<String, dynamic> data) =>
+          (data['name'] ?? '').toString().toLowerCase();
+      int qtyOf(Map<String, dynamic> data) {
+        final value = data['quantity'];
+        return value is num ? value.toInt() : 0;
+      }
+
+      String statusOf(Map<String, dynamic> data) =>
+          (data['status'] ?? 'available').toString().toLowerCase();
+
+      Timestamp addedOf(Map<String, dynamic> data) {
+        final value = data['addedAt'];
+        if (value is Timestamp) return value;
+        return Timestamp(0, 0);
+      }
+
+      switch (_sortOption) {
+        case 'Name Z-A':
+          return nameOf(bData).compareTo(nameOf(aData));
+        case 'Quantity (High to Low)':
+          return qtyOf(bData).compareTo(qtyOf(aData));
+        case 'Quantity (Low to High)':
+          return qtyOf(aData).compareTo(qtyOf(bData));
+        case 'Status':
+          return statusOf(aData).compareTo(statusOf(bData));
+        case 'Added (Newest)':
+          return addedOf(bData).compareTo(addedOf(aData));
+        default:
+          return nameOf(aData).compareTo(nameOf(bData));
+      }
+    });
   }
 
   IconData _getIconFromCategory(String category) {
@@ -816,7 +1342,12 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
                 const SizedBox(height: 24),
                 _detailRow('Item ID', (data['itemId'] ?? 'N/A').toString()),
                 _detailRow('Type', data['type'] ?? data['category'] ?? 'N/A'),
-                _detailRow('Source', (data['source'] ?? 'manual') == 'donation' ? 'Donated' : 'Rentable'),
+                _detailRow(
+                  'Source',
+                  (data['source'] ?? 'manual') == 'donation'
+                      ? 'Donated'
+                      : 'Rentable',
+                ),
                 if ((data['description'] ?? '').toString().isNotEmpty)
                   _detailRow('Description', data['description']),
                 _detailRow('Condition', data['condition'] ?? 'N/A'),
@@ -824,7 +1355,8 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
                 _detailRow('Location', data['location'] ?? 'N/A'),
                 if (data['rentalPricePerDay'] != null)
                   _detailRow('Price', 'SR ${data['rentalPricePerDay']}/day'),
-                if (data['images'] != null && (data['images'] as List).isNotEmpty)
+                if (data['images'] != null &&
+                    (data['images'] as List).isNotEmpty)
                   _detailRow('Images', (data['images'] as List).join(', ')),
                 if (data['tags'] != null && (data['tags'] as List).isNotEmpty)
                   _detailRow('Tags', (data['tags'] as List).join(', ')),
@@ -880,10 +1412,7 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF111827),
-              ),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF111827)),
             ),
           ),
         ],
@@ -891,4 +1420,3 @@ class _InventoryUserWidgetState extends State<InventoryUserWidget> {
     );
   }
 }
-

@@ -5,7 +5,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project444/login.dart';
 import 'package:project444/profilePage.dart';
 
-
 class InventoryAdminWidget extends StatefulWidget {
   @override
   _InventoryAdminWidgetState createState() => _InventoryAdminWidgetState();
@@ -18,10 +17,31 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
   String _sourceFilter = 'All';
   String _viewMode = 'grid'; // 'grid' or 'list'
   String _userRole = 'guest';
+  String _sortOption = 'Name A-Z';
 
-  final List<String> _statusFilters = ['All', 'Available', 'Rented', 'Maintenance', 'Donated'];
-  final List<String> _categoryFilters = ['All', 'Mobility Aid', 'Medical Device', 'Furniture', 'Other'];
+  final List<String> _statusFilters = [
+    'All',
+    'Available',
+    'Rented',
+    'Maintenance',
+    'Donated',
+  ];
+  final List<String> _categoryFilters = [
+    'All',
+    'Mobility Aid',
+    'Medical Device',
+    'Furniture',
+    'Other',
+  ];
   final List<String> _sourceFilters = ['All', 'Donated', 'Rentable'];
+  final List<String> _sortOptions = [
+    'Name A-Z',
+    'Name Z-A',
+    'Quantity (High to Low)',
+    'Quantity (Low to High)',
+    'Status',
+    'Added (Newest)',
+  ];
 
   @override
   void initState() {
@@ -37,7 +57,10 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     try {
-      final snap = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       final role = (snap.data()?['role'] ?? 'user').toString();
       if (mounted) setState(() => _userRole = role);
     } catch (_) {
@@ -81,16 +104,7 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(_viewMode == 'grid' ? Icons.view_list : Icons.grid_view),
-            onPressed: () {
-              setState(() {
-                _viewMode = _viewMode == 'grid' ? 'list' : 'grid';
-              });
-            },
-          ),
-        ],
+        actions: const [],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddItemDialog(),
@@ -98,10 +112,7 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text(
           'Add Item',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
         ),
       ),
       drawer: Drawer(
@@ -109,9 +120,7 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: const BoxDecoration(
-                color: Color(0xFF003465),
-              ),
+              decoration: const BoxDecoration(color: Color(0xFF003465)),
               child: FirebaseAuth.instance.currentUser == null
                   ? Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -187,11 +196,11 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                                 radius: 35,
                                 backgroundImage:
                                     (imageUrl != null && imageUrl.isNotEmpty)
-                                        ? NetworkImage(imageUrl)
-                                        : const AssetImage(
-                                                'lib/images/default_profile.png',
-                                              )
-                                            as ImageProvider,
+                                    ? NetworkImage(imageUrl)
+                                    : const AssetImage(
+                                            'lib/images/default_profile.png',
+                                          )
+                                          as ImageProvider,
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -264,6 +273,7 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
               ),
               onTap: () {
                 Navigator.pop(context);
+                Navigator.pushNamed(context, '/reports');
               },
             ),
             Padding(
@@ -299,175 +309,73 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search inventory...',
-                    prefixIcon: const Icon(Icons.search, color: Color(0xFF6B7280)),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, color: Color(0xFF6B7280)),
-                            onPressed: () {
-                              _searchController.clear();
-                            },
-                          )
-                        : null,
-                    filled: true,
-                    fillColor: const Color(0xFFF3F4F6),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search inventory...',
+                          prefixIcon: const Icon(
+                            Icons.search,
+                            color: Color(0xFF6B7280),
+                          ),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(
+                                    Icons.clear,
+                                    color: Color(0xFF6B7280),
+                                  ),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                  },
+                                )
+                              : null,
+                          filled: true,
+                          fillColor: const Color(0xFFF3F4F6),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
+                    const SizedBox(width: 12),
+                    _buildFilterMenu(),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            PopupMenuButton<String>(
-                              icon: const Icon(Icons.tune, color: Color(0xFF6B7280)),
-                              tooltip: 'Filters',
-                              onSelected: (value) {
-                                setState(() {});
-                              },
-                              itemBuilder: (BuildContext context) {
-                                return [
-                                  PopupMenuItem<String>(
-                                    enabled: false,
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Text(
-                                          'Status',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: Color(0xFF6B7280),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Wrap(
-                                          spacing: 6,
-                                          runSpacing: 6,
-                                          children: _statusFilters.map((label) {
-                                            final isSelected = _filterStatus == label;
-                                            return FilterChip(
-                                              label: Text(label),
-                                              selected: isSelected,
-                                              onSelected: (_) {
-                                                setState(() => _filterStatus = label);
-                                                Navigator.pop(context);
-                                              },
-                                              backgroundColor: const Color(0xFFF3F4F6),
-                                              selectedColor: const Color(0xFF003465),
-                                              labelStyle: TextStyle(
-                                                color: isSelected ? Colors.white : const Color(0xFF374151),
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 12,
-                                              ),
-                                              side: BorderSide.none,
-                                            );
-                                          }).toList(),
-                                        ),
-                                        const SizedBox(height: 16),
-                                        const Text(
-                                          'Category',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: Color(0xFF6B7280),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Wrap(
-                                          spacing: 6,
-                                          runSpacing: 6,
-                                          children: _categoryFilters.map((label) {
-                                            final isSelected = _selectedCategory == label;
-                                            return FilterChip(
-                                              label: Text(label),
-                                              selected: isSelected,
-                                              onSelected: (_) {
-                                                setState(() => _selectedCategory = label);
-                                                Navigator.pop(context);
-                                              },
-                                              backgroundColor: const Color(0xFFF3F4F6),
-                                              selectedColor: const Color(0xFF003465),
-                                              labelStyle: TextStyle(
-                                                color: isSelected ? Colors.white : const Color(0xFF374151),
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 12,
-                                              ),
-                                              side: BorderSide.none,
-                                            );
-                                          }).toList(),
-                                        ),
-                                        const SizedBox(height: 16),
-                                        const Text(
-                                          'Source',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: Color(0xFF6B7280),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Wrap(
-                                          spacing: 6,
-                                          runSpacing: 6,
-                                          children: _sourceFilters.map((label) {
-                                            final isSelected = _sourceFilter == label;
-                                            return ChoiceChip(
-                                              label: Text(label),
-                                              selected: isSelected,
-                                              onSelected: (_) {
-                                                setState(() => _sourceFilter = label);
-                                                Navigator.pop(context);
-                                              },
-                                              selectedColor: const Color(0xFF003465),
-                                              backgroundColor: const Color(0xFFF3F4F6),
-                                              labelStyle: TextStyle(
-                                                color: isSelected ? Colors.white : const Color(0xFF374151),
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 12,
-                                              ),
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                            );
-                                          }).toList(),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ];
-                              },
-                            ),
-                            const SizedBox(width: 12),
-                            if (_filterStatus != 'All' || _selectedCategory != 'All' || _sourceFilter != 'All')
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF003465),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Text(
-                                  'Filters Active',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                          ],
+                    if (_filterStatus != 'All' ||
+                        _selectedCategory != 'All' ||
+                        _sourceFilter != 'All')
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF003465),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'Filters Active',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
+                    const Spacer(),
+                    _buildViewToggle(),
+                    const SizedBox(width: 12),
+                    _buildSortDropdown(),
                   ],
                 ),
               ],
@@ -489,7 +397,11 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                            const Icon(
+                              Icons.error_outline,
+                              size: 48,
+                              color: Colors.red,
+                            ),
                             const SizedBox(height: 16),
                             Text('Error: ${snapshot.error}'),
                           ],
@@ -506,10 +418,7 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                   }
 
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return SizedBox(
-                      height: 300,
-                      child: _buildEmptyState(),
-                    );
+                    return SizedBox(height: 300, child: _buildEmptyState());
                   }
 
                   // Filter items
@@ -517,39 +426,55 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                   final filteredDocs = snapshot.data!.docs.where((doc) {
                     final data = doc.data() as Map<String, dynamic>;
                     final name = (data['name'] ?? '').toString().toLowerCase();
-                    final category = (data['type'] ?? data['category'] ?? '').toString();
-                    final status = (data['status'] ?? 'available').toString().toLowerCase();
-                    final source = (data['source'] ?? 'manual').toString().toLowerCase();
-                    final itemId = (data['itemId'] ?? '').toString().toLowerCase();
-                    final tags = (data['tags'] as List?)?.join(' ').toLowerCase() ?? '';
+                    final category = (data['type'] ?? data['category'] ?? '')
+                        .toString();
+                    final status = (data['status'] ?? 'available')
+                        .toString()
+                        .toLowerCase();
+                    final source = (data['source'] ?? 'manual')
+                        .toString()
+                        .toLowerCase();
+                    final itemId = (data['itemId'] ?? '')
+                        .toString()
+                        .toLowerCase();
+                    final tags =
+                        (data['tags'] as List?)?.join(' ').toLowerCase() ?? '';
 
-                    final matchesSearch = searchQuery.isEmpty ||
+                    final matchesSearch =
+                        searchQuery.isEmpty ||
                         name.contains(searchQuery) ||
                         category.toLowerCase().contains(searchQuery) ||
                         itemId.contains(searchQuery) ||
                         tags.contains(searchQuery);
 
-                    final matchesStatus = _filterStatus == 'All' || 
+                    final matchesStatus =
+                        _filterStatus == 'All' ||
                         status == _filterStatus.toLowerCase();
 
-                    final matchesCategory = _selectedCategory == 'All' ||
-                      category.toLowerCase() == _selectedCategory.toLowerCase();
+                    final matchesCategory =
+                        _selectedCategory == 'All' ||
+                        category.toLowerCase() ==
+                            _selectedCategory.toLowerCase();
 
                     bool matchesSource = true;
                     if (_sourceFilter == 'Donated') {
-                      matchesSource = source == 'donation' || status == 'donated';
+                      matchesSource =
+                          source == 'donation' || status == 'donated';
                     } else if (_sourceFilter == 'Rentable') {
-                      matchesSource = source != 'donation' && status != 'donated';
+                      matchesSource =
+                          source != 'donation' && status != 'donated';
                     }
 
-                    return matchesSearch && matchesStatus && matchesCategory && matchesSource;
+                    return matchesSearch &&
+                        matchesStatus &&
+                        matchesCategory &&
+                        matchesSource;
                   }).toList();
 
+                  _sortDocuments(filteredDocs);
+
                   if (filteredDocs.isEmpty) {
-                    return SizedBox(
-                      height: 300,
-                      child: _buildEmptyState(),
-                    );
+                    return SizedBox(height: 300, child: _buildEmptyState());
                   }
 
                   return _viewMode == 'grid'
@@ -621,20 +546,249 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
     );
   }
 
-  Widget _buildGridView(List<QueryDocumentSnapshot> docs) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      child: Column(
-        children: docs.asMap().entries.map((entry) {
-          final index = entry.key;
-          final doc = entry.value;
-          final data = doc.data() as Map<String, dynamic>;
-          return Padding(
-            padding: EdgeInsets.only(bottom: index < docs.length - 1 ? 16 : 80),
-            child: _buildGridCard(doc.id, data),
-          );
-        }).toList(),
+  Widget _buildFilterMenu() {
+    return PopupMenuButton<String>(
+      icon: const Icon(
+        Icons.tune,
+        color: Color(0xFF6B7280),
       ),
+      tooltip: 'Filters',
+      onSelected: (_) {
+        setState(() {});
+      },
+      itemBuilder: (BuildContext context) {
+        return [
+          PopupMenuItem<String>(
+            enabled: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Status',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B7280),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: _statusFilters.map((label) {
+                    final isSelected = _filterStatus == label;
+                    return FilterChip(
+                      label: Text(label),
+                      selected: isSelected,
+                      onSelected: (_) {
+                        setState(() => _filterStatus = label);
+                        Navigator.pop(context);
+                      },
+                      backgroundColor: const Color(0xFFF3F4F6),
+                      selectedColor: const Color(0xFF003465),
+                      labelStyle: TextStyle(
+                        color: isSelected
+                            ? Colors.white
+                            : const Color(0xFF374151),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                      side: BorderSide.none,
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Category',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B7280),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: _categoryFilters.map((label) {
+                    final isSelected = _selectedCategory == label;
+                    return FilterChip(
+                      label: Text(label),
+                      selected: isSelected,
+                      onSelected: (_) {
+                        setState(() => _selectedCategory = label);
+                        Navigator.pop(context);
+                      },
+                      backgroundColor: const Color(0xFFF3F4F6),
+                      selectedColor: const Color(0xFF003465),
+                      labelStyle: TextStyle(
+                        color: isSelected
+                            ? Colors.white
+                            : const Color(0xFF374151),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                      side: BorderSide.none,
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Source',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B7280),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: _sourceFilters.map((label) {
+                    final isSelected = _sourceFilter == label;
+                    return ChoiceChip(
+                      label: Text(label),
+                      selected: isSelected,
+                      onSelected: (_) {
+                        setState(() => _sourceFilter = label);
+                        Navigator.pop(context);
+                      },
+                      selectedColor: const Color(0xFF003465),
+                      backgroundColor: const Color(0xFFF3F4F6),
+                      labelStyle: TextStyle(
+                        color: isSelected
+                            ? Colors.white
+                            : const Color(0xFF374151),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+        ];
+      },
+    );
+  }
+
+  Widget _buildSortDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _sortOption,
+          icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF6B7280)),
+          items: _sortOptions
+              .map(
+                (option) => DropdownMenuItem(
+                  value: option,
+                  child: Text(
+                    option,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF374151),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (value) {
+            if (value == null) return;
+            setState(() => _sortOption = value);
+          },
+        ),
+      ),
+    );
+  }
+
+  void _sortDocuments(List<QueryDocumentSnapshot> docs) {
+    docs.sort((a, b) {
+      final aData = a.data() as Map<String, dynamic>;
+      final bData = b.data() as Map<String, dynamic>;
+
+      String nameOf(Map<String, dynamic> data) =>
+          (data['name'] ?? '').toString().toLowerCase();
+      int qtyOf(Map<String, dynamic> data) {
+        final value = data['quantity'];
+        return value is num ? value.toInt() : 0;
+      }
+
+      String statusOf(Map<String, dynamic> data) =>
+          (data['status'] ?? 'available').toString().toLowerCase();
+
+      Timestamp addedOf(Map<String, dynamic> data) {
+        final value = data['addedAt'];
+        if (value is Timestamp) return value;
+        return Timestamp(0, 0);
+      }
+
+      switch (_sortOption) {
+        case 'Name Z-A':
+          return nameOf(bData).compareTo(nameOf(aData));
+        case 'Quantity (High to Low)':
+          return qtyOf(bData).compareTo(qtyOf(aData));
+        case 'Quantity (Low to High)':
+          return qtyOf(aData).compareTo(qtyOf(bData));
+        case 'Status':
+          return statusOf(aData).compareTo(statusOf(bData));
+        case 'Added (Newest)':
+          return addedOf(bData).compareTo(addedOf(aData));
+        default:
+          return nameOf(aData).compareTo(nameOf(bData));
+      }
+    });
+  }
+
+  Widget _buildViewToggle() {
+    final isGrid = _viewMode == 'grid';
+    return ToggleButtons(
+      borderRadius: BorderRadius.circular(12),
+      constraints: const BoxConstraints(minHeight: 36, minWidth: 40),
+      isSelected: [isGrid, !isGrid],
+      onPressed: (index) {
+        setState(() {
+          _viewMode = index == 0 ? 'grid' : 'list';
+        });
+      },
+      fillColor: const Color(0xFF003465),
+      selectedColor: Colors.white,
+      color: const Color(0xFF6B7280),
+      children: const [
+        Icon(Icons.grid_view, size: 18),
+        Icon(Icons.view_list, size: 18),
+      ],
+    );
+  }
+
+  Widget _buildGridView(List<QueryDocumentSnapshot> docs) {
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: docs.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.60,
+      ),
+      itemBuilder: (context, index) {
+        final doc = docs[index];
+        final data = doc.data() as Map<String, dynamic>;
+        return _buildGridCard(doc.id, data);
+      },
     );
   }
 
@@ -692,7 +846,7 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                 // Image Section with Status Badge
                 Container(
                   width: double.infinity,
-                  height: 180,
+                  height: 120,
                   decoration: BoxDecoration(
                     color: const Color(0xFFE5E7EB),
                     gradient: LinearGradient(
@@ -715,7 +869,10 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                         top: 12,
                         right: 12,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(6),
                             color: statusColor,
@@ -742,7 +899,7 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                 ),
                 // Content Section
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -765,10 +922,13 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                           color: Color(0xFF6B7280),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       // Condition Badge
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(20),
                           color: const Color(0xFFDCFCE7),
@@ -786,7 +946,7 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       // Location
                       if (location.isNotEmpty)
                         Row(
@@ -810,7 +970,7 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                             ),
                           ],
                         ),
-                      if (location.isNotEmpty) const SizedBox(height: 8),
+                      if (location.isNotEmpty) const SizedBox(height: 6),
                       // Quantity
                       Row(
                         children: [
@@ -867,96 +1027,139 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
         onTap: () => _showItemDetails(docId, data),
-        leading: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: statusColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            _getIconFromCategory(data['category'] ?? ''),
-            color: const Color(0xFF003465),
-          ),
-        ),
-        title: Text(
-          data['name'] ?? 'Unknown',
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF111827),
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '$category • Qty: ${data['quantity'] ?? 0}',
-              style: const TextStyle(color: Color(0xFF6B7280)),
-            ),
-            if (location.isNotEmpty)
-              Text(
-                location,
-                style: const TextStyle(color: Color(0xFF4B5563), fontSize: 12),
-                overflow: TextOverflow.ellipsis,
-              ),
-            if (itemId != null && itemId.toString().isNotEmpty)
-              Text(
-                'ID: ${itemId.toString()}',
-                style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
-              ),
-            if (rentalPrice != null)
-              Text(
-                'SR $rentalPrice/day',
-                style: const TextStyle(
-                  color: Color(0xFF003465),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  _getIconFromCategory(data['category'] ?? ''),
+                  color: const Color(0xFF003465),
+                  size: 28,
                 ),
               ),
-          ],
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                _statusLabel(status),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: statusColor,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      data['name'] ?? 'Unknown',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '$category • Qty: ${data['quantity'] ?? 0}',
+                      style: const TextStyle(color: Color(0xFF6B7280)),
+                    ),
+                    if (location.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        location,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF4B5563),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                    if (itemId != null && itemId.toString().isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'ID: ${itemId.toString()}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF9CA3AF),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                    if (rentalPrice != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'SR $rentalPrice/day',
+                        style: const TextStyle(
+                          color: Color(0xFF003465),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: source == 'donation'
-                    ? const Color(0xFFE0E7FF)
-                    : const Color(0xFFE5E7EB),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                source == 'donation' ? 'Donated' : 'Rentable',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: source == 'donation'
-                      ? const Color(0xFF1D4ED8)
-                      : const Color(0xFF4B5563),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 116,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _statusLabel(status),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: statusColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: source == 'donation'
+                            ? const Color(0xFFE0E7FF)
+                            : const Color(0xFFE5E7EB),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        source == 'donation' ? 'Donated' : 'Rentable',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: source == 'donation'
+                              ? const Color(0xFF1D4ED8)
+                              : const Color(0xFF4B5563),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -967,11 +1170,7 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.inventory_2_outlined,
-            size: 80,
-            color: Colors.grey[300],
-          ),
+          Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey[300]),
           const SizedBox(height: 16),
           const Text(
             'No items found',
@@ -984,10 +1183,7 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
           const SizedBox(height: 8),
           const Text(
             'Try adjusting your search or filters',
-            style: TextStyle(
-              fontSize: 14,
-              color: Color(0xFF9CA3AF),
-            ),
+            style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
           ),
         ],
       ),
@@ -1051,13 +1247,18 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(data['status'] ?? 'available').withOpacity(0.1),
+                        color: _getStatusColor(
+                          data['status'] ?? 'available',
+                        ).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        (data['status'] ?? 'available')[0].toUpperCase() + 
+                        (data['status'] ?? 'available')[0].toUpperCase() +
                             (data['status'] ?? 'available').substring(1),
                         style: TextStyle(
                           fontSize: 14,
@@ -1073,12 +1274,18 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                   _detailRow('Item ID', (data['itemId'] ?? docId).toString()),
                   _detailRow('Type', data['type'] ?? data['category'] ?? 'N/A'),
                   _detailRow('Category', data['category'] ?? 'N/A'),
-                  _detailRow('Source', (data['source'] ?? 'manual') == 'donation' ? 'Donated' : 'Rentable'),
+                  _detailRow(
+                    'Source',
+                    (data['source'] ?? 'manual') == 'donation'
+                        ? 'Donated'
+                        : 'Rentable',
+                  ),
                   _detailRow('Condition', data['condition'] ?? 'N/A'),
                   _detailRow('Quantity', data['quantity']?.toString() ?? '0'),
                   _detailRow('Location', data['location'] ?? 'N/A'),
                 ]),
-                if (data['description'] != null && data['description'].isNotEmpty) ...[
+                if (data['description'] != null &&
+                    data['description'].isNotEmpty) ...[
                   const SizedBox(height: 24),
                   _detailSection('Description', [
                     Text(
@@ -1094,10 +1301,14 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                 if (data['rentalPricePerDay'] != null) ...[
                   const SizedBox(height: 24),
                   _detailSection('Pricing', [
-                    _detailRow('Rental Price', 'SR ${data['rentalPricePerDay']}/day'),
+                    _detailRow(
+                      'Rental Price',
+                      'SR ${data['rentalPricePerDay']}/day',
+                    ),
                   ]),
                 ],
-                if (data['images'] != null && (data['images'] as List).isNotEmpty) ...[
+                if (data['images'] != null &&
+                    (data['images'] as List).isNotEmpty) ...[
                   const SizedBox(height: 24),
                   _detailSection('Images', [
                     Wrap(
@@ -1106,14 +1317,19 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                       children: (data['images'] as List).map((img) {
                         final url = img.toString();
                         return Chip(
-                          label: Text(url.length > 28 ? '${url.substring(0, 25)}...' : url),
+                          label: Text(
+                            url.length > 28
+                                ? '${url.substring(0, 25)}...'
+                                : url,
+                          ),
                           backgroundColor: const Color(0xFFF3F4F6),
                         );
                       }).toList(),
                     ),
                   ]),
                 ],
-                if (data['tags'] != null && (data['tags'] as List).isNotEmpty) ...[
+                if (data['tags'] != null &&
+                    (data['tags'] as List).isNotEmpty) ...[
                   const SizedBox(height: 24),
                   _detailSection('Tags', [
                     Wrap(
@@ -1210,10 +1426,7 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF111827),
-              ),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF111827)),
             ),
           ),
         ],
@@ -1350,10 +1563,14 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                   border: OutlineInputBorder(),
                 ),
                 items: ['available', 'rented', 'maintenance', 'donated']
-                    .map((status) => DropdownMenuItem(
-                          value: status,
-                          child: Text(status[0].toUpperCase() + status.substring(1)),
-                        ))
+                    .map(
+                      (status) => DropdownMenuItem(
+                        value: status,
+                        child: Text(
+                          status[0].toUpperCase() + status.substring(1),
+                        ),
+                      ),
+                    )
                     .toList(),
                 onChanged: (value) {
                   selectedStatus = value!;
@@ -1378,12 +1595,14 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                 );
                 return;
               }
-              
+
               // Validate and ensure quantity is > 0
               final qty = int.tryParse(quantityController.text) ?? 0;
               if (qty <= 0) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Quantity must be greater than 0')),
+                  const SnackBar(
+                    content: Text('Quantity must be greater than 0'),
+                  ),
                 );
                 return;
               }
@@ -1396,23 +1615,27 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                     .toList();
 
                 final images = imagesController.text
-                  .split(',')
-                  .map((e) => e.trim())
-                  .where((e) => e.isNotEmpty)
-                  .toList();
+                    .split(',')
+                    .map((e) => e.trim())
+                    .where((e) => e.isNotEmpty)
+                    .toList();
 
                 final price = priceController.text.isNotEmpty
-                  ? double.tryParse(priceController.text)
-                  : null;
+                    ? double.tryParse(priceController.text)
+                    : null;
 
                 final normalizedStatus = selectedStatus.toLowerCase();
-                final source = normalizedStatus == 'donated' ? 'donation' : 'manual';
+                final source = normalizedStatus == 'donated'
+                    ? 'donation'
+                    : 'manual';
 
                 await FirebaseFirestore.instance.collection('inventory').add({
                   'itemId': itemIdController.text.trim(),
                   'name': nameController.text,
                   'type': selectedType,
-                  'category': categoryController.text.isNotEmpty ? categoryController.text : selectedType,
+                  'category': categoryController.text.isNotEmpty
+                      ? categoryController.text
+                      : selectedType,
                   'description': descriptionController.text,
                   'condition': conditionController.text,
                   'quantity': qty,
@@ -1432,9 +1655,9 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                   const SnackBar(content: Text('Item added successfully')),
                 );
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Error: $e')));
               }
             },
             style: ElevatedButton.styleFrom(
@@ -1448,14 +1671,20 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
   }
 
   void _showEditDialog(String docId, Map<String, dynamic> data) {
-    final itemIdController = TextEditingController(text: data['itemId']?.toString() ?? '');
+    final itemIdController = TextEditingController(
+      text: data['itemId']?.toString() ?? '',
+    );
     final nameController = TextEditingController(text: data['name']);
     final categoryController = TextEditingController(text: data['category']);
     String selectedType = data['type'] ?? data['category'] ?? 'Mobility Aid';
     categoryController.text = selectedType;
-    final descriptionController = TextEditingController(text: data['description']);
+    final descriptionController = TextEditingController(
+      text: data['description'],
+    );
     final conditionController = TextEditingController(text: data['condition']);
-    final quantityController = TextEditingController(text: data['quantity']?.toString());
+    final quantityController = TextEditingController(
+      text: data['quantity']?.toString(),
+    );
     final locationController = TextEditingController(text: data['location']);
     final priceController = TextEditingController(
       text: data['rentalPricePerDay']?.toString() ?? '',
@@ -1575,10 +1804,14 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                   border: OutlineInputBorder(),
                 ),
                 items: ['available', 'rented', 'maintenance', 'donated']
-                    .map((status) => DropdownMenuItem(
-                          value: status,
-                          child: Text(status[0].toUpperCase() + status.substring(1)),
-                        ))
+                    .map(
+                      (status) => DropdownMenuItem(
+                        value: status,
+                        child: Text(
+                          status[0].toUpperCase() + status.substring(1),
+                        ),
+                      ),
+                    )
                     .toList(),
                 onChanged: (value) {
                   selectedStatus = value!;
@@ -1603,12 +1836,14 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                 );
                 return;
               }
-              
+
               // Validate and ensure quantity is > 0
               final qty = int.tryParse(quantityController.text) ?? 0;
               if (qty <= 0) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Quantity must be greater than 0')),
+                  const SnackBar(
+                    content: Text('Quantity must be greater than 0'),
+                  ),
                 );
                 return;
               }
@@ -1621,47 +1856,51 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                     .toList();
 
                 final images = imagesController.text
-                  .split(',')
-                  .map((e) => e.trim())
-                  .where((e) => e.isNotEmpty)
-                  .toList();
+                    .split(',')
+                    .map((e) => e.trim())
+                    .where((e) => e.isNotEmpty)
+                    .toList();
 
                 final price = priceController.text.isNotEmpty
-                  ? double.tryParse(priceController.text)
-                  : null;
+                    ? double.tryParse(priceController.text)
+                    : null;
 
                 final normalizedStatus = selectedStatus.toLowerCase();
-                final source = normalizedStatus == 'donated' ? 'donation' : (data['source'] ?? 'manual');
+                final source = normalizedStatus == 'donated'
+                    ? 'donation'
+                    : (data['source'] ?? 'manual');
 
                 await FirebaseFirestore.instance
                     .collection('inventory')
                     .doc(docId)
                     .update({
-                  'itemId': itemIdController.text.trim(),
-                  'name': nameController.text,
-                  'type': selectedType,
-                  'category': categoryController.text.isNotEmpty ? categoryController.text : selectedType,
-                  'description': descriptionController.text,
-                  'condition': conditionController.text,
-                  'quantity': qty,
-                  'location': locationController.text,
-                  'rentalPricePerDay': price,
-                  'tags': tags,
-                  'images': images,
-                  'status': normalizedStatus,
-                  'availabilityStatus': normalizedStatus,
-                  'source': source,
-                  'updatedAt': FieldValue.serverTimestamp(),
-                });
+                      'itemId': itemIdController.text.trim(),
+                      'name': nameController.text,
+                      'type': selectedType,
+                      'category': categoryController.text.isNotEmpty
+                          ? categoryController.text
+                          : selectedType,
+                      'description': descriptionController.text,
+                      'condition': conditionController.text,
+                      'quantity': qty,
+                      'location': locationController.text,
+                      'rentalPricePerDay': price,
+                      'tags': tags,
+                      'images': images,
+                      'status': normalizedStatus,
+                      'availabilityStatus': normalizedStatus,
+                      'source': source,
+                      'updatedAt': FieldValue.serverTimestamp(),
+                    });
 
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Item updated successfully')),
                 );
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Error: $e')));
               }
             },
             style: ElevatedButton.styleFrom(
@@ -1699,9 +1938,9 @@ class _InventoryAdminWidgetState extends State<InventoryAdminWidget> {
                   const SnackBar(content: Text('Item deleted successfully')),
                 );
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Error: $e')));
               }
             },
             style: ElevatedButton.styleFrom(

@@ -6,6 +6,7 @@ import 'package:project444/profilePage.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'admin_pending_donations.dart';
 import 'navigation_transitions.dart';
+import 'inventory/inventory_admin_new.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -27,7 +28,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     try {
-      final snap = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       final role = (snap.data()?['role'] ?? 'user').toString();
       if (mounted) setState(() => _userRole = role);
     } catch (_) {
@@ -116,11 +120,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 radius: 35,
                                 backgroundImage:
                                     (imageUrl != null && imageUrl.isNotEmpty)
-                                        ? NetworkImage(imageUrl)
-                                        : const AssetImage(
-                                                'lib/images/default_profile.png',
-                                              )
-                                            as ImageProvider,
+                                    ? NetworkImage(imageUrl)
+                                    : const AssetImage(
+                                            'lib/images/default_profile.png',
+                                          )
+                                          as ImageProvider,
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -152,24 +156,45 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             ListTile(
               leading: const Icon(Icons.inventory),
-              title: const Text('Inventory Management'),
-              onTap: () => Navigator.pop(context),
+              title: const Text(
+                'Inventory Management',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                final role = _userRole.toLowerCase();
+                if (role == 'admin') {
+                  Navigator.pushReplacementNamed(context, '/inventory_admin');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/inventory');
+                }
+              },
             ),
             ListTile(
               leading: const Icon(Icons.calendar_month),
-              title: const Text('Reservation & Rental'),
-              onTap: () => Navigator.pop(context),
+              title: const Text(
+                'Reservation & Rental',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/renter');
+              },
             ),
             ListTile(
               leading: const Icon(Icons.volunteer_activism),
-              title: const Text('Donations'),
+              title: const Text('Donations', style: TextStyle(fontSize: 14)),
               onTap: () {
+                Navigator.pop(context);
                 Navigator.pushNamed(context, '/donor');
               },
             ),
             ListTile(
               leading: const Icon(Icons.bar_chart),
-              title: const Text('Tracking & Reports'),
+              title: const Text(
+                'Tracking & Reports',
+                style: TextStyle(fontSize: 14),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushNamed(context, '/reports');
@@ -222,7 +247,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 440),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 24,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -323,7 +351,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ),
                   ],
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 16,
+                ),
                 child: Row(
                   children: [
                     Expanded(
