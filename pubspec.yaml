@@ -72,6 +72,7 @@ flutter:
   assets:
       - lib/images/2circled.png
       - lib/images/Group 2261.png
+      - lib/images/Vector.png      
       - lib/images/Circled3.png
       - lib/images/Level1.png
       - lib/images/vector.svg

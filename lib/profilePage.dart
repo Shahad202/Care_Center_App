@@ -91,87 +91,160 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // upload image to Firebase Storage and return download URL
-  Future<String> _uploadImageAndGetUrl() async {
-    if (_uid == null) throw Exception('Not authenticated');
+  // Future<String> _uploadImageAndGetUrl() async {
+  //   if (_uid == null) throw Exception('Not authenticated');
 
-    final storageRef = FirebaseStorage.instance
-        .ref()
-        .child('profilePictures')
-        .child('$_uid.jpg');
+  //   final storageRef = FirebaseStorage.instance
+  //       .ref()
+  //       .child('profilePictures')
+  //       .child('$_uid.jpg');
 
+  //   if (kIsWeb) {
+  //     if (_pickedImageBytes == null) throw Exception('No image bytes');
+  //     final uploadTask = await storageRef.putData(
+  //       _pickedImageBytes!,
+  //       SettableMetadata(contentType: 'image/jpeg'),
+  //     );
+  //     final url = await uploadTask.ref.getDownloadURL();
+  //     return url;
+  //   } else {
+  //     if (_pickedImageFile == null) throw Exception('No file selected');
+  //     final uploadTask = await storageRef.putFile(
+  //       _pickedImageFile!,
+  //       SettableMetadata(contentType: 'image/jpeg'),
+  //     );
+  //     final url = await uploadTask.ref.getDownloadURL();
+  //     return url;
+  //   }
+  // }
+
+
+Future<String> _uploadImageAndGetUrl() async {
+  if (_uid == null) throw Exception('Not authenticated');
+
+  final storageRef = FirebaseStorage.instance
+      .ref()
+      .child('profilePictures')
+      .child('$_uid.jpg');
+
+  try {
     if (kIsWeb) {
       if (_pickedImageBytes == null) throw Exception('No image bytes');
-      final uploadTask = await storageRef.putData(
+      await storageRef.putData(
         _pickedImageBytes!,
         SettableMetadata(contentType: 'image/jpeg'),
       );
-      final url = await uploadTask.ref.getDownloadURL();
-      return url;
     } else {
       if (_pickedImageFile == null) throw Exception('No file selected');
-      final uploadTask = await storageRef.putFile(
+      await storageRef.putFile(
         _pickedImageFile!,
         SettableMetadata(contentType: 'image/jpeg'),
       );
-      final url = await uploadTask.ref.getDownloadURL();
-      return url;
     }
+
+    final url = await storageRef.getDownloadURL();
+    // add cache-buster to avoid old image showing
+    return '$url?v=${DateTime.now().millisecondsSinceEpoch}';
+  } catch (e) {
+    throw Exception('Image upload failed: $e');
   }
+}
 
   // Save profile (uploads image if new, then updates Firestore)
-  Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_uid == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Not authenticated')));
-      return;
+  // Future<void> _saveProfile() async {
+  //   if (!_formKey.currentState!.validate()) return;
+  //   if (_uid == null) {
+  //     ScaffoldMessenger.of(
+  //       context,
+  //     ).showSnackBar(const SnackBar(content: Text('Not authenticated')));
+  //     return;
+  //   }
+
+  //   setState(() => _loading = true);
+
+  //   try {
+  //     String? newImageUrl;
+  //     // If user picked a new image, upload it and get the URL
+  //     if (_pickedImageBytes != null || _pickedImageFile != null) {
+  //       newImageUrl = await _uploadImageAndGetUrl();
+  //     }
+
+  //     final updateData = <String, dynamic>{
+  //       'name': _nameController.text.trim(),
+  //       'email': _emailController.text.trim(),
+  //       'contact': _contactController.text.trim(),
+  //     };
+
+  //     if (newImageUrl != null) updateData['profilePicture'] = newImageUrl;
+
+  //     await FirebaseFirestore.instance
+  //         .collection('users')
+  //         .doc(_uid)
+  //         .update(updateData);
+
+  //     // reflect changes locally
+  //     if (newImageUrl != null) {
+  //       _profileImageUrl = newImageUrl;
+  //       _pickedImageFile = null;
+  //       _pickedImageBytes = null;
+  //     }
+
+  //     ScaffoldMessenger.of(
+  //       context,
+  //     ).showSnackBar(const SnackBar(content: Text('Profile updated')));
+  //     // Pop back with success
+  //     Navigator.pop(context, true);
+  //     setState(() {});
+  //   } catch (e) {
+  //     final msg = e.toString();
+  //     ScaffoldMessenger.of(
+  //       context,
+  //     ).showSnackBar(SnackBar(content: Text('Update failed: $msg')));
+  //   } finally {
+  //     setState(() => _loading = false);
+  //   }
+  // }
+
+Future<void> _saveProfile() async {
+  if (!_formKey.currentState!.validate()) return;
+  if (_uid == null) return;
+
+  setState(() => _loading = true);
+
+  try {
+    String? newImageUrl;
+    if (_pickedImageBytes != null || _pickedImageFile != null) {
+      newImageUrl = await _uploadImageAndGetUrl();
     }
 
-    setState(() => _loading = true);
+    final updateData = {
+      'name': _nameController.text.trim(),
+      'email': _emailController.text.trim(),
+      'contact': _contactController.text.trim(),
+    };
 
-    try {
-      String? newImageUrl;
-      // If user picked a new image, upload it and get the URL
-      if (_pickedImageBytes != null || _pickedImageFile != null) {
-        newImageUrl = await _uploadImageAndGetUrl();
-      }
+    if (newImageUrl != null) updateData['profilePicture'] = newImageUrl;
 
-      final updateData = <String, dynamic>{
-        'name': _nameController.text.trim(),
-        'email': _emailController.text.trim(),
-        'contact': _contactController.text.trim(),
-      };
+    await FirebaseFirestore.instance.collection('users').doc(_uid).update(updateData);
 
-      if (newImageUrl != null) updateData['profilePicture'] = newImageUrl;
+    // update local state AFTER Firestore success
+    if (newImageUrl != null) _profileImageUrl = newImageUrl;
+    _pickedImageBytes = null;
+    _pickedImageFile = null;
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(_uid)
-          .update(updateData);
-
-      // reflect changes locally
-      if (newImageUrl != null) {
-        _profileImageUrl = newImageUrl;
-        _pickedImageFile = null;
-        _pickedImageBytes = null;
-      }
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Profile updated')));
-      // Pop back with success
-      Navigator.pop(context, true);
-      setState(() {});
-    } catch (e) {
-      final msg = e.toString();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Update failed: $msg')));
-    } finally {
-      setState(() => _loading = false);
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Profile updated successfully')),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Update failed: $e')),
+    );
+  } finally {
+    setState(() => _loading = false);
   }
+}
+
+
 
   Widget _buildAvatar() {
     // priority: preview picked image > stored URL > default asset

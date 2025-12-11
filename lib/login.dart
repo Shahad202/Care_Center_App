@@ -48,12 +48,17 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              Image.asset('lib/images/Vector.png', height: 160),
+              const SizedBox(height: 16),
               // input email
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(
                   labelText: 'Email',
-                  border: OutlineInputBorder(),
+                  focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.blue, width: 2),
+                  borderRadius: BorderRadius.all(Radius.circular(15)),
+                  ),
                 ),
                 validator: (value){
                   if (value == null || value.isEmpty ){
@@ -67,14 +72,16 @@ class _LoginPageState extends State<LoginPage> {
                 }
               ),
               const SizedBox(height: 16),
-          
               // input password
               TextFormField(
                 obscureText: true,
                 controller: _passwordController,
                 decoration: const InputDecoration(
                   labelText: 'Password',
-                  border:OutlineInputBorder()
+                  focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.blue, width: 2),
+                  borderRadius: BorderRadius.all(Radius.circular(15)),
+                  ),
                 ),
                 validator: (value) {
                   if(value == null || value.isEmpty){
