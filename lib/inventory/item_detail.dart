@@ -3,6 +3,7 @@ import 'package:project444/inventory/edit_item.dart';
 
 class ItemDetailScreen extends StatefulWidget {
   final String name;
+  final String type;
   final String category;
   final String status;
   final String location;
@@ -11,10 +12,12 @@ class ItemDetailScreen extends StatefulWidget {
   final String condition;
   final List<String> tags;
   final String rentalPrice;
-
+  final bool isGuest;
+  final Map<String, IconData> itemIcons;
   const ItemDetailScreen({
     Key? key,
     required this.name,
+    required this.type,
     required this.category,
     required this.status,
     required this.location,
@@ -23,6 +26,8 @@ class ItemDetailScreen extends StatefulWidget {
     required this.condition,
     required this.tags,
     required this.rentalPrice,
+    required this.isGuest,
+    required this.itemIcons,
   }) : super(key: key);
 
   @override
@@ -38,20 +43,24 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         return const Color.fromRGBO(255, 105, 0, 1);
       case 'Maintenance':
         return const Color.fromRGBO(106, 114, 130, 1);
+      case 'Donated':
+        return const Color.fromRGBO(173, 59, 183, 1);
       default:
-        return const Color.fromRGBO(106, 114, 130, 1);
+        return const Color.fromRGBO(170, 192, 235, 1);
     }
   }
 
   Color _getConditionColor(String condition) {
     switch (condition) {
-      case 'Excellent':
+      case 'New':
         return const Color.fromRGBO(220, 252, 231, 1);
+      case 'Like new':
+        return const Color.fromARGB(255, 244, 220, 252);
       case 'Good':
         return const Color.fromRGBO(219, 234, 254, 1);
       case 'Fair':
         return const Color.fromRGBO(254, 243, 199, 1);
-      case 'Poor':
+      case 'Needs Repair':
         return const Color.fromRGBO(254, 226, 226, 1);
       default:
         return const Color.fromRGBO(242, 244, 246, 1);
@@ -60,13 +69,15 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
   Color _getConditionTextColor(String condition) {
     switch (condition) {
-      case 'Excellent':
+      case 'New':
         return const Color.fromRGBO(34, 197, 94, 1);
+      case 'Like new':
+        return const Color.fromARGB(255, 177, 127, 193);
       case 'Good':
         return const Color.fromRGBO(59, 130, 246, 1);
       case 'Fair':
         return const Color.fromRGBO(202, 138, 4, 1);
-      case 'Poor':
+      case 'Needs Repair':
         return const Color.fromRGBO(239, 68, 68, 1);
       default:
         return const Color.fromRGBO(107, 114, 128, 1);
@@ -100,18 +111,24 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Item Image with Status Badge
+            // Item Image with Icon instead of static image
             Container(
               width: double.infinity,
               height: 250,
               decoration: const BoxDecoration(
                 color: Color.fromRGBO(243, 244, 246, 1),
-                image: DecorationImage(
-                  image: AssetImage('assets/images/Imagewithfallback.png'),
-                  fit: BoxFit.cover,
-                ),
               ),
               child: Stack(
                 children: [
+                  Center(
+                    child: Icon(
+                      widget.itemIcons[widget.type.toLowerCase()] ??
+                          Icons.inventory_2_outlined,
+                      size: 120,
+                      color: const Color.fromRGBO(100, 116, 139, 1),
+                    ),
+                  ),
+
                   Positioned(
                     top: 16,
                     right: 16,
@@ -216,42 +233,76 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   const SizedBox(height: 32),
 
                   // Edit Item Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => EditItemScreen(
-                              name: widget.name,
-                              category: widget.category,
-                              status: widget.status,
-                              location: widget.location,
-                              quantity: widget.quantity,
+                  if (!widget.isGuest)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => EditItemScreen(
+                                name: widget.name,
+                                category: widget.category,
+                                status: widget.status,
+                                location: widget.location,
+                                description: widget.description,
+                                condition: widget.condition,
+                                quantity: widget.quantity,
+                                rentalPrice: widget.rentalPrice,
+                              ),
                             ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color.fromRGBO(21, 93, 252, 1),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color.fromRGBO(21, 93, 252, 1),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
                         ),
-                      ),
-                      icon: const Icon(Icons.edit, color: Colors.white),
-                      label: const Text(
-                        'Edit Item',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'Arimo',
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                        icon: const Icon(Icons.edit, color: Colors.white),
+                        label: const Text(
+                          'Edit Item',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontFamily: 'Arimo',
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                  // Show RESERVE button ONLY for guest
+                  if (widget.isGuest)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Reservation request sent!"),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          "Reserve Item",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+
                   const SizedBox(height: 20),
                 ],
               ),

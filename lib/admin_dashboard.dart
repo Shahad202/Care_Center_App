@@ -7,6 +7,7 @@ import 'package:project444/profilePage.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'admin_pending_donations.dart';
 import 'navigation_transitions.dart';
+import 'inventory/inventory_admin_new.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -156,25 +157,49 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             ListTile(
               leading: const Icon(Icons.inventory),
-              title: const Text('Inventory Management'),
-              onTap: () => Navigator.pop(context),
+              title: const Text(
+                'Inventory Management',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                final role = _userRole.toLowerCase();
+                if (role == 'admin') {
+                  Navigator.pushReplacementNamed(context, '/inventory_admin');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/inventory');
+                }
+              },
             ),
             ListTile(
               leading: const Icon(Icons.calendar_month),
-              title: const Text('Reservation & Rental'),
-              onTap: () => Navigator.pop(context),
+              title: const Text(
+                'Reservation & Rental',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/renter');
+              },
             ),
             ListTile(
               leading: const Icon(Icons.volunteer_activism),
-              title: const Text('Donations'),
+              title: const Text('Donations', style: TextStyle(fontSize: 14)),
               onTap: () {
+                Navigator.pop(context);
                 Navigator.pushNamed(context, '/donor');
               },
             ),
             ListTile(
               leading: const Icon(Icons.bar_chart),
-              title: const Text('Tracking & Reports'),
-              onTap: () => Navigator.pop(context),
+              title: const Text(
+                'Tracking & Reports',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/reports');
+              },
             ),
             Padding(
               padding: const EdgeInsets.all(16.0),

@@ -5,7 +5,10 @@ class EditItemScreen extends StatefulWidget {
   final String category;
   final String status;
   final String location;
+  final String description;
+  final String condition;
   final String quantity;
+  final String rentalPrice;
 
   const EditItemScreen({
     Key? key,
@@ -13,7 +16,10 @@ class EditItemScreen extends StatefulWidget {
     required this.category,
     required this.status,
     required this.location,
+    required this.description,
+    required this.condition,
     required this.quantity,
+    required this.rentalPrice,
   }) : super(key: key);
 
   @override
@@ -32,16 +38,69 @@ class _EditItemScreenState extends State<EditItemScreen> {
   late TextEditingController _rentalPriceController;
 
   List<String> _tags = ['Mobility', 'Medical Equipment', 'Daily Use'];
-  List<String> _images = ['image1.jpg'];
+
+  IconData? _selectedIcon;
+  void _showIconSelectionDialog() {
+    final icons = {
+      'wheelchair': Icons.wheelchair_pickup,
+      'walker': Icons.accessibility_new,
+      'crutches': Icons.elderly,
+      'oxygen machine': Icons.medical_services,
+      'hospital bed': Icons.bed,
+      'other': Icons.inventory_2,
+    };
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          title: const Text("Select Icon"),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: GridView.count(
+              crossAxisCount: 3,
+              shrinkWrap: true,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              children: icons.values.map((icon) {
+                return GestureDetector(
+                  onTap: () {
+                    setState(() => _selectedIcon = icon);
+                    Navigator.pop(context);
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F4F6),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, size: 40, color: Colors.black87),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   final List<String> _categoryOptions = [
     'Mobility Aid',
     'Medical Device',
     'Furniture',
-    'Equipment',
+    'Other',
   ];
 
-  final List<String> _conditionOptions = ['Excellent', 'Good', 'Fair', 'Poor'];
+  final List<String> _conditionOptions = [
+    'New',
+    'Like new',
+    'Good',
+    'Fair',
+    'Needs Repair',
+  ];
 
   final List<String> _statusOptions = [
     'Available',
@@ -65,13 +124,10 @@ class _EditItemScreenState extends State<EditItemScreen> {
     _locationController = TextEditingController(text: widget.location);
     _statusController = TextEditingController(text: widget.status);
     _quantityController = TextEditingController(text: widget.quantity);
-    _conditionController = TextEditingController(text: 'Excellent');
-    _descriptionController = TextEditingController(
-      text:
-          'Standard manual wheelchair with adjustable footrests and armrests. Suitable for indoor and outdoor use. Weight capacity up to 250 lbs.',
-    );
+    _conditionController = TextEditingController(text: widget.condition);
+    _descriptionController = TextEditingController(text: widget.description);
     _tagController = TextEditingController();
-    _rentalPriceController = TextEditingController(text: '6');
+    _rentalPriceController = TextEditingController(text: widget.rentalPrice);
   }
 
   @override
@@ -389,74 +445,44 @@ class _EditItemScreenState extends State<EditItemScreen> {
                 }).toList(),
               ),
               const SizedBox(height: 20),
+              _buildFieldLabel('Select Icon'),
+              const SizedBox(height: 12),
 
-              // Images Section
-              _buildFieldLabel('Images'),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  // Existing Image
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      image: const DecorationImage(
-                        image: AssetImage(
-                          'assets/images/Imagewithfallback.png',
-                        ),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    child: Stack(
-                      alignment: Alignment.topRight,
-                      children: [
-                        Container(
-                          width: 24,
-                          height: 24,
-                          decoration: const BoxDecoration(
-                            color: Color.fromRGBO(239, 68, 68, 1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.close,
-                            color: Colors.white,
-                            size: 14,
-                          ),
-                        ),
-                      ],
+              GestureDetector(
+                onTap: _showIconSelectionDialog,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 40),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: const Color(0xFFF9FAFB),
+                    border: Border.all(
+                      color: const Color(0xFFCBD5E1),
+                      width: 1.5,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  // Add Image Button
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: const Color.fromRGBO(208, 213, 219, 1),
-                        width: 2,
-                        style: BorderStyle.solid,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _selectedIcon ??
+                            Icons.upload, // الأيقونة الحالية أو افتراضية
+                        size: 40,
+                        color: const Color(0xFF94A3B8),
                       ),
-                    ),
-                    child: IconButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Image picker coming soon'),
-                          ),
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.add,
-                        color: Color.fromRGBO(156, 163, 175, 1),
-                        size: 32,
+                      const SizedBox(height: 8),
+                      const Text(
+                        "Tap to choose an icon",
+                        style: TextStyle(
+                          color: Color(0xFF94A3B8),
+                          fontSize: 14,
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
+
               const SizedBox(height: 20),
 
               // Rental Price Field

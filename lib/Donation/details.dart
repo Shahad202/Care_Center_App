@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class DonationDetailsPage extends StatefulWidget {
   final Map<String, dynamic> donation;
@@ -10,6 +11,130 @@ class DonationDetailsPage extends StatefulWidget {
 }
 
 class _DonationDetailsPageState extends State<DonationDetailsPage> {
+  bool _isProcessing = false;
+
+  Future<void> _approveDonation() async {
+    setState(() => _isProcessing = true);
+    
+    try {
+      final donationId = widget.donation['id'];
+      
+      // Validate and ensure quantity is valid (must be > 0)
+      int quantity = widget.donation['quantity'] ?? 0;
+      if (quantity <= 0) {
+        quantity = 1; // Default to 1 if invalid
+      }
+      
+      // 1. Add to inventory collection
+      await FirebaseFirestore.instance.collection('inventory').add({
+        'name': widget.donation['itemName'],
+        'category': _getCategoryFromIcon(widget.donation['iconKey']),
+        'status': 'available',
+        'quantity': quantity,
+        'condition': widget.donation['condition'],
+        'description': widget.donation['description'] ?? '',
+        'location': widget.donation['location'] ?? 'N/A',
+        'source': 'donation',
+        'donationId': donationId,
+        'addedAt': FieldValue.serverTimestamp(),
+        'iconKey': widget.donation['iconKey'],
+      });
+      
+      // 2. Update donation status to approved
+      await FirebaseFirestore.instance
+          .collection('donations')
+          .doc(donationId)
+          .update({'status': 'approved'});
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Donation approved and added to inventory!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _rejectDonation() async {
+    setState(() => _isProcessing = true);
+    
+    try {
+      final donationId = widget.donation['id'];
+      
+      // Update donation status to rejected
+      await FirebaseFirestore.instance
+          .collection('donations')
+          .doc(donationId)
+          .update({'status': 'rejected'});
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Donation rejected'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  String _getCategoryFromIcon(String? iconKey) {
+    switch (iconKey) {
+      case 'wheelchair':
+      case 'walker':
+      case 'crutches':
+        return 'Mobility Aid';
+      case 'hospital_bed':
+        return 'Furniture';
+      case 'shower_chair':
+        return 'Medical Device';
+      default:
+        return 'Other';
+    }
+  }
+
+  Future<String> _getUserRole() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return 'guest';
+    
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      return (doc.data()?['role'] ?? 'user').toString().toLowerCase();
+    } catch (_) {
+      return 'user';
+    }
+  }
+  
+  // Condition Color
   Color _getConditionColor(String condition) {
     switch (condition.toLowerCase()) {
       case 'new':
@@ -25,7 +150,8 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
         return const Color(0xFF4CAF50);
     }
   }
-
+  
+  // Status Color
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'pending':
@@ -59,7 +185,7 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
     try {
       if (date is Timestamp) {
         final dt = date.toDate();
-        return '${dt.day} ${_getMonthName(dt.month)} ${dt.year}';
+        return '${dt.day} ${_getMonthName(dt.month)} ${dt.year}'; // e.g., "7 Dec 2025"
       }
       if (date is DateTime) {
         return '${date.day} ${_getMonthName(date.month)} ${date.year}';
@@ -100,44 +226,57 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
   Widget _iconTile(String iconKey) {
     return Container(
       decoration: BoxDecoration(
+        // Subtle gradient background
         gradient: LinearGradient(
           colors: [
-            const Color(0xFF003465).withOpacity(0.1),
-            const Color(0xFF1976D2).withOpacity(0.05),
+            const Color(0xFF003465).withOpacity(0.1),  // Dark blue 10%
+            const Color(0xFF1976D2).withOpacity(0.05), // Medium blue 5%
           ],
         ),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Center(
-        child: Icon(_mapIcon(iconKey), color: const Color(0xFF003465), size: 96),
+        child: Icon(
+          _mapIcon(iconKey),  // Maps to appropriate icon (wheelchair, walker, etc.)
+          color: const Color(0xFF003465),
+          size: 96,  // Large icon
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    // STEP 1: Extract key data from the donation Map
     final iconKey = (widget.donation['iconKey'] ?? 'default').toString();
     final statusColor = _getStatusColor(widget.donation['status'] ?? 'pending');
     final conditionColor = _getConditionColor(widget.donation['condition'] ?? 'good');
 
+    // STEP 2: Return Scaffold with AppBar
     return Scaffold(
-      backgroundColor: const Color(0xFFF7FBFF),
+      backgroundColor: const Color(0xFFF7FBFF),  // Light blue background
       appBar: AppBar(
-        backgroundColor: const Color(0xFF003465),
+        backgroundColor: const Color(0xFF003465),  // Dark blue header
         title: const Text('Donation Details'),
       ),
+      
+      // STEP 3: Build scrollable body (for long descriptions)
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // STEP 4: Large icon display (240px height)
             SizedBox(height: 240, child: _iconTile(iconKey)),
             const SizedBox(height: 20),
+            
+            // STEP 5: Item name + Status badge
             Row(
               children: [
+                // Item name (left side)
                 Expanded(
                   child: Text(
-                    widget.donation['itemName'] ?? 'Unknown Item',
+                    widget.donation['itemName'] ?? 'Unknown Item',  // e.g., "Wheelchair"
                     style: const TextStyle(
                       color: Color(0xFF003465),
                       fontSize: 26,
@@ -147,17 +286,19 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
                     ),
                   ),
                 ),
+                
+                // Status badge (right side)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.12),
+                    color: statusColor.withOpacity(0.12),  // Status color with 12% opacity
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: statusColor.withOpacity(0.6), width: 1.5),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.circle, color: statusColor, size: 10),
+                      Icon(Icons.circle, color: statusColor, size: 10),  // Status dot
                       const SizedBox(width: 6),
                       Text(
                         _getStatusText(widget.donation['status'] ?? 'pending'),
@@ -169,31 +310,39 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
               ],
             ),
             const SizedBox(height: 24),
+            
+            // STEP 6: Details section
             _sectionTitle('Details'),
             const SizedBox(height: 12),
             _detailCard([
+              // Condition row
               _detailRow(
                 Icons.verified,
                 'Condition',
                 widget.donation['condition'] ?? 'N/A',
                 _getConditionColor(widget.donation['condition'] ?? 'good'),
               ),
+              // Quantity row
               _detailRow(
                 Icons.numbers,
                 'Quantity',
                 widget.donation['quantity']?.toString() ?? 'N/A',
               ),
+              // Location row
               _detailRow(
                 Icons.location_on_outlined,
                 'Location',
                 widget.donation['location'] ?? 'N/A',
               ),
+              // Created date row
               _detailRow(
                 Icons.calendar_today_outlined,
                 'Created',
                 _formatDate(widget.donation['createdAt']),
               ),
             ]),
+            
+            // STEP 7: Description section (only if description exists)
             if (widget.donation['description'] != null &&
                 widget.donation['description'].toString().isNotEmpty) ...[
               const SizedBox(height: 24),
@@ -201,7 +350,7 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
               const SizedBox(height: 10),
               Container(
                 width: double.infinity,
-                constraints: const BoxConstraints(minHeight: 80),
+                constraints: const BoxConstraints(minHeight: 80),  // Minimum 80px height
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -209,17 +358,83 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
                   border: Border.all(color: const Color(0xFFE6E8EB), width: 1),
                 ),
                 child: Text(
-                  widget.donation['description'],
+                  widget.donation['description'],  // User-provided description text
                   style: const TextStyle(
                     color: Color(0xFF424242),
                     fontSize: 15,
-                    height: 1.6,
+                    height: 1.6,  // Better line spacing
                     letterSpacing: 0.1,
                   ),
                 ),
               ),
             ],
+            
             const SizedBox(height: 30),
+            
+            // Admin Action Buttons
+            FutureBuilder<String>(
+              future: _getUserRole(),
+              builder: (context, snapshot) {
+                final isAdmin = snapshot.data == 'admin';
+                final status = widget.donation['status']?.toString().toLowerCase() ?? 'pending';
+                
+                if (!isAdmin || status != 'pending') {
+                  return const SizedBox.shrink();
+                }
+                
+                return Column(
+                  children: [
+                    _sectionTitle('Admin Actions'),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _isProcessing ? null : _approveDonation,
+                            icon: _isProcessing
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.check_circle),
+                            label: const Text('Approve'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF4CAF50),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _isProcessing ? null : _rejectDonation,
+                            icon: const Icon(Icons.cancel),
+                            label: const Text('Reject'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFF44336),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 30),
+                  ],
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -267,6 +482,7 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
     
     return Row(
       children: [
+        // Icon box on left
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
@@ -280,23 +496,25 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
           ),
         ),
         const SizedBox(width: 14),
+        
+        // Label + Value on right
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                label,
+                label,  // "Condition", "Quantity", etc.
                 style: const TextStyle(
-                  color: Color(0xFFAAA6B2),
+                  color: Color(0xFFAAA6B2),  // Gray label
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
-                value.toString(),
+                value.toString(),  // Actual value
                 style: TextStyle(
-                  color: highlightColor ?? const Color(0xFF003465),
+                  color: highlightColor ?? const Color(0xFF003465),  // Colored text
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),

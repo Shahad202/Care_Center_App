@@ -11,6 +11,7 @@ class HomePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Care Center'),
+        backgroundColor:  const Color(0xFF0A66C2),
         actions: [
           TextButton(onPressed: (){
             Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginPage()));

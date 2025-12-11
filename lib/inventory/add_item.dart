@@ -29,12 +29,28 @@ class _AddItemScreenState extends State<AddItemScreen> {
     'wheelchair',
     'walker',
     'crutches',
-    'Oxygen machine',
-    'hospital_bed',
-    'Other',
+    'oxygen machine',
+    'hospital bed',
+    'other',
   ];
+  final Map<String, IconData> itemIcons = {
+    'wheelchair': Icons.wheelchair_pickup,
+    'walker': Icons.accessibility_new,
+    'crutches': Icons.elderly,
+    'oxygen machine': Icons.medical_services,
+    'hospital bed': Icons.bed,
+    'other': Icons.inventory_2,
+  };
 
-  final List<String> _conditions = ['New', 'Good', 'Fair', 'Needs Repair'];
+  String? _selectedIconKey; // icon selected by user
+
+  final List<String> _conditions = [
+    'New',
+    'Like new',
+    'Good',
+    'Fair',
+    'Needs Repair',
+  ];
 
   @override
   void initState() {
@@ -147,7 +163,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
               const SizedBox(height: 20),
 
               // Upload Images
-              _buildImageUploadSection(),
+              _buildIconPickerSection(),
               const SizedBox(height: 20),
 
               // Rental Price Field
@@ -450,12 +466,12 @@ class _AddItemScreenState extends State<AddItemScreen> {
     );
   }
 
-  Widget _buildImageUploadSection() {
+  Widget _buildIconPickerSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Upload Images',
+          'Select Icon',
           style: TextStyle(
             color: Color.fromRGBO(31, 41, 55, 1),
             fontFamily: 'Arimo',
@@ -463,37 +479,37 @@ class _AddItemScreenState extends State<AddItemScreen> {
             fontSize: 14,
           ),
         ),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: () {
-            // Handle image upload
-          },
+        const SizedBox(height: 12),
+
+        // Display selected icon
+        GestureDetector(
+          onTap: () => _showIconSelectionDialog(),
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 20),
             decoration: BoxDecoration(
-              border: Border.all(
-                color: const Color.fromRGBO(209, 213, 219, 1),
-                style: BorderStyle.solid,
-              ),
+              border: Border.all(color: const Color.fromRGBO(209, 213, 219, 1)),
               borderRadius: BorderRadius.circular(8),
               color: const Color.fromRGBO(249, 250, 251, 1),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
-                  Icons.cloud_upload_outlined,
-                  color: Color.fromRGBO(156, 163, 175, 1),
-                  size: 32,
+                Icon(
+                  _selectedIconKey != null
+                      ? itemIcons[_selectedIconKey]
+                      : Icons.cloud_upload_outlined,
+                  size: 40,
+                  color: const Color.fromRGBO(156, 163, 175, 1),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Click to upload images',
-                  style: TextStyle(
+                Text(
+                  _selectedIconKey != null
+                      ? "Selected: $_selectedIconKey"
+                      : 'Tap to choose an icon',
+                  style: const TextStyle(
                     color: Color.fromRGBO(107, 114, 128, 1),
                     fontFamily: 'Arimo',
-                    fontSize: 14,
                   ),
                 ),
               ],
@@ -515,11 +531,71 @@ class _AddItemScreenState extends State<AddItemScreen> {
 
   void _saveItem() {
     if (_formKey.currentState!.validate()) {
-      // Handle save logic here
+      final newItem = {
+        'name': _itemNameController.text.trim(),
+        'type': _selectedItemType,
+        'description': _descriptionController.text.trim(),
+        'condition': _selectedCondition,
+        'quantity': _quantity.toString(),
+        'location': _locationController.text.trim(),
+        'status': _availabilityStatusController.text.trim(),
+        'tags': _tags,
+        'price': _rentalPriceController.text.trim(),
+      };
+
+      print("NEW ITEM ADDED: $newItem");
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Item saved successfully!')));
+
       Navigator.pop(context);
     }
+  }
+
+  void _showIconSelectionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            "Choose Icon",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: GridView.count(
+              crossAxisCount: 3,
+              shrinkWrap: true,
+              children: itemIcons.entries.map((entry) {
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedIconKey = entry.key;
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(entry.value, size: 40, color: Colors.blueGrey),
+                      const SizedBox(height: 6),
+                      Text(
+                        entry.key,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

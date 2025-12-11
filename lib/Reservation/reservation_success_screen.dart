@@ -23,7 +23,7 @@ class ReservationSuccessScreen extends StatelessWidget {
           children: [
             // صورة نجاح — نزّلي أي صورة نجاح وخلي اسمها:
             // success.png داخل assets/images/
-            Image.asset("assets/images/success.png", height: 160),
+            Image.asset("lib/images/success.png", height: 160),
 
             const SizedBox(height: 30),
 
@@ -61,7 +61,12 @@ class ReservationSuccessScreen extends StatelessWidget {
 
             TextButton(
               onPressed: () {
-                Navigator.popUntil(context, ModalRoute.withName("/inventory"));
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/tabs', // your tabs page route
+                  (route) =>
+                      false, // removes all previous routes so the tabs page becomes root
+                );
               },
               child: const Text(
                 "Back to Inventory",

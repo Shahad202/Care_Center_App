@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project444/profilePage.dart';
 import 'package:project444/login.dart';
 import 'package:project444/inventory/add_item.dart';
-import 'package:project444/inventory/edit_item.dart';
 import 'package:project444/inventory/item_detail.dart';
 
 class NewinventoryWidget extends StatefulWidget {
@@ -16,11 +14,23 @@ class NewinventoryWidget extends StatefulWidget {
 class _NewinventoryWidgetState extends State<NewinventoryWidget> {
   late TextEditingController _searchController;
   String _filterStatus = 'All';
-  List<Map<String, dynamic>> _filteredItems = [];
-  String _userRole = 'user';
+  String _selectedCategory = 'All';
+  String _sourceFilter = 'All';
+  String _viewMode = 'grid'; // 'grid' or 'list'
+  String _userRole = 'guest';
+
+  final Map<String, IconData> itemIcons = {
+    'wheelchair': Icons.wheelchair_pickup,
+    'walker': Icons.accessibility_new,
+    'crutches': Icons.elderly,
+    'oxygen machine': Icons.medical_services,
+    'hospital bed': Icons.bed,
+    'other': Icons.inventory_2,
+  };
 
   // Filter state variables
   List<String> _selectedItemTypes = [];
+  List<String> _selectedCategories = [];
   List<String> _selectedAvailabilityStatus = [];
   List<String> _selectedConditions = [];
   String _selectedLocation = 'All Locations';
@@ -32,13 +42,22 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
   // View toggle state
   bool _isGridView = false; // false = List view, true = Grid view
 
+  List<Map<String, dynamic>> _filteredItems = [];
+
   final List<String> _itemTypes = [
+    'wheelchair',
+    'walker',
+    'crutches',
+    'oxygen machine',
+    'hospital bed',
+    'other',
+  ];
+  final List<String> _categories = [
     'Mobility Aid',
     'Medical Device',
     'Furniture',
-    'Equipment',
+    'Other',
   ];
-
   final List<String> _availabilityStatuses = [
     'Available',
     'Rented',
@@ -46,7 +65,13 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
     'Maintenance',
   ];
 
-  final List<String> _conditions = ['Excellent', 'Good', 'Fair', 'Poor'];
+  final List<String> _conditions = [
+    'New',
+    'Like new',
+    'Good',
+    'Fair',
+    'Needs Repair',
+  ];
 
   final List<String> _locations = [
     'All Locations',
@@ -69,6 +94,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
   final List<Map<String, dynamic>> _inventoryItems = [
     {
       'name': 'Wheelchair',
+      'type': 'wheelchair',
       'category': 'Mobility Aid',
       'status': 'Available',
       'location': 'Ward A - Room 101',
@@ -76,11 +102,12 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
       'price': '6.000',
       'description':
           'Standard manual wheelchair with adjustable footrests and armrests. Suitable for indoor and outdoor use. Weight capacity up to 250 lbs.',
-      'condition': 'Excellent',
+      'condition': 'New',
       'tags': ['Mobility', 'Medical Equipment', 'Daily Use'],
     },
     {
       'name': 'Walker',
+      'type': 'walker',
       'category': 'Mobility Aid',
       'status': 'Rented',
       'location': 'Ward B - Room 205',
@@ -93,18 +120,20 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
     },
     {
       'name': 'Blood Pressure Monitor',
+      'type': 'other',
       'category': 'Medical Device',
-      'status': 'Available',
+      'status': 'Donated',
       'location': 'Clinic Room 3',
       'quantity': '8',
       'price': '3.000',
       'description':
           'Digital blood pressure monitor with automatic readings. Large LED display. Battery operated.',
-      'condition': 'Excellent',
+      'condition': 'Like new',
       'tags': ['Medical', 'Monitoring', 'Digital'],
     },
     {
       'name': 'Hospital Bed',
+      'type': 'hospital bed',
       'category': 'Furniture',
       'status': 'Maintenance',
       'location': 'Storage Room A',
@@ -117,6 +146,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
     },
     {
       'name': 'Thermometer',
+      'type': 'other',
       'category': 'Medical Device',
       'status': 'Available',
       'location': 'Clinic Room 1',
@@ -124,7 +154,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
       'price': '2.000',
       'description':
           'Digital thermometer with fast reading capability. Water resistant design. Automatic shutdown.',
-      'condition': 'Excellent',
+      'condition': 'New',
       'tags': ['Medical', 'Temperature', 'Portable'],
     },
   ];
@@ -157,10 +187,17 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
             _filterStatus == 'All' || item['status'] == _filterStatus;
         final matchesItemType =
             _selectedItemTypes.isEmpty ||
-            _selectedItemTypes.contains(item['category']);
+            _selectedItemTypes.contains(item['type']);
+        final matchesCategory =
+            _selectedCategories.isEmpty ||
+            _selectedCategories.contains(item['category']);
+
         final matchesAvailability =
             _selectedAvailabilityStatus.isEmpty ||
             _selectedAvailabilityStatus.contains(item['status']);
+        final matchesCondition =
+            _selectedConditions.isEmpty ||
+            _selectedConditions.contains(item['condition']);
         final matchesLocation =
             _selectedLocation == 'All Locations' ||
             item['location']!.contains(_selectedLocation);
@@ -168,7 +205,9 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
             matchesStatus &&
             matchesItemType &&
             matchesAvailability &&
-            matchesLocation;
+            matchesLocation &&
+            matchesCondition &&
+            matchesCategory;
       }).toList();
     });
   }
@@ -181,8 +220,10 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
         return const Color.fromRGBO(255, 105, 0, 1);
       case 'Maintenance':
         return const Color.fromRGBO(106, 114, 130, 1);
+      case 'Donated':
+        return const Color.fromRGBO(173, 59, 183, 1);
       default:
-        return const Color.fromRGBO(106, 114, 130, 1);
+        return const Color.fromRGBO(170, 192, 235, 1);
     }
   }
 
@@ -250,6 +291,39 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
                                   _selectedItemTypes.add(type);
                                 } else {
                                   _selectedItemTypes.remove(type);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 24),
+
+                      const Text(
+                        'Category',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1F2937),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _categories.map((cat) {
+                          final isSelected = _selectedCategories.contains(cat);
+                          return FilterChip(
+                            label: Text(cat),
+                            selected: isSelected,
+                            selectedColor: const Color(0xFF155DFC),
+                            onSelected: (selected) {
+                              setDialogState(() {
+                                if (selected) {
+                                  _selectedCategories.add(cat);
+                                } else {
+                                  _selectedCategories.remove(cat);
                                 }
                               });
                             },
@@ -603,16 +677,17 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
           break;
         case 'Price (Low → High)':
           _filteredItems.sort(
-            (a, b) => int.parse(
+            (a, b) => double.parse(
               a['price'] ?? '0',
-            ).compareTo(int.parse(b['price'] ?? '0')),
+            ).compareTo(double.parse(b['price'] ?? '0')),
           );
           break;
+
         case 'Price (High → Low)':
           _filteredItems.sort(
-            (a, b) => int.parse(
+            (a, b) => double.parse(
               b['price'] ?? '0',
-            ).compareTo(int.parse(a['price'] ?? '0')),
+            ).compareTo(double.parse(a['price'] ?? '0')),
           );
           break;
         case 'Quantity (Low → High)':
@@ -672,6 +747,9 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
           condition: item['condition'] ?? 'Good',
           tags: List<String>.from(item['tags'] ?? []),
           rentalPrice: item['price'] ?? '0.000',
+          isGuest: false,
+          itemIcons: itemIcons,
+          type: item['type'],
         ),
       ),
     );
@@ -1105,6 +1183,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
                             return _buildInventoryCard(
                               context: context,
                               name: item['name']!,
+
                               category: item['category']!,
                               status: item['status']!,
                               statusColor: _getStatusColor(item['status']!),
@@ -1118,24 +1197,95 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
                                 item['location']!,
                                 item['quantity']!,
                               ),
+                              itemIcons: itemIcons,
                             );
                           },
                         )
-                      : Column(
-                          children: List.generate(_filteredItems.length, (
-                            index,
-                          ) {
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _filteredItems.length,
+                          itemBuilder: (context, index) {
                             final item = _filteredItems[index];
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: _buildInventoryCard(
-                                context: context,
-                                name: item['name']!,
-                                category: item['category']!,
-                                status: item['status']!,
-                                statusColor: _getStatusColor(item['status']!),
-                                location: item['location']!,
-                                quantity: item['quantity']!,
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 16),
+                              child: ListTile(
+                                tileColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                leading: Container(
+                                  width: 50,
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    color: const Color(0xFFF2F4F6),
+                                  ),
+                                  child: Icon(
+                                    itemIcons[item['type']
+                                            .toString()
+                                            .toLowerCase()] ??
+                                        Icons.inventory_2_outlined,
+                                    size: 28,
+                                    color: const Color.fromRGBO(
+                                      100,
+                                      116,
+                                      139,
+                                      1,
+                                    ),
+                                  ),
+                                ),
+
+                                title: Text(
+                                  item['name']!,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item['category']!,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.location_on_outlined,
+                                          size: 14,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          item['location']!,
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                trailing: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _getStatusColor(item['status']!),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Text(
+                                    item['status']!,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
                                 onTap: () => _showItemDetailsDialog(
                                   context,
                                   item['name']!,
@@ -1146,7 +1296,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
                                 ),
                               ),
                             );
-                          }),
+                          },
                         ),
                 ),
               ],
@@ -1247,6 +1397,7 @@ Widget _buildInventoryCard({
   required String location,
   required String quantity,
   required VoidCallback onTap,
+  required Map<String, IconData> itemIcons,
 }) {
   return Material(
     color: Colors.transparent,
@@ -1272,35 +1423,49 @@ Widget _buildInventoryCard({
             children: [
               Container(
                 height: 180,
-                decoration: const BoxDecoration(
-                  image: DecorationImage(
-                    image: AssetImage('assets/images/Imagewithfallback.png'),
-                    fit: BoxFit.cover,
-                  ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2F4F6),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Align(
-                  alignment: Alignment.topRight,
-                  child: Container(
-                    margin: const EdgeInsets.all(12),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: statusColor,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      status,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                child: Stack(
+                  children: [
+                    Center(
+                      child: Icon(
+                        itemIcons[name.toLowerCase()] ??
+                            itemIcons[category.toLowerCase()] ??
+                            Icons.inventory_2,
+                        size: 70,
+                        color: const Color.fromRGBO(100, 116, 139, 1),
                       ),
                     ),
-                  ),
+
+                    // Status badge
+                    Positioned(
+                      right: 12,
+                      top: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusColor,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          status,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(

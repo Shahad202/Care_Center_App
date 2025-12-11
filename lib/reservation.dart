@@ -175,6 +175,12 @@ class _RenterPageState extends State<RenterPage> {
               ),
               onTap: () {
                 Navigator.pop(context);
+                final role = _userRole.toLowerCase();
+                if (role == 'admin') {
+                  Navigator.pushReplacementNamed(context, '/inventory_admin');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/inventory');
+                }
               },
             ),
             ListTile(
