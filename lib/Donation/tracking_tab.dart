@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'details.dart';
-import '../navigation_transitions.dart';
 
 class TrackingTabPage extends StatefulWidget {
   const TrackingTabPage({super.key});
@@ -11,14 +10,47 @@ class TrackingTabPage extends StatefulWidget {
   State<TrackingTabPage> createState() => _TrackingTabPageState();
 }
 
-class _TrackingTabPageState extends State<TrackingTabPage> {
+class _TrackingTabPageState extends State<TrackingTabPage>
+    with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
   String? _selectedStatus;
+  late ScrollController _scrollController;
+  final Map<int, AnimationController> _animationControllers = {};
+  int _cardCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    // Trigger animation for newly visible cards
+    for (int i = 0; i < _cardCount; i++) {
+      if (!_animationControllers.containsKey(i)) {
+        _createAndStartAnimation(i);
+      }
+    }
+  }
+
+  void _createAndStartAnimation(int index) {
+    final controller = AnimationController(
+      duration: const Duration(milliseconds: 650), // Smooth duration
+      vsync: this,
+    );
+    _animationControllers[index] = controller;
+    controller.forward();
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
+    for (var controller in _animationControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -184,15 +216,49 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                     return _emptyFiltered();  // "No matching results"
                   }
 
-                  // STEP 6: Build list of donation cards
+                  // STEP 6: Build list of donation cards with animations
+                  _cardCount = filtered.length;
+                  // Ensure animations exist for all visible cards
+                  for (int i = 0; i < filtered.length; i++) {
+                    if (!_animationControllers.containsKey(i)) {
+                      _createAndStartAnimation(i);
+                    }
+                  }
+
                   return ListView.builder(
+                    controller: _scrollController,
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
                       final doc = filtered[index];
                       final data = doc.data() as Map<String, dynamic>;
                       // Add document ID to the data map
                       final dataWithId = {...data, 'id': doc.id};
-                      return _donationCard(dataWithId);
+                      
+                      final animationController = _animationControllers[index];
+                      if (animationController == null) {
+                        return _donationCard(dataWithId);
+                      }
+
+                        return SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 1.0), // Start further below for more pronounced effect
+                            end: Offset.zero,
+                          ).animate(
+                            CurvedAnimation(
+                              parent: animationController,
+                              curve: Curves.easeOutCubic,
+                            ),
+                          ),
+                          child: FadeTransition(
+                            opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
+                              CurvedAnimation(
+                                parent: animationController,
+                                curve: Curves.easeIn,
+                              ),
+                            ),
+                            child: _donationCard(dataWithId),
+                          ),
+                        );
                     },
                   );
                 },
@@ -368,7 +434,7 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
             // Navigate to DonationDetailsPage when tapped
             Navigator.push(
               context,
-              slideUpRoute(DonationDetailsPage(donation: data)),
+              MaterialPageRoute(builder: (_) => DonationDetailsPage(donation: data)),
             );
           },
           child: Padding(
@@ -505,8 +571,8 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                               onTap: () {
                                 Navigator.push(
                                   context,
-                                  slideUpRoute(
-                                    DonationDetailsPage(donation: data),
+                                  MaterialPageRoute(
+                                    builder: (_) => DonationDetailsPage(donation: data),
                                   ),
                                 );
                               },
