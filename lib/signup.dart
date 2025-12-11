@@ -134,7 +134,9 @@ class _SignupPageState extends State<SignupPage> {
                  // Role Selction
                  DropdownButtonFormField<String>(
                   value: _selectedRole,
-                  items: ['Admin', 'Renter', 'Donor']
+                  // items: ['Admin', 'Renter', 'Donor']
+                  items: [ 'Renter', 'Donor']
+
                       .map(
                         (role) =>
                             DropdownMenuItem(value: role, child: Text(role)),
