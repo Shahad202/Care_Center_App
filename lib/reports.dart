@@ -4,7 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project444/login.dart';
 import 'package:project444/profilePage.dart';
-import 'package:project444/inventory/inventory_admin.dart';
+import 'package:project444/inventory/inventory_admin_new.dart';
+import 'package:project444/inventory/inventory_user.dart';
 import 'package:project444/admin_dashboard.dart';
 import 'package:project444/admin_donation_details.dart';
 
@@ -145,7 +146,8 @@ class _CareCenterState extends State<CareCenter> {
           dueDate: '2024-12-03',
           time: '2 hours ago',
           priority: 'high',
-          details: 'This wheelchair was rented for elderly care. Customer has been contacted twice. Late fee: 2 BD per day.',
+          details:
+              'This wheelchair was rented for elderly care. Customer has been contacted twice. Late fee: 2 BD per day.',
         ),
         AppNotification(
           id: 2,
@@ -159,7 +161,8 @@ class _CareCenterState extends State<CareCenter> {
           dueDate: '2024-12-06',
           time: '5 hours ago',
           priority: 'medium',
-          details: 'Automated reminder sent to customer. Equipment is in good condition. Extension available upon request.',
+          details:
+              'Automated reminder sent to customer. Equipment is in good condition. Extension available upon request.',
         ),
         AppNotification(
           id: 3,
@@ -172,7 +175,8 @@ class _CareCenterState extends State<CareCenter> {
           maintenanceType: 'Routine Inspection',
           time: '1 day ago',
           priority: 'high',
-          details: 'Equipment has completed 90 days since last maintenance. Requires pressure test and filter replacement. Currently not available for rental.',
+          details:
+              'Equipment has completed 90 days since last maintenance. Requires pressure test and filter replacement. Currently not available for rental.',
         ),
       ];
     }
@@ -501,9 +505,7 @@ class _CareCenterState extends State<CareCenter> {
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: const BoxDecoration(
-              color: Color(0xFF003465),
-            ),
+            decoration: const BoxDecoration(color: Color(0xFF003465)),
             child: FirebaseAuth.instance.currentUser == null
                 ? Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -513,13 +515,17 @@ class _CareCenterState extends State<CareCenter> {
                           Navigator.pop(context);
                           final result = await Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const LoginPage()),
+                            MaterialPageRoute(
+                              builder: (_) => const LoginPage(),
+                            ),
                           );
                           if (result == true) setState(() {});
                         },
                         child: const CircleAvatar(
                           radius: 35,
-                          backgroundImage: AssetImage('lib/images/default_profile.png'),
+                          backgroundImage: AssetImage(
+                            'lib/images/default_profile.png',
+                          ),
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -548,6 +554,7 @@ class _CareCenterState extends State<CareCenter> {
                       var data = snapshot.data!.data() as Map<String, dynamic>;
                       String name = (data["name"] ?? "User").toString();
                       String? imageUrl = data["profileImage"] as String?;
+                      _userRole = (data['role'] ?? 'user').toString();
 
                       return Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -557,15 +564,21 @@ class _CareCenterState extends State<CareCenter> {
                               Navigator.pop(context);
                               final updated = await Navigator.push<bool?>(
                                 context,
-                                MaterialPageRoute(builder: (_) => const ProfilePage()),
+                                MaterialPageRoute(
+                                  builder: (_) => const ProfilePage(),
+                                ),
                               );
                               if (updated == true) setState(() {});
                             },
                             child: CircleAvatar(
                               radius: 35,
-                              backgroundImage: (imageUrl != null && imageUrl.isNotEmpty)
+                              backgroundImage:
+                                  (imageUrl != null && imageUrl.isNotEmpty)
                                   ? NetworkImage(imageUrl)
-                                  : const AssetImage('lib/images/default_profile.png') as ImageProvider,
+                                  : const AssetImage(
+                                          'lib/images/default_profile.png',
+                                        )
+                                        as ImageProvider,
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -603,10 +616,12 @@ class _CareCenterState extends State<CareCenter> {
             ),
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => NewinventoryWidget()),
-              );
+              final role = _userRole.toLowerCase();
+              if (role == 'admin') {
+                Navigator.pushReplacementNamed(context, '/inventory_admin');
+              } else {
+                Navigator.pushReplacementNamed(context, '/inventory');
+              }
             },
           ),
           ListTile(
@@ -617,7 +632,7 @@ class _CareCenterState extends State<CareCenter> {
             ),
             onTap: () {
               Navigator.pop(context);
-              Navigator.pushNamed(context, '/inventory');
+              Navigator.pushNamed(context, '/renter');
             },
           ),
           ListTile(
@@ -636,6 +651,7 @@ class _CareCenterState extends State<CareCenter> {
             ),
             onTap: () {
               Navigator.pop(context);
+              Navigator.pushNamed(context, '/reports');
             },
           ),
           Padding(
@@ -2696,7 +2712,9 @@ class _CareCenterState extends State<CareCenter> {
     List<Widget> buttons = [];
 
     // Donation Button
-    if (notification.type == 'donation' && notification.donationId != null && notification.donationData != null) {
+    if (notification.type == 'donation' &&
+        notification.donationId != null &&
+        notification.donationData != null) {
       buttons.add(
         _buildActionButton(
           'View Donation',

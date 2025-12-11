@@ -35,6 +35,13 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
     }
   }
 
+  /// Validate and ensure quantity is > 0
+  int _getValidQuantity(dynamic quantity) {
+    if (quantity is int) return quantity > 0 ? quantity : 1;
+    if (quantity is String) return (int.tryParse(quantity) ?? 0) > 0 ? int.parse(quantity) : 1;
+    return 1;
+  }
+
   String _getStatusText(String status) {
     switch (status.toLowerCase()) {
       case 'pending':
@@ -181,9 +188,11 @@ class _TrackingTabPageState extends State<TrackingTabPage> {
                   return ListView.builder(
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
-                      final data =
-                          filtered[index].data() as Map<String, dynamic>;
-                      return _donationCard(data);
+                      final doc = filtered[index];
+                      final data = doc.data() as Map<String, dynamic>;
+                      // Add document ID to the data map
+                      final dataWithId = {...data, 'id': doc.id};
+                      return _donationCard(dataWithId);
                     },
                   );
                 },
