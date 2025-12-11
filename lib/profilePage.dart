@@ -26,6 +26,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Uint8List? _pickedImageBytes; // web bytes
   String? _profileImageUrl; // URL from Firestore
   bool _loading = false;
+  String? _preferredContactMethod = 'Email'; //defualt value
 
   final _uid = FirebaseAuth.instance.currentUser?.uid;
 
@@ -55,12 +56,12 @@ class _ProfilePageState extends State<ProfilePage> {
         _nameController.text = (data['name'] ?? '') as String;
         _emailController.text = (data['email'] ?? '') as String;
         _contactController.text = (data['contact'] ?? '') as String;
+        _preferredContactMethod = (data['preferredContactMethod'] ?? 'Email') as String;
         setState(() {
           _profileImageUrl = (data['profilePicture'] ?? null) as String?;
         });
       }
     } catch (e) {
-      // ignore load error; show optional message
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Failed to load profile')));
@@ -89,35 +90,6 @@ class _ProfilePageState extends State<ProfilePage> {
       });
     }
   }
-
-  // upload image to Firebase Storage and return download URL
-  // Future<String> _uploadImageAndGetUrl() async {
-  //   if (_uid == null) throw Exception('Not authenticated');
-
-  //   final storageRef = FirebaseStorage.instance
-  //       .ref()
-  //       .child('profilePictures')
-  //       .child('$_uid.jpg');
-
-  //   if (kIsWeb) {
-  //     if (_pickedImageBytes == null) throw Exception('No image bytes');
-  //     final uploadTask = await storageRef.putData(
-  //       _pickedImageBytes!,
-  //       SettableMetadata(contentType: 'image/jpeg'),
-  //     );
-  //     final url = await uploadTask.ref.getDownloadURL();
-  //     return url;
-  //   } else {
-  //     if (_pickedImageFile == null) throw Exception('No file selected');
-  //     final uploadTask = await storageRef.putFile(
-  //       _pickedImageFile!,
-  //       SettableMetadata(contentType: 'image/jpeg'),
-  //     );
-  //     final url = await uploadTask.ref.getDownloadURL();
-  //     return url;
-  //   }
-  // }
-
 
 Future<String> _uploadImageAndGetUrl() async {
   if (_uid == null) throw Exception('Not authenticated');
@@ -150,61 +122,7 @@ Future<String> _uploadImageAndGetUrl() async {
   }
 }
 
-  // Save profile (uploads image if new, then updates Firestore)
-  // Future<void> _saveProfile() async {
-  //   if (!_formKey.currentState!.validate()) return;
-  //   if (_uid == null) {
-  //     ScaffoldMessenger.of(
-  //       context,
-  //     ).showSnackBar(const SnackBar(content: Text('Not authenticated')));
-  //     return;
-  //   }
-
-  //   setState(() => _loading = true);
-
-  //   try {
-  //     String? newImageUrl;
-  //     // If user picked a new image, upload it and get the URL
-  //     if (_pickedImageBytes != null || _pickedImageFile != null) {
-  //       newImageUrl = await _uploadImageAndGetUrl();
-  //     }
-
-  //     final updateData = <String, dynamic>{
-  //       'name': _nameController.text.trim(),
-  //       'email': _emailController.text.trim(),
-  //       'contact': _contactController.text.trim(),
-  //     };
-
-  //     if (newImageUrl != null) updateData['profilePicture'] = newImageUrl;
-
-  //     await FirebaseFirestore.instance
-  //         .collection('users')
-  //         .doc(_uid)
-  //         .update(updateData);
-
-  //     // reflect changes locally
-  //     if (newImageUrl != null) {
-  //       _profileImageUrl = newImageUrl;
-  //       _pickedImageFile = null;
-  //       _pickedImageBytes = null;
-  //     }
-
-  //     ScaffoldMessenger.of(
-  //       context,
-  //     ).showSnackBar(const SnackBar(content: Text('Profile updated')));
-  //     // Pop back with success
-  //     Navigator.pop(context, true);
-  //     setState(() {});
-  //   } catch (e) {
-  //     final msg = e.toString();
-  //     ScaffoldMessenger.of(
-  //       context,
-  //     ).showSnackBar(SnackBar(content: Text('Update failed: $msg')));
-  //   } finally {
-  //     setState(() => _loading = false);
-  //   }
-  // }
-
+  
 Future<void> _saveProfile() async {
   if (!_formKey.currentState!.validate()) return;
   if (_uid == null) return;
@@ -221,6 +139,7 @@ Future<void> _saveProfile() async {
       'name': _nameController.text.trim(),
       'email': _emailController.text.trim(),
       'contact': _contactController.text.trim(),
+      'preferredContactMethod': _preferredContactMethod,
     };
 
     if (newImageUrl != null) updateData['profilePicture'] = newImageUrl;
@@ -235,6 +154,7 @@ Future<void> _saveProfile() async {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Profile updated successfully')),
     );
+    Navigator.pop(context);
   } catch (e) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Update failed: $e')),
@@ -441,6 +361,36 @@ Future<void> _saveProfile() async {
                   ),
 
                   const SizedBox(height: 26),
+
+                  const Text('Preferred Contact Method'),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<String>(
+                    value: _preferredContactMethod,
+                    items: const [
+                      DropdownMenuItem(value: 'Email', child: Text('Email')),
+                      DropdownMenuItem(value: 'Phone', child: Text('Phone')),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _preferredContactMethod = value;
+                      });
+                    },
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+
+
+
+                  const SizedBox(height: 26),
+
+
 
                   // buttons
                   Row(
