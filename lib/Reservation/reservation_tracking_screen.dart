@@ -63,7 +63,6 @@ class _ReservationTrackingScreenState extends State<ReservationTrackingScreen> {
             _searchBar(),
             const SizedBox(height: 15),
 
-            // LISTEN TO FIRESTORE
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: reservationStream,

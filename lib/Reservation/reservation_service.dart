@@ -5,9 +5,7 @@ import 'package:project444/Reservation/reservation_item.dart';
 class ReservationService {
   final _firestore = FirebaseFirestore.instance;
 
-  // ----------------------------
-  // Add new reservation
-  // ----------------------------
+ 
   Future<ReservationItem> addReservation({
     required String equipmentName,
     required int quantity,
@@ -29,9 +27,6 @@ class ReservationService {
     return ReservationItem.fromDoc(snap);
   }
 
-  // ----------------------------
-  // Fetch ALL reservations for current user
-  // ----------------------------
   Future<List<ReservationItem>> getAllReservations() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not authenticated');
