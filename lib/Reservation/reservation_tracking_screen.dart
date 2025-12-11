@@ -49,7 +49,6 @@ class _ReservationTrackingScreenState extends State<ReservationTrackingScreen> {
     final reservationStream = FirebaseFirestore.instance
         .collection('reservations')
         .where('userId', isEqualTo: uid)
-        .orderBy('createdAt', descending: true)
         .snapshots();
 
     return Scaffold(

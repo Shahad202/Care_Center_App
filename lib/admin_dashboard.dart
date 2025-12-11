@@ -170,7 +170,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ListTile(
               leading: const Icon(Icons.bar_chart),
               title: const Text('Tracking & Reports'),
-              onTap: () => Navigator.pop(context),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/reports');
+              },
             ),
             Padding(
               padding: const EdgeInsets.all(16.0),
