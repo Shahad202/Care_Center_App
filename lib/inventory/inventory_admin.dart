@@ -5,6 +5,7 @@ import 'package:project444/profilePage.dart';
 import 'package:project444/login.dart';
 import 'package:project444/inventory/add_item.dart';
 import 'package:project444/inventory/item_detail.dart';
+import 'package:project444/inventory/edit_item.dart';
 
 class NewinventoryWidget extends StatefulWidget {
   @override
@@ -1175,7 +1176,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
                                 crossAxisCount: 2,
                                 mainAxisSpacing: 16,
                                 crossAxisSpacing: 16,
-                                childAspectRatio: 0.75,
+                                childAspectRatio: 0.60,
                               ),
                           itemCount: _filteredItems.length,
                           itemBuilder: (context, index) {

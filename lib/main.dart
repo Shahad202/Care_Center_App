@@ -10,7 +10,7 @@ import 'reports.dart';
 import 'reservation/reservation.dart';
 import 'Donation/donor_page.dart';
 import 'inventory/inventory_admin_new.dart';
-import 'inventory/inventory_user.dart';
+import 'inventory/inventory_guest.dart';
 import 'login.dart';
 import 'signup.dart';
 import 'admin_dashboard.dart';
@@ -95,7 +95,7 @@ class MyApp extends StatelessWidget {
         '/admin': (c) => const AdminPage(userName: ''),
         '/login': (c) => const LoginPage(),
         '/signup': (c) => const SignupPage(),
-        "/inventory": (c) => InventoryUserWidget(),
+        "/inventory": (c) => UserInventoryWidget(),
         "/inventory_admin": (c) => InventoryAdminWidget(),
         "/renter": (c) => const RenterPage(),
         "/reports": (c) => const CareCenter(),
