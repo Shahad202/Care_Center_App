@@ -17,12 +17,10 @@ class _SignupPageState extends State<SignupPage> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _contactController = TextEditingController();
 
-  String _selectedRole = 'Renter'; // default Role
+  String _selectedRole = 'Renter'; 
 
-  // create an instance of AuthService
   final AuthService _authService = AuthService();
 
-  // loading state
   bool _isLoading = false;
 
   @override
@@ -37,22 +35,19 @@ class _SignupPageState extends State<SignupPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('Sign Up'),
         backgroundColor: const Color(0xFF0A66C2),
       ),
       body: SingleChildScrollView(
-        // child: Center(
           child: Padding(
             padding:const EdgeInsets.all(16.0),
             child:  Form(
               key: _formKey,
-              // autovalidateMode: AutovalidateMode.onUserInteraction,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  // name input:
+                  
                   TextFormField(
                     controller: _nameController,
                     decoration: const InputDecoration(
@@ -68,7 +63,7 @@ class _SignupPageState extends State<SignupPage> {
                   ),
                   const SizedBox(height: 16),
         
-                  // Email input
+                  
                   TextFormField(
                     controller: _emailController,
                     decoration: const InputDecoration(
@@ -89,7 +84,7 @@ class _SignupPageState extends State<SignupPage> {
                   const SizedBox(height: 16),
         
         
-                  // Input password
+                  
                   TextFormField(
                     controller: _passwordController,
                     obscureText: true,
@@ -110,7 +105,7 @@ class _SignupPageState extends State<SignupPage> {
                   const SizedBox(height: 16),
         
         
-                  // input contact
+                
                  TextFormField(
                     controller: _contactController,
                     decoration: const InputDecoration(
@@ -131,10 +126,8 @@ class _SignupPageState extends State<SignupPage> {
                  const SizedBox(height: 16),
         
         
-                 // Role Selction
                  DropdownButtonFormField<String>(
                   value: _selectedRole,
-                  // items: ['Admin', 'Renter', 'Donor']
                   items: [ 'Renter', 'Donor']
 
                       .map(
@@ -177,7 +170,6 @@ class _SignupPageState extends State<SignupPage> {
 
   Future<void> _signup() async {
     if (!_formKey.currentState!.validate()) {
-      // form is invalid, dont proceed
       return;
     }
 

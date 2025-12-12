@@ -137,7 +137,7 @@ class _MyHomePageState extends State<MyHomePage> {
       final role = (snap.data()?['role'] ?? 'user').toString();
       if (mounted) setState(() => _userRole = role);
     } catch (_) {
-      // keep default role
+     
     }
   }
 
