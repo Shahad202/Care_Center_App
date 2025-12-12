@@ -124,15 +124,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       onTap: () {
                         final role = _userRole.toLowerCase();
                         if (role == 'admin') {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => InventoryAdminWidget()),
-                          );
+                          //Navigator.push(
+                            //context,
+                            //MaterialPageRoute(builder: (_) => InventoryAdminWidget()),
+                          //);
                         } else {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => InventoryUserWidget()),
-                          );
+                          //Navigator.push(
+                            //context,
+                            //MaterialPageRoute(builder: (_) => InventoryUserWidget()),
+                          //);
                         }
                       },
                     ),

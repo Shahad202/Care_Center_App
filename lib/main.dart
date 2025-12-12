@@ -9,16 +9,16 @@ import 'firebase_options.dart';
 import 'reports.dart';
 import 'reservation/reservation.dart';
 import 'Donation/donor_page.dart';
-import 'inventory/inventory_admin_new.dart';
-import 'inventory/inventory_user.dart';
+//import 'inventory/inventory_admin_new.dart';
+//import 'inventory/inventory_user.dart';
 import 'login.dart';
 import 'signup.dart';
 import 'admin_dashboard.dart';
 import 'inventory_list_screen.dart';
 import 'reservation/reservation_dates_screen.dart';
 import 'reservation/reservation_confirm_screen.dart';
-import 'reservation/reservation_success_screen.dart';
-import 'reservation/reservation_tracking_screen.dart';
+import 'reservation/reservation_success_screen.dart' as success_screen;
+import 'Reservation/reservation_tabs.dart';
 import 'profilePage.dart';
 
 final ColorScheme colorScheme = ColorScheme.fromSeed(seedColor: Colors.blue);
@@ -95,14 +95,14 @@ class MyApp extends StatelessWidget {
         '/admin': (c) => const AdminPage(userName: ''),
         '/login': (c) => const LoginPage(),
         '/signup': (c) => const SignupPage(),
-        "/inventory": (c) => InventoryUserWidget(),
-        "/inventory_admin": (c) => InventoryAdminWidget(),
+        //"/inventory": (c) => InventoryUserWidget(),
+        //"/inventory_admin": (c) => InventoryAdminWidget(),
         "/renter": (c) => const RenterPage(),
         "/reports": (c) => const CareCenter(),
         //"/dates": (c) => const ReservationDatesScreen(inventoryItemId: '', itemName: '', requestedQuantity: 8,),
         "/confirm": (c) => const Placeholder(),
-        "/success": (c) => const ReservationSuccessScreen(),
-        "/tracking": (c) => const ReservationTrackingScreen(),
+        "/success": (c) => const success_screen.ReservationSuccessScreen(),
+        "/tracking": (c) => const TrackingPage(),
       },
     );
   }

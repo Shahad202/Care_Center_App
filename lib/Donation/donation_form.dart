@@ -123,7 +123,7 @@ class _DonationFormPageState extends State<DonationFormPage> {
     if (uid == null) {
       // Shows login screen if user not authenticated
       return Scaffold(
-        appBar: AppBar(title: const Text('Donate Equipment')),
+        appBar: AppBar(),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
