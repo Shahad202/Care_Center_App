@@ -7,8 +7,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:project444/rental_history_button.dart';
 import 'package:project444/common_drawer.dart';
 import 'admin_pending_donations.dart';
-import 'inventory/inventory_admin_new.dart';
-import 'inventory/inventory_user.dart';
+import 'inventory/inventory_admin.dart';
+import 'inventory/inventory_guest.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -124,16 +124,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       onTap: () {
                         final role = _userRole.toLowerCase();
                         if (role == 'admin') {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => InventoryAdminWidget()),
-                          );
-                        } else {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => InventoryUserWidget()),
-                          );
-                        }
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => NewinventoryWidget()),
+                            );
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => UserInventoryWidget()),
+                            );
+                          }
                       },
                     ),
                     const SizedBox(height: 20),
