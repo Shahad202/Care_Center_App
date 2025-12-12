@@ -59,8 +59,35 @@ class _ReservationSuccessScreenState extends State<ReservationSuccessScreen> wit
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // TODO: Implement the tracking screen UI here, or restore the correct widget.
-            Center(child: Text('Reservation Tracking Screen (implement UI here)')),
+            AnimatedBuilder(
+              animation: _sizeAnimation,
+              builder: (context, child){
+                return Transform.scale(
+                  scale: _sizeAnimation.value,
+                  child: child,
+                );
+              },
+              child: Image.asset("lib/images/success.png", height: 160),
+              ),
+            const SizedBox(height: 30),
+            const Text(
+              "Your reservation has been confirmed!",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "You can now track the status of your reservation.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, color: Colors.grey),
+            ),
+            const SizedBox(height: 40),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: (){
+                  Navigator.pushNamed(context, "/tracking");
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0A66C2),
