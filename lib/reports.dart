@@ -4,7 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project444/login.dart';
 import 'package:project444/profilePage.dart';
-import 'package:project444/inventory/inventory_admin.dart';
+import 'package:project444/inventory/inventory_admin_new.dart';
+import 'package:project444/inventory/inventory_user.dart';
 import 'package:project444/admin_dashboard.dart';
 import 'package:project444/admin_donation_details.dart';
 
@@ -88,6 +89,56 @@ class _CareCenterState extends State<CareCenter> {
         TrendData('Oct', 110, 5, 2),
         TrendData('Nov', 120, 6, 4),
         TrendData('Dec', 135, 7, 3),
+      ];
+    }
+
+    // Add fake notifications for alerts/tracking tab
+    if (_notifications.isEmpty) {
+      _notifications = [
+        AppNotification(
+          id: 1,
+          type: 'overdue',
+          title: 'Overdue Return',
+          message: 'Wheelchair is 2 days overdue',
+          user: 'Ahmed Al-Khalifa',
+          phone: '+973 3333 1234',
+          email: 'ahmed.alkhalifa@email.com',
+          checkoutDate: '2024-11-25',
+          dueDate: '2024-12-03',
+          time: '2 hours ago',
+          priority: 'high',
+          details:
+              'This wheelchair was rented for elderly care. Customer has been contacted twice. Late fee: 2 BD per day.',
+        ),
+        AppNotification(
+          id: 2,
+          type: 'upcoming',
+          title: 'Return Reminder',
+          message: 'Walker due tomorrow',
+          user: 'Fatima Mohammed',
+          phone: '+973 3333 5678',
+          email: 'fatima.m@email.com',
+          checkoutDate: '2024-11-28',
+          dueDate: '2024-12-06',
+          time: '5 hours ago',
+          priority: 'medium',
+          details:
+              'Automated reminder sent to customer. Equipment is in good condition. Extension available upon request.',
+        ),
+        AppNotification(
+          id: 3,
+          type: 'maintenance',
+          title: 'Maintenance Required',
+          message: 'Oxygen machine needs inspection',
+          user: 'System Alert',
+          lastMaintenance: '2024-09-15',
+          nextMaintenance: '2024-12-15',
+          maintenanceType: 'Routine Inspection',
+          time: '1 day ago',
+          priority: 'high',
+          details:
+              'Equipment has completed 90 days since last maintenance. Requires pressure test and filter replacement. Currently not available for rental.',
+        ),
       ];
     }
 
@@ -681,6 +732,7 @@ class _CareCenterState extends State<CareCenter> {
                       var data = snapshot.data!.data() as Map<String, dynamic>;
                       String name = (data["name"] ?? "User").toString();
                       String? imageUrl = data["profileImage"] as String?;
+                      _userRole = (data['role'] ?? 'user').toString();
 
                       return Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -742,10 +794,12 @@ class _CareCenterState extends State<CareCenter> {
             ),
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => NewinventoryWidget()),
-              );
+              final role = _userRole.toLowerCase();
+              if (role == 'admin') {
+                Navigator.pushReplacementNamed(context, '/inventory_admin');
+              } else {
+                Navigator.pushReplacementNamed(context, '/inventory');
+              }
             },
           ),
           ListTile(
@@ -756,7 +810,7 @@ class _CareCenterState extends State<CareCenter> {
             ),
             onTap: () {
               Navigator.pop(context);
-              Navigator.pushNamed(context, '/inventory');
+              Navigator.pushNamed(context, '/renter');
             },
           ),
           ListTile(
@@ -775,6 +829,7 @@ class _CareCenterState extends State<CareCenter> {
             ),
             onTap: () {
               Navigator.pop(context);
+              Navigator.pushNamed(context, '/reports');
             },
           ),
           Padding(

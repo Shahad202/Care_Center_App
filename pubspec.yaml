@@ -101,8 +101,6 @@ flutter:
       - lib/images/Photo165132665927059bbb788199a1.png
       - lib/images/Image11.png
       - lib/images/Image12.png
-      - lib/images/uploads/
-      - lib/images/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

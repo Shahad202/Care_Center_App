@@ -4,8 +4,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project444/login.dart';
 import 'package:project444/profilePage.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:project444/rental_history_button.dart';
+import 'package:project444/common_drawer.dart';
 import 'admin_pending_donations.dart';
-import 'navigation_transitions.dart';
+import 'inventory/inventory_admin_new.dart';
+import 'inventory/inventory_user.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -27,7 +30,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     try {
-      final snap = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       final role = (snap.data()?['role'] ?? 'user').toString();
       if (mounted) setState(() => _userRole = role);
     } catch (_) {
@@ -39,166 +45,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFF),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: const BoxDecoration(color: Color(0xFF003465)),
-              child: FirebaseAuth.instance.currentUser == null
-                  ? Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        GestureDetector(
-                          onTap: () async {
-                            Navigator.pop(context);
-                            final result = await Navigator.push(
-                              context,
-                              slideUpRoute(const LoginPage()),
-                            );
-                            if (result == true && mounted) {
-                              setState(() {});
-                            }
-                          },
-                          child: const CircleAvatar(
-                            radius: 35,
-                            backgroundImage: AssetImage(
-                              'lib/images/default_profile.png',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          "Welcome, Guest!",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    )
-                  : FutureBuilder<DocumentSnapshot>(
-                      future: FirebaseFirestore.instance
-                          .collection("users")
-                          .doc(FirebaseAuth.instance.currentUser!.uid)
-                          .get(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                            ),
-                          );
-                        }
-
-                        var data =
-                            snapshot.data!.data() as Map<String, dynamic>;
-                        String name = (data["name"] ?? "User").toString();
-                        String? imageUrl = data["profileImage"] as String?;
-                        _userRole = (data['role'] ?? 'user').toString();
-
-                        return Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            GestureDetector(
-                              onTap: () async {
-                                Navigator.pop(context);
-                                final updated = await Navigator.push<bool?>(
-                                  context,
-                                  slideUpRoute(const ProfilePage()),
-                                );
-                                if (updated == true && mounted) {
-                                  setState(() {});
-                                }
-                              },
-                              child: CircleAvatar(
-                                radius: 35,
-                                backgroundImage:
-                                    (imageUrl != null && imageUrl.isNotEmpty)
-                                        ? NetworkImage(imageUrl)
-                                        : const AssetImage(
-                                                'lib/images/default_profile.png',
-                                              )
-                                            as ImageProvider,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              "Welcome, $name!",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.home),
-              title: const Text('Home'),
-              onTap: () {
-                Navigator.pop(context);
-                final role = _userRole.toLowerCase();
-                if (role == 'admin') {
-                  Navigator.pushReplacementNamed(context, '/admin');
-                } else {
-                  Navigator.pushReplacementNamed(context, '/home');
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.inventory),
-              title: const Text('Inventory Management'),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.calendar_month),
-              title: const Text('Reservation & Rental'),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.volunteer_activism),
-              title: const Text('Donations'),
-              onTap: () {
-                Navigator.pushNamed(context, '/donor');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.bar_chart),
-              title: const Text('Tracking & Reports'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/reports');
-              },
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: FirebaseAuth.instance.currentUser != null
-                  ? ListTile(
-                      leading: const Icon(Icons.logout, color: Colors.red),
-                      title: const Text(
-                        "Logout",
-                        style: TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      onTap: () async {
-                        await FirebaseAuth.instance.signOut();
-                        if (mounted) {
-                          Navigator.pop(context);
-                          Navigator.pushReplacementNamed(context, '/home');
-                        }
-                      },
-                    )
-                  : const SizedBox(),
-            ),
-          ],
-        ),
+      drawer: CommonDrawer(
+        userRole: _userRole,
+        onRoleUpdated: () {
+          _loadUserRole();
+        },
       ),
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(63),
@@ -214,6 +65,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
           ),
           title: const SizedBox.shrink(),
+          actions: const [
+            Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: RentalHistoryButton(showUserOnly: false),
+            ),
+          ],
         ),
       ),
       body: SafeArea(
@@ -222,7 +79,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 440),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 24,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -251,18 +111,29 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          slideUpRoute(const AdminPendingDonations()),
+                          MaterialPageRoute(builder: (_) => const AdminPendingDonations()),
                         );
                       },
                     ),
                     const SizedBox(height: 20),
                     _dashboardCard(
                       title: 'Inventory Management',
-                      subtitle: 'Manage items in inventory',
+                      subtitle: _userRole.toLowerCase() == 'admin'
+                          ? 'Manage all items in inventory'
+                          : 'Browse available items',
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Coming soon...')),
-                        );
+                        final role = _userRole.toLowerCase();
+                        if (role == 'admin') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => InventoryAdminWidget()),
+                          );
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => InventoryUserWidget()),
+                          );
+                        }
                       },
                     ),
                     const SizedBox(height: 20),
@@ -270,9 +141,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       title: 'Reports & Analytics',
                       subtitle: 'View donation and rental statistics',
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Coming soon...')),
-                        );
+                        Navigator.pushNamed(context, '/reports');
                       },
                     ),
                   ],
@@ -323,7 +192,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ),
                   ],
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 16,
+                ),
                 child: Row(
                   children: [
                     Expanded(
