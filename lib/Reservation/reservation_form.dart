@@ -135,14 +135,20 @@ void _selectItem(Map<String, dynamic> item, String id) {
       final data = d.data()! as Map<String, dynamic>;
       return {...data, 'id': d.id};
     }).where((item) {
-      if (sourceFilter != 'all' && (item['source'] ?? '') != sourceFilter)
-        return false;
-      if ((item['status'] ?? '') != 'available') return false; // only available
-      if (lowerSearch.isEmpty) return true;
-      final name = (item['name'] ?? '').toString().toLowerCase();
-      final desc = (item['description'] ?? '').toString().toLowerCase();
-      return name.contains(lowerSearch) || desc.contains(lowerSearch);
-    }).toList();
+  final rawSource = item['source'];
+  final source = (rawSource == 'donation') ? 'donation' : 'center';
+  if (sourceFilter != 'all' && source != sourceFilter) return false;
+
+  
+  if ((item['status'] ?? '').toString().toLowerCase() != 'available') return false;
+
+  
+  if (lowerSearch.isEmpty) return true;
+  final name = (item['name'] ?? '').toString().toLowerCase();
+  final desc = (item['description'] ?? '').toString().toLowerCase();
+  return name.contains(lowerSearch) || desc.contains(lowerSearch);
+  })
+  .toList();
 
     results.sort((a, b) =>
         (a['name'] ?? '').toString().compareTo((b['name'] ?? '').toString()));
