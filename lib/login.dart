@@ -6,7 +6,7 @@ import 'signup.dart';
 import 'reservation/reservation.dart';
 import 'Donation/donor_page.dart';
 import 'reservation/reservation_dates_screen.dart';
-import 'admin_dashboard.dart'; // Make sure AdminDashboard class exists in this file
+import 'admin_dashboard.dart'; 
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -21,9 +21,7 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
 
 
-  // Instance of AuthService. 
   final AuthService _authService = AuthService();
-  // Loading state
   bool _isLoading = false;
 
   @override
@@ -48,12 +46,16 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // input email
+              Image.asset('lib/images/Vector.png', height: 160),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(
                   labelText: 'Email',
-                  border: OutlineInputBorder(),
+                  focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.blue, width: 2),
+                  borderRadius: BorderRadius.all(Radius.circular(15)),
+                  ),
                 ),
                 validator: (value){
                   if (value == null || value.isEmpty ){
@@ -67,20 +69,20 @@ class _LoginPageState extends State<LoginPage> {
                 }
               ),
               const SizedBox(height: 16),
-          
-              // input password
               TextFormField(
                 obscureText: true,
                 controller: _passwordController,
                 decoration: const InputDecoration(
                   labelText: 'Password',
-                  border:OutlineInputBorder()
+                  focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.blue, width: 2),
+                  borderRadius: BorderRadius.all(Radius.circular(15)),
+                  ),
                 ),
                 validator: (value) {
                   if(value == null || value.isEmpty){
                     return 'Please enter your password';
                   }
-                  // password min 6 characters
                   if (value.length < 6){
                     return 'Password must be at least 6 charecters';
                   }
@@ -89,7 +91,6 @@ class _LoginPageState extends State<LoginPage> {
               ),
                const SizedBox(height: 16),
           
-               // login button
                _isLoading
                ? const CircularProgressIndicator()
                : ElevatedButton(onPressed: _login,
@@ -109,10 +110,8 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // login function
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()){
-      // form is invalid, dont proceed
       return;
     }
     
@@ -129,7 +128,6 @@ class _LoginPageState extends State<LoginPage> {
 
     if (user != null){
 
-      // get users date from the firestore 
       final doc = await FirebaseFirestore.instance
       .collection('users')
       .doc(user.uid)
@@ -144,9 +142,7 @@ class _LoginPageState extends State<LoginPage> {
        ScaffoldMessenger.of(context).showSnackBar(
          SnackBar(content: Text('Welcome, $name!')));
 
-        // Navigate based on role:
         if (role == 'Admin'){
-          // to remove the login page from history, so user can't press back and return to guest home or login screen sisnce there are already buttons for these
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AdminDashboard()));
         } else if (role == 'Donor'){
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => DonorPage(userName: name)));
@@ -159,7 +155,7 @@ class _LoginPageState extends State<LoginPage> {
     setState(() {
       _isLoading = false;
     });
-    print('Login error details: $e'); // طباعة التفاصيل
+    print('Login error details: $e'); 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Login failed: ${e.toString()}'))
     );

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'admin_donation_details.dart';
-import 'navigation_transitions.dart';
 
 class AdminPendingDonations extends StatefulWidget {
   const AdminPendingDonations({super.key});
@@ -14,7 +13,7 @@ class AdminPendingDonations extends StatefulWidget {
 class _AdminPendingDonationsState extends State<AdminPendingDonations> {
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
-  final Set<String> _handledDonationIds = {};  // Track handled IDs
+  final Set<String> _handledDonationIds = {};
 
   @override
   void initState() {
@@ -24,7 +23,6 @@ class _AdminPendingDonationsState extends State<AdminPendingDonations> {
 
   void _checkAuth() {
     if (_auth.currentUser == null) {
-      // No user logged in - navigate to login
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.pushReplacementNamed(context, '/login');
       });
@@ -32,44 +30,34 @@ class _AdminPendingDonationsState extends State<AdminPendingDonations> {
   }
 
   Stream<QuerySnapshot> getAllDonations() {
-    // STEP 1: Check if user is authenticated
     if (_auth.currentUser == null) return const Stream.empty();
-    
     try {
-      // STEP 2: Query Firestore for pending donations
       return _firestore
           .collection('donations')
-          .where('status', isEqualTo: 'pending')  // Only pending donations
-          .orderBy('createdAt', descending: true)  // Newest first
-          .snapshots();  // Real-time stream
-      
+          .where('status', isEqualTo: 'pending')
+          .orderBy('createdAt', descending: true)
+          .snapshots();
     } catch (_) {
-      // STEP 3: Return empty stream if error
       return const Stream.empty();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // STEP 1: Auth check - show loading if not authenticated
     if (_auth.currentUser == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // STEP 2: Return Scaffold with AppBar
     return Scaffold(
-      backgroundColor: const Color(0xFFF7FBFF), // Light blue
+      backgroundColor: const Color(0xFFF7FBFF),
       appBar: AppBar(
         title: const Text('All Donations'),
-        backgroundColor: const Color(0xFF003465), // Dark blue
+        backgroundColor: const Color(0xFF003465),
         elevation: 0,
       ),
-
-      // STEP 3: Real-time StreamBuilder
       body: StreamBuilder<QuerySnapshot>(
-        stream: getAllDonations(), // Listen to pending donations
+        stream: getAllDonations(),
         builder: (context, snapshot) {
-          // STEP 4: Handle loading state
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(
@@ -78,23 +66,14 @@ class _AdminPendingDonationsState extends State<AdminPendingDonations> {
             );
           }
 
-          // STEP 5: Handle errors
           if (snapshot.hasError) {
             return _errorState(snapshot.error.toString());
           }
 
-          // STEP 6: Get all pending documents
           final docs = snapshot.data?.docs ?? [];
-
-          // STEP 7: Filter out donations admin already handled
-          final filteredDocs = docs
-              .where((d) => !_handledDonationIds.contains(d.id))  // Filter out handled
-              .toList();
-
-          // STEP 8: Show empty state if no pending donations
+          final filteredDocs = docs.where((d) => !_handledDonationIds.contains(d.id)).toList();
           if (filteredDocs.isEmpty) return _emptyState();
 
-          // STEP 9: Build list of donation cards
           return Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 720),
@@ -103,15 +82,12 @@ class _AdminPendingDonationsState extends State<AdminPendingDonations> {
                 itemCount: filteredDocs.length,
                 itemBuilder: (context, index) {
                   final data = filteredDocs[index].data() as Map<String, dynamic>;
-
-                  // Extract donation data
                   final itemName = data['itemName'] ?? 'Unknown Item';
                   final quantity = data['quantity'] ?? 0;
                   final status = (data['status'] ?? 'pending').toString().toLowerCase();
                   final createdAt = data['createdAt'] as Timestamp?;
                   final iconKey = (data['iconKey'] ?? 'default').toString();
 
-                  // Format date
                   String formattedDate = 'N/A';
                   if (createdAt != null) {
                     final date = createdAt.toDate();
@@ -120,7 +96,6 @@ class _AdminPendingDonationsState extends State<AdminPendingDonations> {
 
                   final statusColor = _getStatusColor(status);
 
-                  // STEP 10: Build donation card
                   return Container(
                     margin: const EdgeInsets.only(bottom: 14),
                     decoration: BoxDecoration(
@@ -140,25 +115,22 @@ class _AdminPendingDonationsState extends State<AdminPendingDonations> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ROW 1: Icon + Details (left) + Status (right)
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              // Icon tile (70x70)
+                              // الأيقونة
                               Hero(
                                 tag: 'admin_donation_${filteredDocs[index].id}',
-                                child: _iconTile(iconKey),  // Wheelchair, walker, etc.
+                                child: _iconTile(iconKey),
                               ),
                               const SizedBox(width: 12),
-                              
-                              // Details section
+                              // المحتوى الأوسط
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // Item name (bold, dark blue)
                                     Text(
-                                      itemName,  // e.g., "Wheelchair"
+                                      itemName,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.w700,
                                         fontSize: 16,
@@ -169,10 +141,8 @@ class _AdminPendingDonationsState extends State<AdminPendingDonations> {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     const SizedBox(height: 4),
-                                    
-                                    // Submission date (gray, small)
                                     Text(
-                                      formattedDate,  // e.g., "7 Dec 2025"
+                                      formattedDate,
                                       style: const TextStyle(
                                         color: Color(0xFF7A869A),
                                         fontSize: 12,
@@ -180,8 +150,6 @@ class _AdminPendingDonationsState extends State<AdminPendingDonations> {
                                       ),
                                     ),
                                     const SizedBox(height: 8),
-                                    
-                                    // Quantity chip + Status badge
                                     Row(
                                       children: [
                                         Flexible(
@@ -228,13 +196,11 @@ class _AdminPendingDonationsState extends State<AdminPendingDonations> {
                             ],
                           ),
                           const SizedBox(height: 12),
-                          
-                          // ROW 2: View button (full width)
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF003465),  // Dark blue
+                                backgroundColor: const Color(0xFF003465),
                                 minimumSize: const Size(double.infinity, 44),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(10),
@@ -243,21 +209,19 @@ class _AdminPendingDonationsState extends State<AdminPendingDonations> {
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                               ),
                               onPressed: () async {
-                                // Navigate to AdminDonationDetails
                                 final result = await Navigator.push(
                                   context,
-                                  slideUpRoute(
-                                    AdminDonationDetails(
+                                  MaterialPageRoute(
+                                    builder: (_) => AdminDonationDetails(
                                       donationId: filteredDocs[index].id,
                                       donationData: data,
                                     ),
                                   ),
                                 );
 
-                                // If approved or rejected, hide this card
                                 if (result == 'approved' || result == 'rejected') {
                                   setState(() {
-                                    _handledDonationIds.add(filteredDocs[index].id);  // Add ID to set
+                                    _handledDonationIds.add(filteredDocs[index].id);
                                   });
                                 }
                               },
@@ -284,6 +248,7 @@ class _AdminPendingDonationsState extends State<AdminPendingDonations> {
     );
   }
 
+  // Helpers (نفس أسلوب التبرعات)
   Widget _iconTile(String iconKey) {
     IconData icon;
     switch (iconKey) {
@@ -396,7 +361,7 @@ class _AdminPendingDonationsState extends State<AdminPendingDonations> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 28),
             child: Text(
-              error,  // Shows actual error message
+              error,
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 12, color: Color(0xFFAAA6B2)),
             ),
