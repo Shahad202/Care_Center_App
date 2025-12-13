@@ -208,16 +208,17 @@ void _startReservationsStream() {
       .collection('reservations')
       .snapshots()
       .listen((snapshot) async {
-    print(" RESERVATION DOCUMENTS START - Real-time Update");
+    print("RESERVATION DOCUMENTS START - Real-time Update");
     for (var doc in snapshot.docs) {
-      print(" Document ID: ${doc.id}");
+      print("Document ID: ${doc.id}");
       print(doc.data());
     }
-    print(" RESERVATION DOCUMENTS END");
+    print("RESERVATION DOCUMENTS END");
 
     List<ActiveRental> rentals = [];
     int overdue = 0;
 
+    // Clear old rental notifications (keep new rental notifications)
     _notifications.removeWhere(
       (n) => n.type == 'overdue' || n.type == 'upcoming',
     );
@@ -246,13 +247,33 @@ void _startReservationsStream() {
       }
 
       String userName = 'Unknown User';
+      String userPhone = 'N/A';
+      String userEmail = 'N/A';
+      
       if (userId != null) {
         try {
           final userDoc = await FirebaseFirestore.instance
               .collection('users')
               .doc(userId)
               .get();
-          userName = userDoc.data()?['name'] ?? 'Unknown User';
+          
+          if (userDoc.exists) {
+  final userData = userDoc.data();
+  userName = userData?['name'] ?? 'Unknown User';
+  
+  userPhone = userData?['Contact'] ?? 
+              userData?['phoneNumber'] ?? 
+              userData?['mobile'] ?? 
+              userData?['Contact'] ?? 
+              'N/A';
+              
+  userEmail = userData?['email'] ?? 
+              userData?['Email'] ?? 
+              'No email';
+  
+  
+  print('User: $userName, Contact: $userPhone, Email: $userEmail');
+}
         } catch (_) {}
       }
 
@@ -266,6 +287,70 @@ void _startReservationsStream() {
           daysRemaining: daysRemaining,
         ),
       );
+
+      
+      final daysSinceStart = now.difference(startDate).inDays;
+      if (daysSinceStart <= 1 && reservationStatus == 'active') {
+        
+        _notifications.add(
+          AppNotification(
+            id: _notifications.length + 1,
+            type: 'rental',
+            title: 'New Rental',
+            message: '$itemName rented by $userName',
+            user: userName,
+            phone: userPhone,
+            email: userEmail,
+            checkoutDate: _formatDate(startDate),
+            dueDate: _formatDate(endDate),
+            equipmentType: itemName,
+            time: _formatTimestamp(data['createdAt'] ?? Timestamp.now()),
+            priority: 'low',
+            details: 'New equipment rental - ${_formatDate(endDate)} return date.',
+          ),
+        );
+      }
+
+      
+      if (rentalStatus == 'overdue') {
+        
+        _notifications.add(
+          AppNotification(
+            id: _notifications.length + 1,
+            type: 'overdue',
+            title: 'Overdue Rental',
+            message: '$itemName is ${daysRemaining.abs()} days overdue',
+            user: userName,
+            phone: userPhone,
+            email: userEmail,
+            checkoutDate: _formatDate(startDate),
+            dueDate: _formatDate(endDate),
+            equipmentType: itemName,
+            time: '${daysRemaining.abs()} days ago',
+            priority: 'high',
+            details: 'Please contact customer immediately to return equipment.',
+          ),
+        );
+      } else if (rentalStatus == 'due-soon') {
+       
+        _notifications.add(
+          AppNotification(
+            id: _notifications.length + 1,
+            type: 'upcoming',
+            title: 'Rental Due Soon',
+            message: '$itemName due in $daysRemaining days',
+            user: userName,
+            phone: userPhone,
+            email: userEmail,
+            checkoutDate: _formatDate(startDate),
+            dueDate: _formatDate(endDate),
+            equipmentType: itemName,
+            time: 'In $daysRemaining days',
+            priority: 'medium',
+            details: 'Send reminder to customer about upcoming return date.',
+          ),
+        );
+      }
     }
 
     if (mounted) {
@@ -276,11 +361,9 @@ void _startReservationsStream() {
       });
     }
 
-    print(" Real-time update: ${rentals.length} reservations loaded");
+    print("Real-time update: ${rentals.length} reservations loaded");
   });
 }
-
-
 Future<void> _loadReservationsData() async {
   try {
     final snapshot = await FirebaseFirestore.instance
@@ -444,6 +527,7 @@ Future<Map<String, int>> _calculateRentedCounts() async {
       final data = doc.data();
       final itemName = (data['itemName'] ?? 'Unknown').toString();
       final status = (data['status'] ?? 'pending').toString().toLowerCase();
+
       if (status == 'active' || status == 'pending') {
         rentedCounts[itemName] = (rentedCounts[itemName] ?? 0) + 1;
       }
@@ -486,7 +570,7 @@ Future<List<TrendData>> _calculateTrendData() async {
 
     print('Start tracking trends with Firebase');
 
-    
+    // Loop through last 5 months
     for (int i = 4; i >= 0; i--) {
       final monthDate = DateTime(now.year, now.month - i, 1);
       final monthStart = DateTime(monthDate.year, monthDate.month, 1);
@@ -494,12 +578,12 @@ Future<List<TrendData>> _calculateTrendData() async {
 
       print('Processing month: ${_getMonthName(monthDate.month)}');
 
- 
+      // Get all reservations that were DUE in this month
       final snapshot = await FirebaseFirestore.instance
           .collection('reservations')
-          .where('startDate', 
+          .where('endDate', 
                  isGreaterThanOrEqualTo: Timestamp.fromDate(monthStart))
-          .where('startDate', 
+          .where('endDate', 
                  isLessThanOrEqualTo: Timestamp.fromDate(monthEnd))
           .get();
 
@@ -509,19 +593,34 @@ Future<List<TrendData>> _calculateTrendData() async {
       for (var doc in snapshot.docs) {
         final data = doc.data();
         final endDate = (data['endDate'] as Timestamp?)?.toDate();
+        final returnDate = data['returnDate'] != null 
+            ? (data['returnDate'] as Timestamp).toDate() 
+            : null;
         final status = (data['status'] ?? '').toString().toLowerCase();
         
+        if (endDate == null) continue;
         
+        // Count as rental
         rentals++;
 
-        
-        if (endDate != null && endDate.isBefore(now) && 
-            status != 'completed' && status != 'returned') {
-          overdue++;
+        // Check if it was overdue in this month
+        // Overdue = returned late OR still not returned after due date
+        if (returnDate != null) {
+          // Was returned - check if it was late
+          if (returnDate.isAfter(endDate)) {
+            overdue++;
+          }
+        } else {
+          // Not returned yet - check if past due date
+          if (endDate.isBefore(now) && 
+              status != 'completed' && 
+              status != 'returned') {
+            overdue++;
+          }
         }
       }
 
-      print('  Rentals: $rentals, Late: $overdue');
+      print('Rentals: $rentals, Overdue: $overdue');
 
       trends.add(TrendData(
         _getMonthName(monthDate.month),
@@ -531,13 +630,13 @@ Future<List<TrendData>> _calculateTrendData() async {
       ));
     }
 
-    print('Trends have been calculated successfully');
+    print('Trends calculated successfully');
     return trends;
 
   } catch (e) {
-    print(' Error in calculating directions: $e');
+    print('Error calculating trends: $e');
     
-    
+    // Return empty data on error
     return [
       TrendData('Aug', 0, 0, 0),
       TrendData('Sep', 0, 0, 0),
@@ -547,8 +646,6 @@ Future<List<TrendData>> _calculateTrendData() async {
     ];
   }
 }
-
-
 String _getMonthName(int month) {
   const months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -3052,14 +3149,22 @@ class _RentalHistoryPageState extends State<RentalHistoryPage> {
                 .get();
             
             if (userDoc.exists) {
-              final userData = userDoc.data();
-              userName = userData?['name']?.toString() ?? 'Unknown User';
-              phone = userData?['phone']?.toString() ?? 'N/A';
-              email = userData?['email']?.toString() ?? 'N/A';
-              print('User: $userName');
-            } else {
-              print('User document not found: $userId');
-            }
+  final userData = userDoc.data();
+  userName = userData?['name']?.toString() ?? 'Unknown User';
+  
+  
+  phone = userData?['contact']?.toString() ?? 
+          userData?['phoneNumber']?.toString() ?? 
+          userData?['mobile']?.toString() ?? 
+          userData?['contact']?.toString() ?? 
+          'No phone';
+          
+  email = userData?['email']?.toString() ?? 
+          userData?['Email']?.toString() ?? 
+          'No email';
+  
+  print('History User: $userName, contact: $phone');
+}
           } catch (e) {
             print('Error loading user: $e');
           }
