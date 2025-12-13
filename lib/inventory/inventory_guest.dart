@@ -1,19 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:project444/login.dart';
-import 'package:project444/profilePage.dart';
 import 'item_detail.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserInventoryWidget extends StatefulWidget {
   @override
-  _UserInventoryWidgetState createState() => _UserInventoryWidgetState();
+  State<UserInventoryWidget> createState() => _UserInventoryWidgetState();
 }
 
 class _UserInventoryWidgetState extends State<UserInventoryWidget> {
   late TextEditingController _searchController;
-  List<Map<String, dynamic>> _filteredItems = [];
+
+  String _selectedStatus = 'All';
+  String _sortBy = 'A-Z';
+  bool _isGridView = false;
+
+  final List<String> _statusOptions = [
+    'All',
+    'Available',
+    'Rented',
+    'Donated',
+    'Maintenance',
+  ];
 
   final Map<String, IconData> itemIcons = {
     'wheelchair': Icons.wheelchair_pickup,
@@ -33,10 +40,9 @@ class _UserInventoryWidgetState extends State<UserInventoryWidget> {
       'location': 'Ward A - Room 101',
       'quantity': '5',
       'price': '6.000',
-      'description':
-          'Standard manual wheelchair with adjustable footrests and armrests.',
+      'description': 'Standard manual wheelchair.',
       'condition': 'New',
-      'tags': ['Mobility', 'Daily Use'],
+      'tags': ['Mobility'],
     },
     {
       'name': 'Walker',
@@ -46,106 +52,162 @@ class _UserInventoryWidgetState extends State<UserInventoryWidget> {
       'location': 'Ward B - Room 205',
       'quantity': '3',
       'price': '4.500',
-      'description': 'Lightweight aluminum walker, easy to fold.',
+      'description': 'Lightweight aluminum walker.',
       'condition': 'Good',
-      'tags': ['Portable', 'Lightweight'],
+      'tags': ['Portable'],
+    },
+    {
+      'name': 'Hospital Bed',
+      'type': 'hospital bed',
+      'category': 'Furniture',
+      'status': 'Maintenance',
+      'location': 'Storage Room A',
+      'quantity': '2',
+      'price': '50.000',
+      'description': 'Electric adjustable hospital bed.',
+      'condition': 'Fair',
+      'tags': ['Electric'],
+    },
+    {
+      'name': 'Blood Pressure Monitor',
+      'type': 'other',
+      'category': 'Medical Device',
+      'status': 'Donated',
+      'location': 'Clinic Room 3',
+      'quantity': '8',
+      'price': '3.000',
+      'description': 'Digital BP monitor.',
+      'condition': 'Like new',
+      'tags': ['Medical'],
     },
   ];
+
+  List<Map<String, dynamic>> _filteredItems = [];
 
   @override
   void initState() {
     super.initState();
     _searchController = TextEditingController();
-    _searchController.addListener(_filterItems);
-    _filteredItems = _inventoryItems;
+    _searchController.addListener(_applyFilters);
+    _filteredItems = List.from(_inventoryItems);
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _filterItems() {
+  void _applyFilters() {
     setState(() {
       _filteredItems = _inventoryItems.where((item) {
-        return item['name'].toLowerCase().contains(
+        final searchMatch =
+            item['name'].toLowerCase().contains(
               _searchController.text.toLowerCase(),
             ) ||
             item['category'].toLowerCase().contains(
               _searchController.text.toLowerCase(),
             );
+
+        final statusMatch =
+            _selectedStatus == 'All' ||
+            item['status'].toString().toLowerCase() ==
+                _selectedStatus.toLowerCase();
+
+        return searchMatch && statusMatch;
       }).toList();
+
+      if (_sortBy == 'A-Z') {
+        _filteredItems.sort((a, b) => a['name'].compareTo(b['name']));
+      } else {
+        _filteredItems.sort((a, b) => b['name'].compareTo(a['name']));
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromRGBO(249, 250, 251, 1),
-
-      // ❌ No Drawer – Guest does not need menu
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         backgroundColor: const Color(0xFF155DFC),
-        title: const Text(
-          "Inventory",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Inventory'),
       ),
-
-      // ❌ No Floating Button (no Add)
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Search Bar
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Search items...',
-                  prefixIcon: const Icon(
-                    Icons.search,
-                    color: Color(0xFF6B7280),
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: Color(0xFFD1D5DB),
-                      width: 1,
+      body: Column(
+        children: [
+          // 🔍 Search + Buttons
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search inventory...',
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
+                const SizedBox(width: 8),
 
-            // Items List
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: _filteredItems.isEmpty
-                  ? const Text(
-                      "No items found",
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    )
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _filteredItems.length,
-                      itemBuilder: (context, index) {
-                        final item = _filteredItems[index];
-                        return _buildItemCard(context, item);
-                      },
-                    ),
+                // Filter
+                IconButton(
+                  icon: const Icon(Icons.filter_list),
+                  onPressed: _showFilterDialog,
+                ),
+
+                // Sort
+                IconButton(
+                  icon: const Icon(Icons.swap_vert),
+                  onPressed: () {
+                    setState(() {
+                      _sortBy = _sortBy == 'A-Z' ? 'Z-A' : 'A-Z';
+                      _applyFilters();
+                    });
+                  },
+                ),
+
+                // View Toggle
+                IconButton(
+                  icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
+                  onPressed: () {
+                    setState(() => _isGridView = !_isGridView);
+                  },
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+
+          // 📦 Items
+          Expanded(
+            child: _filteredItems.isEmpty
+                ? const Center(child: Text('No items found'))
+                : _isGridView
+                ? GridView.builder(
+                    padding: const EdgeInsets.all(16),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 0.75,
+                        ),
+                    itemCount: _filteredItems.length,
+                    itemBuilder: (_, i) => _buildItemCard(_filteredItems[i]),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _filteredItems.length,
+                    itemBuilder: (_, i) => _buildItemCard(_filteredItems[i]),
+                  ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildItemCard(BuildContext context, Map<String, dynamic> item) {
+  //  Card
+  Widget _buildItemCard(Map<String, dynamic> item) {
     return InkWell(
       onTap: () {
         Navigator.push(
@@ -161,46 +223,27 @@ class _UserInventoryWidgetState extends State<UserInventoryWidget> {
               condition: item['condition'],
               tags: List<String>.from(item['tags']),
               rentalPrice: item['price'],
-              isGuest: true, // ⭐ VERY IMPORTANT
+              isGuest: true,
               itemIcons: itemIcons,
-              type: item['type'],
+              itemTypes: item['type'],
             ),
           ),
         );
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
+        margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           boxShadow: const [
-            BoxShadow(
-              color: Color.fromRGBO(0, 0, 0, 0.05),
-              blurRadius: 8,
-              offset: Offset(0, 3),
-            ),
+            BoxShadow(color: Color.fromRGBO(0, 0, 0, 0.05), blurRadius: 8),
           ],
         ),
         child: Row(
           children: [
-            // Icon
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF2F4F6),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                itemIcons[item['type']] ?? Icons.inventory_2_outlined,
-                size: 30,
-                color: const Color(0xFF64748B),
-              ),
-            ),
-
+            Icon(itemIcons[item['type']] ?? Icons.inventory_2, size: 32),
             const SizedBox(width: 16),
-
-            // Text info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,23 +255,38 @@ class _UserInventoryWidgetState extends State<UserInventoryWidget> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Text(
-                    item['category'],
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on, size: 14),
-                      Text(
-                        item['location'],
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
+                  Text(item['location'], style: const TextStyle(fontSize: 12)),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // 🎛 Filter Dialog
+  void _showFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Filter by Status'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: _statusOptions.map((status) {
+            return RadioListTile(
+              title: Text(status),
+              value: status,
+              groupValue: _selectedStatus,
+              onChanged: (val) {
+                setState(() {
+                  _selectedStatus = val.toString();
+                  _applyFilters();
+                });
+                Navigator.pop(context);
+              },
+            );
+          }).toList(),
         ),
       ),
     );

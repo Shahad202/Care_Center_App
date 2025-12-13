@@ -8,7 +8,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:project444/rental_history_button.dart';
 import 'package:project444/common_drawer.dart';
 import 'admin_pending_donations.dart';
-import 'inventory/inventory_admin.dart';
 import 'inventory/inventory_guest.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -112,7 +111,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const AdminPendingDonations()),
+                          MaterialPageRoute(
+                            builder: (_) => const AdminPendingDonations(),
+                          ),
                         );
                       },
                     ),
@@ -124,19 +125,25 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           : 'Browse available items',
                       onTap: () {
                         final role = _userRole.toLowerCase();
+
                         if (role == 'admin') {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => NewinventoryWidget()),
+                            MaterialPageRoute(
+                              builder: (_) => NewinventoryWidget(),
+                            ),
                           );
                         } else {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => UserInventoryWidget())),
+                            MaterialPageRoute(
+                              builder: (_) => UserInventoryWidget(),
+                            ),
                           );
                         }
                       },
                     ),
+
                     const SizedBox(height: 20),
                     _dashboardCard(
                       title: 'Reports & Analytics',

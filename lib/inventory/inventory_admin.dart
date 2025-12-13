@@ -750,7 +750,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
           rentalPrice: item['price'] ?? '0.000',
           isGuest: false,
           itemIcons: itemIcons,
-          type: item['type'],
+          itemTypes: item['type'],
         ),
       ),
     );
@@ -760,6 +760,54 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color.fromRGBO(249, 250, 251, 1),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF155DFC),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Inventory Management',
+              style: TextStyle(
+                fontFamily: 'Arimo',
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+                color: Colors.white,
+              ),
+            ),
+            Text(
+              '${_filteredItems.length} items only',
+              style: const TextStyle(
+                fontFamily: 'Arimo',
+                fontSize: 12,
+                color: Color.fromRGBO(219, 234, 254, 1),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.all(8),
+              child: const Icon(
+                Icons.inventory_2_outlined,
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
+          ),
+        ],
+      ),
+
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -940,70 +988,6 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
           return SingleChildScrollView(
             child: Column(
               children: <Widget>[
-                // Header with gradient
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color.fromRGBO(21, 93, 252, 1),
-                        Color.fromRGBO(13, 71, 230, 1),
-                      ],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color.fromRGBO(0, 0, 0, 0.1),
-                        offset: const Offset(0, 4),
-                        blurRadius: 12,
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Inventory Management',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontFamily: 'Arimo',
-                              fontSize: 22,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${_filteredItems.length} items',
-                            style: const TextStyle(
-                              color: Color.fromRGBO(219, 234, 254, 1),
-                              fontFamily: 'Arimo',
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: const Color.fromRGBO(255, 255, 255, 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.all(8),
-                        child: const Icon(
-                          Icons.inventory_2_outlined,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
                 // Search & Filter Bar
                 Container(
                   decoration: const BoxDecoration(

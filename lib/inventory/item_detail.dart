@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:project444/inventory/edit_item.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ItemDetailScreen extends StatefulWidget {
   final String name;
-  final String type;
+  final String itemTypes;
   final String category;
   final String status;
   final String location;
@@ -17,7 +18,7 @@ class ItemDetailScreen extends StatefulWidget {
   const ItemDetailScreen({
     Key? key,
     required this.name,
-    required this.type,
+    required this.itemTypes,
     required this.category,
     required this.status,
     required this.location,
@@ -122,7 +123,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 children: [
                   Center(
                     child: Icon(
-                      widget.itemIcons[widget.type.toLowerCase()] ??
+                      widget.itemIcons[widget.itemTypes.toLowerCase()] ??
                           Icons.inventory_2_outlined,
                       size: 120,
                       color: const Color.fromRGBO(100, 116, 139, 1),
@@ -176,8 +177,16 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
                   // Type Section
                   _buildDetailSection(
+                    icon: Icons.type_specimen,
+                    label: 'Item Type',
+                    value: widget.itemTypes,
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Type Section
+                  _buildDetailSection(
                     icon: Icons.category,
-                    label: 'Type',
+                    label: 'category',
                     value: widget.category,
                   ),
                   const SizedBox(height: 16),
@@ -244,6 +253,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                             MaterialPageRoute(
                               builder: (context) => EditItemScreen(
                                 name: widget.name,
+                                itemTypes: widget.itemTypes,
                                 category: widget.category,
                                 status: widget.status,
                                 location: widget.location,

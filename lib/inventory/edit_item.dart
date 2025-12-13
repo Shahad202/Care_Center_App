@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class EditItemScreen extends StatefulWidget {
   final String name;
+  final String itemTypes;
   final String category;
   final String status;
   final String location;
@@ -13,6 +15,7 @@ class EditItemScreen extends StatefulWidget {
   const EditItemScreen({
     Key? key,
     required this.name,
+    required this.itemTypes,
     required this.category,
     required this.status,
     required this.location,
@@ -28,6 +31,7 @@ class EditItemScreen extends StatefulWidget {
 
 class _EditItemScreenState extends State<EditItemScreen> {
   late TextEditingController _nameController;
+  late TextEditingController _itemTypesController;
   late TextEditingController _categoryController;
   late TextEditingController _locationController;
   late TextEditingController _statusController;
@@ -60,9 +64,9 @@ class _EditItemScreenState extends State<EditItemScreen> {
           title: const Text("Select Icon"),
           content: SizedBox(
             width: double.maxFinite,
+            height: 200,
             child: GridView.count(
-              crossAxisCount: 3,
-              shrinkWrap: true,
+              crossAxisCount: 6,
               mainAxisSpacing: 16,
               crossAxisSpacing: 16,
               children: icons.values.map((icon) {
@@ -72,11 +76,15 @@ class _EditItemScreenState extends State<EditItemScreen> {
                     Navigator.pop(context);
                   },
                   child: Container(
+                    height: 70,
+                    width: 70,
                     decoration: BoxDecoration(
                       color: const Color(0xFFF3F4F6),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(icon, size: 40, color: Colors.black87),
+                    child: Center(
+                      child: Icon(icon, size: 32, color: Colors.black87),
+                    ),
                   ),
                 );
               }).toList(),
@@ -87,6 +95,14 @@ class _EditItemScreenState extends State<EditItemScreen> {
     );
   }
 
+  final List<String> _itemTypes = [
+    'wheelchair',
+    'walker',
+    'crutches',
+    'oxygen machine',
+    'hospital bed',
+    'other',
+  ];
   final List<String> _categoryOptions = [
     'Mobility Aid',
     'Medical Device',
@@ -120,6 +136,7 @@ class _EditItemScreenState extends State<EditItemScreen> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.name);
+    _itemTypesController = TextEditingController(text: widget.itemTypes);
     _categoryController = TextEditingController(text: widget.category);
     _locationController = TextEditingController(text: widget.location);
     _statusController = TextEditingController(text: widget.status);
@@ -133,6 +150,7 @@ class _EditItemScreenState extends State<EditItemScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _itemTypesController.dispose();
     _categoryController.dispose();
     _locationController.dispose();
     _statusController.dispose();
@@ -266,6 +284,20 @@ class _EditItemScreenState extends State<EditItemScreen> {
 
               // Item Type Field
               _buildFieldLabel('Item Type *'),
+              const SizedBox(height: 8),
+              _buildDropdownField(
+                value: _itemTypesController.text,
+                items: _itemTypes,
+                onChanged: (value) {
+                  setState(() {
+                    _itemTypesController.text = value ?? '';
+                  });
+                },
+              ),
+              const SizedBox(height: 20),
+
+              // Item Type Field
+              _buildFieldLabel('Category *'),
               const SizedBox(height: 8),
               _buildDropdownField(
                 value: _categoryController.text,

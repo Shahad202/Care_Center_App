@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AddItemScreen extends StatefulWidget {
   const AddItemScreen({Key? key}) : super(key: key);
@@ -13,8 +14,6 @@ class _AddItemScreenState extends State<AddItemScreen> {
   // Form Controllers
   late TextEditingController _itemNameController;
   late TextEditingController _descriptionController;
-  late TextEditingController _locationController;
-  late TextEditingController _availabilityStatusController;
   late TextEditingController _rentalPriceController;
 
   // Form State Variables
@@ -23,7 +22,6 @@ class _AddItemScreenState extends State<AddItemScreen> {
   int _quantity = 1;
   List<String> _tags = [];
   String _newTag = '';
-  List<String> _selectedImages = [];
 
   final List<String> _itemTypes = [
     'wheelchair',
@@ -33,6 +31,15 @@ class _AddItemScreenState extends State<AddItemScreen> {
     'hospital bed',
     'other',
   ];
+  final List<String> _categories = [
+    'Mobility Aid',
+    'Medical Device',
+    'Furniture',
+    'Other',
+  ];
+
+  String? _selectedCategory;
+
   final Map<String, IconData> itemIcons = {
     'wheelchair': Icons.wheelchair_pickup,
     'walker': Icons.accessibility_new,
@@ -52,13 +59,31 @@ class _AddItemScreenState extends State<AddItemScreen> {
     'Needs Repair',
   ];
 
+  // Location list
+  final List<String> locationOptions = [
+    'Ward A - Room 101',
+    'Ward B - Room 205',
+    'Clinic Room 3',
+    'Storage Room A',
+  ];
+
+  // Availability Status list
+  final List<String> availabilityOptions = [
+    'Available',
+    'Rented',
+    'Donated',
+    'Maintenance',
+  ];
+
+  // Selected values
+  String? _selectedLocation;
+  String? _selectedAvailability;
+
   @override
   void initState() {
     super.initState();
     _itemNameController = TextEditingController();
     _descriptionController = TextEditingController();
-    _locationController = TextEditingController();
-    _availabilityStatusController = TextEditingController();
     _rentalPriceController = TextEditingController();
   }
 
@@ -66,8 +91,6 @@ class _AddItemScreenState extends State<AddItemScreen> {
   void dispose() {
     _itemNameController.dispose();
     _descriptionController.dispose();
-    _locationController.dispose();
-    _availabilityStatusController.dispose();
     _rentalPriceController.dispose();
     super.dispose();
   }
@@ -107,6 +130,17 @@ class _AddItemScreenState extends State<AddItemScreen> {
               ),
               const SizedBox(height: 20),
 
+              _buildDropdownField(
+                label: 'Category *',
+                value: _selectedCategory,
+                items: _categories,
+                onChanged: (value) {
+                  setState(() => _selectedCategory = value);
+                },
+              ),
+
+              const SizedBox(height: 20),
+
               // Item Type Dropdown
               _buildDropdownField(
                 label: 'Item Type *',
@@ -143,19 +177,31 @@ class _AddItemScreenState extends State<AddItemScreen> {
               const SizedBox(height: 20),
 
               // Location Field
-              _buildFormField(
+              _buildDropdownField(
                 label: 'Location *',
-                hintText: 'e.g., Ward A - Room 101',
-                controller: _locationController,
+                value: _selectedLocation,
+                items: locationOptions,
+                onChanged: (value) {
+                  setState(() {
+                    _selectedLocation = value!;
+                  });
+                },
               ),
+
               const SizedBox(height: 20),
 
               // Availability Status Field
-              _buildFormField(
+              _buildDropdownField(
                 label: 'Availability Status *',
-                hintText: 'e.g., Available, Rented, Maintenance',
-                controller: _availabilityStatusController,
+                value: _selectedAvailability,
+                items: availabilityOptions,
+                onChanged: (value) {
+                  setState(() {
+                    _selectedAvailability = value!;
+                  });
+                },
               ),
+
               const SizedBox(height: 20),
 
               // Tags Field
@@ -533,12 +579,13 @@ class _AddItemScreenState extends State<AddItemScreen> {
     if (_formKey.currentState!.validate()) {
       final newItem = {
         'name': _itemNameController.text.trim(),
+        'category': _selectedCategory,
         'type': _selectedItemType,
         'description': _descriptionController.text.trim(),
         'condition': _selectedCondition,
         'quantity': _quantity.toString(),
-        'location': _locationController.text.trim(),
-        'status': _availabilityStatusController.text.trim(),
+        'location': _selectedLocation,
+        'status': _selectedAvailability,
         'tags': _tags,
         'price': _rentalPriceController.text.trim(),
       };
@@ -568,7 +615,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
           content: SizedBox(
             width: double.maxFinite,
             child: GridView.count(
-              crossAxisCount: 3,
+              crossAxisCount: 6,
               shrinkWrap: true,
               children: itemIcons.entries.map((entry) {
                 return GestureDetector(
