@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'donation_form.dart';
 import 'donation_item.dart';
-import '../navigation_transitions.dart';
 
 class DonateTabPage extends StatelessWidget {
   final Function(DonationItem)? onDonationAdded;
@@ -188,7 +187,7 @@ class DonateTabPage extends StatelessWidget {
           
           final result = await Navigator.push<DonationItem>(
             context,
-            slideUpRoute(const DonationFormPage()),
+            MaterialPageRoute(builder: (_) => const DonationFormPage()),
           );
 
           if (result != null) {
@@ -198,7 +197,7 @@ class DonateTabPage extends StatelessWidget {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Donation submitted successfully!'),
+                  content: Text('Donation "${result.itemName}" submitted successfully!'),
                   backgroundColor: const Color(0xFF4CAF50),
                   duration: const Duration(seconds: 3),
                 ),

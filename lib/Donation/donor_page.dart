@@ -8,17 +8,16 @@ import 'package:project444/signup.dart';
 import 'package:project444/login.dart';
 import 'package:project444/profilePage.dart';
 
-
 class DonorPage extends StatefulWidget {
   final String? userName;
   const DonorPage({super.key, this.userName});
-  
+
   @override
   State<DonorPage> createState() => _DonorPageState();
 }
 
 class _DonorPageState extends State<DonorPage> {
-  int _selectedTabIndex = 0;  // 0=About, 1=Donate, 2=Tracking
+  int _selectedTabIndex = 0; // 0=About, 1=Donate, 2=Tracking
   String _userRole = 'guest';
 
   @override
@@ -31,7 +30,10 @@ class _DonorPageState extends State<DonorPage> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     try {
-      final snap = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       final role = (snap.data()?['role'] ?? 'user').toString();
       if (mounted) setState(() => _userRole = role);
     } catch (_) {
@@ -43,14 +45,12 @@ class _DonorPageState extends State<DonorPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFF),
- drawer: Drawer(
+      drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: const BoxDecoration(
-                color: Color(0xFF003465),
-              ),
+              decoration: const BoxDecoration(color: Color(0xFF003465)),
               child: FirebaseAuth.instance.currentUser == null
                   ? Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -126,11 +126,11 @@ class _DonorPageState extends State<DonorPage> {
                                 radius: 35,
                                 backgroundImage:
                                     (imageUrl != null && imageUrl.isNotEmpty)
-                                        ? NetworkImage(imageUrl)
-                                        : const AssetImage(
-                                                'lib/images/default_profile.png',
-                                              )
-                                            as ImageProvider,
+                                    ? NetworkImage(imageUrl)
+                                    : const AssetImage(
+                                            'lib/images/default_profile.png',
+                                          )
+                                          as ImageProvider,
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -168,6 +168,12 @@ class _DonorPageState extends State<DonorPage> {
               ),
               onTap: () {
                 Navigator.pop(context);
+                final role = _userRole.toLowerCase();
+                if (role == 'admin') {
+                  Navigator.pushReplacementNamed(context, '/inventory_admin');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/inventory');
+                }
               },
             ),
             ListTile(
@@ -178,7 +184,7 @@ class _DonorPageState extends State<DonorPage> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/inventory');
+                Navigator.pushNamed(context, '/renter');
               },
             ),
             ListTile(
@@ -225,7 +231,7 @@ class _DonorPageState extends State<DonorPage> {
           ],
         ),
       ),
-    
+
       body: Column(
         children: [
           _buildHeader(),
@@ -283,17 +289,25 @@ class _DonorPageState extends State<DonorPage> {
   Widget _tabBtn(String label, int index) {
     final selected = _selectedTabIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _selectedTabIndex = index),  // Switch tabs
+      onTap: () => setState(() => _selectedTabIndex = index), // Switch tabs
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(50),
           boxShadow: selected
-              ? [const BoxShadow(color: Color(0x14000000), offset: Offset(0, 4), blurRadius: 6)]
+              ? [
+                  const BoxShadow(
+                    color: Color(0x14000000),
+                    offset: Offset(0, 4),
+                    blurRadius: 6,
+                  ),
+                ]
               : null,
           // Selected: Dark blue with shadow
           // Unselected: Light background with border
           color: selected ? const Color(0xFF003465) : const Color(0xFFF7FBFF),
-          border: selected ? null : Border.all(color: const Color(0xFFAAA6B2), width: 1),
+          border: selected
+              ? null
+              : Border.all(color: const Color(0xFFAAA6B2), width: 1),
         ),
         padding: const EdgeInsets.symmetric(vertical: 10),
         alignment: Alignment.center,
@@ -328,11 +342,11 @@ class _DonorPageState extends State<DonorPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _makeDifferenceCard(),      // "Make a Difference" banner
+          _makeDifferenceCard(), // "Make a Difference" banner
           const SizedBox(height: 30),
-          _howItWorks(),              // 3-step process explanation
+          _howItWorks(), // 3-step process explanation
           const SizedBox(height: 30),
-          _beforeDonateCard(),        // 4-point checklist
+          _beforeDonateCard(), // 4-point checklist
           const SizedBox(height: 30),
         ],
       ),
@@ -344,7 +358,11 @@ class _DonorPageState extends State<DonorPage> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [
-          BoxShadow(color: Color(0x14003465), offset: Offset(0, 6), blurRadius: 16),
+          BoxShadow(
+            color: Color(0x14003465),
+            offset: Offset(0, 6),
+            blurRadius: 16,
+          ),
         ],
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -385,10 +403,14 @@ class _DonorPageState extends State<DonorPage> {
       children: [
         const Text(
           'How It Works',
-          style: TextStyle(color: Color(0xFF003465), fontSize: 20, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: Color(0xFF003465),
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         const SizedBox(height: 30),
-        
+
         // Step 1
         _stepCard(
           'lib/images/Level1.png',
@@ -396,7 +418,7 @@ class _DonorPageState extends State<DonorPage> {
           'Fill out the donation form with equipment details and photos',
         ),
         const SizedBox(height: 30),
-        
+
         // Step 2
         _stepCard(
           'lib/images/2circled.png',
@@ -404,7 +426,7 @@ class _DonorPageState extends State<DonorPage> {
           'Our team will review your submission within 24-48 hours',
         ),
         const SizedBox(height: 30),
-        
+
         // Step 3
         _stepCard(
           'lib/images/Circled3.png',
@@ -419,7 +441,13 @@ class _DonorPageState extends State<DonorPage> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(11),
-        boxShadow: const [BoxShadow(color: Color(0x10000000), offset: Offset(0, 2), blurRadius: 4)],
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x10000000),
+            offset: Offset(0, 2),
+            blurRadius: 4,
+          ),
+        ],
         color: Colors.white,
       ),
       padding: const EdgeInsets.all(16),
@@ -431,11 +459,14 @@ class _DonorPageState extends State<DonorPage> {
             width: 49,
             height: 49,
             decoration: BoxDecoration(
-              image: DecorationImage(image: AssetImage(img), fit: BoxFit.contain),
+              image: DecorationImage(
+                image: AssetImage(img),
+                fit: BoxFit.contain,
+              ),
             ),
           ),
           const SizedBox(width: 10),
-          
+
           // Title + Description
           Expanded(
             child: Column(
@@ -471,7 +502,10 @@ class _DonorPageState extends State<DonorPage> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(15),
         color: const Color(0xFFFFF1DE),
-        border: Border.all(color: const Color.fromARGB(255, 250, 176, 72), width: 1.85),
+        border: Border.all(
+          color: const Color.fromARGB(255, 250, 176, 72),
+          width: 1.85,
+        ),
       ),
       padding: const EdgeInsets.all(20),
       child: Column(
