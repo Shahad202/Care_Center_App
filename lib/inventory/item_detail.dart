@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'edit_item.dart';
 
-class ItemDetailScreen extends StatelessWidget {
+class ItemDetailScreen extends StatefulWidget {
   final Map<String, dynamic> data;
   final bool isGuest;
   final Map<String, IconData> itemIcons;
@@ -15,6 +15,26 @@ class ItemDetailScreen extends StatelessWidget {
     required this.isGuest,
     required this.itemIcons,
   }) : super(key: key);
+
+  @override
+  State<ItemDetailScreen> createState() => _ItemDetailScreenState();
+}
+
+class _ItemDetailScreenState extends State<ItemDetailScreen> {
+  // 🔄 إعادة تحميل العنصر بعد التعديل
+  Future<void> _reloadItem() async {
+    final doc = await FirebaseFirestore.instance
+        .collection('inventory')
+        .doc(widget.itemId)
+        .get();
+
+    if (doc.exists) {
+      setState(() {
+        widget.data.clear();
+        widget.data.addAll(doc.data()!);
+      });
+    }
+  }
 
   Color _getStatusColor(String status) {
     switch (status) {
@@ -67,16 +87,16 @@ class ItemDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String name = data['name'] ?? '';
-    final String type = data['type'] ?? 'other';
-    final String category = data['category'] ?? '';
-    final String status = data['status'] ?? '';
-    final String location = data['location'] ?? '';
-    final String quantity = data['quantity'].toString();
-    final String description = data['description'] ?? '';
-    final String condition = data['condition'] ?? '';
-    final String rentalPrice = data['price'] ?? '0.000';
-    final List<String> tags = List<String>.from(data['tags'] ?? []);
+    final String name = widget.data['name'] ?? '';
+    final String type = widget.data['type'] ?? 'other';
+    final String category = widget.data['category'] ?? '';
+    final String status = widget.data['status'] ?? '';
+    final String location = widget.data['location'] ?? '';
+    final String quantity = widget.data['quantity']?.toString() ?? '0';
+    final String description = widget.data['description'] ?? '';
+    final String condition = widget.data['condition'] ?? '';
+    final String rentalPrice = widget.data['price']?.toString() ?? '0.000';
+    final List<String> tags = List<String>.from(widget.data['tags'] ?? []);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -90,7 +110,6 @@ class ItemDetailScreen extends StatelessWidget {
           'Item Details',
           style: TextStyle(
             color: Colors.white,
-            fontFamily: 'Arimo',
             fontSize: 18,
             fontWeight: FontWeight.w700,
           ),
@@ -100,6 +119,7 @@ class ItemDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 🔹 ICON + STATUS
             Container(
               width: double.infinity,
               height: 250,
@@ -108,7 +128,7 @@ class ItemDetailScreen extends StatelessWidget {
                 children: [
                   Center(
                     child: Icon(
-                      itemIcons[type.toLowerCase()] ??
+                      widget.itemIcons[type.toLowerCase()] ??
                           Icons.inventory_2_outlined,
                       size: 120,
                       color: const Color.fromRGBO(100, 116, 139, 1),
@@ -130,7 +150,6 @@ class ItemDetailScreen extends StatelessWidget {
                         status,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontFamily: 'Arimo',
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -141,6 +160,7 @@ class ItemDetailScreen extends StatelessWidget {
               ),
             ),
 
+            // 🔹 DETAILS
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -175,7 +195,8 @@ class ItemDetailScreen extends StatelessWidget {
 
                   const SizedBox(height: 32),
 
-                  if (!isGuest)
+                  // ✏️ EDIT BUTTON
+                  if (!widget.isGuest)
                     SizedBox(
                       width: double.infinity,
                       height: 48,
@@ -184,44 +205,24 @@ class ItemDetailScreen extends StatelessWidget {
                           final r = await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) =>
-                                  EditItemScreen(itemId: itemId, data: data),
+                              builder: (_) => EditItemScreen(
+                                itemId: widget.itemId,
+                                data: widget.data,
+                              ),
                             ),
                           );
-                          if (r == true) Navigator.pop(context, true);
+
+                          if (r == true) {
+                            await _reloadItem(); // ✅ تحديث التفاصيل
+                          }
                         },
                         icon: const Icon(Icons.edit, color: Colors.white),
                         label: const Text(
                           'Edit Item',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color.fromRGBO(21, 93, 252, 1),
-                        ),
-                      ),
-                    ),
-
-                  if (isGuest)
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Reservation request sent!'),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                        ),
-                        child: const Text(
-                          'Reserve Item',
-                          style: TextStyle(color: Colors.white),
                         ),
                       ),
                     ),
