@@ -15,14 +15,15 @@ class _EditItemScreenState extends State<EditItemScreen> {
   final CollectionReference inventoryRef = FirebaseFirestore.instance
       .collection('inventory');
 
+  String? _selectedType;
+  String? _selectedCategory;
+  String? _selectedCondition;
+  String? _selectedStatus;
+
   late TextEditingController _nameController;
-  late TextEditingController _typeController;
-  late TextEditingController _categoryController;
   late TextEditingController _locationController;
-  late TextEditingController _statusController;
   late TextEditingController _quantityController;
   late TextEditingController _descriptionController;
-  late TextEditingController _conditionController;
   late TextEditingController _priceController;
   late TextEditingController _tagController;
 
@@ -60,45 +61,49 @@ class _EditItemScreenState extends State<EditItemScreen> {
   ];
 
   @override
+  @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.data['name'] ?? '');
-    _typeController = TextEditingController(text: widget.data['type'] ?? '');
-    _categoryController = TextEditingController(
-      text: widget.data['category'] ?? '',
+
+    _nameController = TextEditingController(text: widget.data['name']);
+    _descriptionController = TextEditingController(
+      text: widget.data['description'],
     );
-    _locationController = TextEditingController(
-      text: widget.data['location'] ?? '',
-    );
-    _statusController = TextEditingController(
-      text: widget.data['status'] ?? '',
-    );
+    _locationController = TextEditingController(text: widget.data['location']);
     _quantityController = TextEditingController(
       text: widget.data['quantity'].toString(),
     );
-    _descriptionController = TextEditingController(
-      text: widget.data['description'] ?? '',
-    );
-    _conditionController = TextEditingController(
-      text: widget.data['condition'] ?? '',
-    );
     _priceController = TextEditingController(
-      text: widget.data['price'] ?? '0.000',
+      text: widget.data['price']?.toString() ?? '0',
     );
+
     _tagController = TextEditingController();
     _tags = List<String>.from(widget.data['tags'] ?? []);
+
+    // ✅ ربط القيم مع الدروب داون
+    _selectedType = _itemTypes.contains(widget.data['type'])
+        ? widget.data['type']
+        : _itemTypes.first;
+
+    _selectedCategory = _categories.contains(widget.data['category'])
+        ? widget.data['category']
+        : _categories.first;
+
+    _selectedCondition = _conditions.contains(widget.data['condition'])
+        ? widget.data['condition']
+        : _conditions.first;
+
+    _selectedStatus = _statuses.contains(widget.data['status'])
+        ? widget.data['status']
+        : _statuses.first;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _typeController.dispose();
-    _categoryController.dispose();
     _locationController.dispose();
-    _statusController.dispose();
     _quantityController.dispose();
     _descriptionController.dispose();
-    _conditionController.dispose();
     _priceController.dispose();
     _tagController.dispose();
     super.dispose();
@@ -108,17 +113,17 @@ class _EditItemScreenState extends State<EditItemScreen> {
   Future<void> _saveChanges() async {
     await inventoryRef.doc(widget.itemId).update({
       'name': _nameController.text.trim(),
-      'type': _typeController.text,
-      'category': _categoryController.text,
+      'type': _selectedType,
+      'category': _selectedCategory,
+      'condition': _selectedCondition,
+      'status': _selectedStatus,
       'location': _locationController.text.trim(),
-      'status': _statusController.text,
       'quantity': int.tryParse(_quantityController.text) ?? 0,
-      'description': _descriptionController.text.trim(),
-      'condition': _conditionController.text,
-      'price': _priceController.text.trim(),
+      'price': double.tryParse(_priceController.text) ?? 0,
       'tags': _tags,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+    Navigator.pop(context, true);
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -126,22 +131,18 @@ class _EditItemScreenState extends State<EditItemScreen> {
         backgroundColor: Colors.green,
       ),
     );
-
-    Navigator.pop(context, true);
   }
 
   // 🗑 DELETE
   Future<void> _deleteItem() async {
     await inventoryRef.doc(widget.itemId).delete();
-
+    Navigator.pop(context, true);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Item deleted successfully!'),
         backgroundColor: Colors.red,
       ),
     );
-
-    Navigator.pop(context, true);
   }
 
   void _confirmDelete() {
@@ -197,24 +198,39 @@ class _EditItemScreenState extends State<EditItemScreen> {
             _label('Item Name'),
             _text(_nameController),
 
-            _label('Item Type'),
-            _dropdown(_typeController, _itemTypes),
+            _dropdownField(
+              'Item Type',
+              _selectedType,
+              _itemTypes,
+              (v) => setState(() => _selectedType = v),
+            ),
 
-            _label('Category'),
-            _dropdown(_categoryController, _categories),
+            _dropdownField(
+              'Category',
+              _selectedCategory,
+              _categories,
+              (v) => setState(() => _selectedCategory = v),
+            ),
 
             _label('Description'),
             _text(_descriptionController, lines: 4),
 
-            _label('Condition'),
-            _dropdown(_conditionController, _conditions),
+            _dropdownField(
+              'Condition',
+              _selectedCondition,
+              _conditions,
+              (v) => setState(() => _selectedCondition = v),
+            ),
 
             _label('Location'),
             _text(_locationController),
 
-            _label('Status'),
-            _dropdown(_statusController, _statuses),
-
+            _dropdownField(
+              'Status',
+              _selectedStatus,
+              _statuses,
+              (v) => setState(() => _selectedStatus = v),
+            ),
             _label('Quantity'),
             _text(_quantityController, number: true),
 
@@ -267,26 +283,61 @@ class _EditItemScreenState extends State<EditItemScreen> {
   }
 
   Widget _label(String t) => Padding(
-    padding: const EdgeInsets.only(top: 16, bottom: 8),
-    child: Text(t, style: const TextStyle(fontWeight: FontWeight.w600)),
+    padding: const EdgeInsets.only(top: 20, bottom: 10),
+    child: Text(
+      t,
+      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+    ),
   );
 
   Widget _text(TextEditingController c, {int lines = 1, bool number = false}) {
-    return TextField(
-      controller: c,
-      maxLines: lines,
-      keyboardType: number ? TextInputType.number : TextInputType.text,
-      decoration: const InputDecoration(filled: true),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextField(
+        controller: c,
+        maxLines: lines,
+        keyboardType: number ? TextInputType.number : TextInputType.text,
+        decoration: const InputDecoration(
+          filled: true,
+          border: OutlineInputBorder(),
+        ),
+      ),
     );
   }
 
   Widget _dropdown(TextEditingController c, List<String> items) {
-    return DropdownButtonFormField<String>(
-      value: c.text.isNotEmpty ? c.text : items.first,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: DropdownButtonFormField<String>(
+        value: c.text.isNotEmpty ? c.text : items.first,
+        decoration: const InputDecoration(
+          filled: true,
+          border: OutlineInputBorder(),
+        ),
+        items: items
+            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+            .toList(),
+        onChanged: (v) => setState(() => c.text = v!),
+      ),
+    );
+  }
+}
+
+Widget _dropdownField(
+  String label,
+  String? value,
+  List<String> items,
+  Function(String?) onChanged,
+) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 16),
+    child: DropdownButtonFormField<String>(
+      value: value,
+      decoration: InputDecoration(labelText: label, filled: true),
       items: items
           .map((e) => DropdownMenuItem(value: e, child: Text(e)))
           .toList(),
-      onChanged: (v) => setState(() => c.text = v!),
-    );
-  }
+      onChanged: onChanged,
+    ),
+  );
 }

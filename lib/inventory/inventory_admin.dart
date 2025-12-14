@@ -121,21 +121,6 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
       case 'QtyHigh':
         filteredItems.sort((a, b) => b['quantity'].compareTo(a['quantity']));
         break;
-      case 'priceLow':
-        filteredItems.sort((a, b) {
-          final ap = double.tryParse(a['price'].toString()) ?? 0;
-          final bp = double.tryParse(b['price'].toString()) ?? 0;
-          return ap.compareTo(bp);
-        });
-        break;
-
-      case 'priceHigh':
-        filteredItems.sort((a, b) {
-          final ap = double.tryParse(a['price'].toString()) ?? 0;
-          final bp = double.tryParse(b['price'].toString()) ?? 0;
-          return bp.compareTo(ap);
-        });
-        break;
     }
   }
 
@@ -253,32 +238,84 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
   //  Card
   Widget _buildCard(QueryDocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
+
+    final String name = d['name'] ?? '';
+    final String status = d['status'] ?? 'Unknown';
+    final int quantity = d['quantity'] ?? 0;
+    final String type = d['type'] ?? 'other';
+
     return InkWell(
       onTap: () => _openDetails(d, doc.id),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
-        ),
-        child: Column(
-          children: [
-            Expanded(
-              child: Center(
-                child: Icon(
-                  itemIcons[d['type']] ?? Icons.inventory_2,
-                  size: 60,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(
-                d['name'],
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 6,
+              offset: Offset(0, 3),
             ),
           ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ICON
+              Center(
+                child: Icon(
+                  itemIcons[type] ?? Icons.inventory_2,
+                  size: 50,
+                  color: const Color.fromARGB(255, 79, 80, 81),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // NAME
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+
+              const SizedBox(height: 6),
+
+              // QUANTITY
+              Text(
+                'Quantity: $quantity',
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+
+              const SizedBox(height: 8),
+
+              // STATUS BADGE
+              Align(
+                alignment: Alignment.bottomRight,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _statusColor(status),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    status,
+                    style: const TextStyle(color: Colors.white, fontSize: 11),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -355,8 +392,6 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
           _sortTile('Name (Z – A)', 'NameZA'),
           _sortTile('Quantity (Low – High)', 'QtyLow'),
           _sortTile('Quantity (High – Low)', 'QtyHigh'),
-          _sortTile('Price (Low – High)', 'priceLow'),
-          _sortTile('Price (High – Low)', 'priceHigh'),
         ],
       ),
     );
