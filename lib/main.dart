@@ -20,6 +20,7 @@ import 'reservation/reservation_confirm_screen.dart';
 import 'reservation/reservation_success_screen.dart' as success_screen;
 import 'Reservation/reservation_tabs.dart';
 import 'profilePage.dart';
+import 'package:project444/rental_history_button.dart';
 
 final ColorScheme colorScheme = ColorScheme.fromSeed(seedColor: Colors.blue);
 final _AppColors appColors = const _AppColors();
@@ -240,7 +241,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             const SizedBox(width: 8),
             Padding(
-              padding: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.only(right: 8),
               child: TextButton(
                 onPressed: () {
                   Navigator.push(
@@ -267,6 +268,10 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
               ),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: RentalHistoryButton(),
             ),
           ],
         ),
