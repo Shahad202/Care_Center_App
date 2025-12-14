@@ -9,15 +9,16 @@ import 'firebase_options.dart';
 import 'reports.dart';
 import 'reservation/reservation.dart';
 import 'Donation/donor_page.dart';
-import 'inventory/inventory_admin.dart';
+//import 'inventory/inventory_admin_new.dart';
+//import 'inventory/inventory_user.dart';
 import 'login.dart';
 import 'signup.dart';
 import 'admin_dashboard.dart';
 import 'inventory_list_screen.dart';
 import 'reservation/reservation_dates_screen.dart';
 import 'reservation/reservation_confirm_screen.dart';
-import 'reservation/reservation_success_screen.dart';
-import 'reservation/reservation_tracking_screen.dart';
+import 'reservation/reservation_success_screen.dart' as success_screen;
+import 'Reservation/reservation_tabs.dart';
 import 'profilePage.dart';
 
 final ColorScheme colorScheme = ColorScheme.fromSeed(seedColor: Colors.blue);
@@ -41,7 +42,7 @@ class _AppColors extends ThemeExtension<_AppColors> {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -94,12 +95,14 @@ class MyApp extends StatelessWidget {
         '/admin': (c) => const AdminPage(userName: ''),
         '/login': (c) => const LoginPage(),
         '/signup': (c) => const SignupPage(),
-        "/inventory": (c) => const RenterPage(),
+        //"/inventory": (c) => InventoryUserWidget(),
+        //"/inventory_admin": (c) => InventoryAdminWidget(),
+        "/renter": (c) => const RenterPage(),
         "/reports": (c) => const CareCenter(),
         //"/dates": (c) => const ReservationDatesScreen(inventoryItemId: '', itemName: '', requestedQuantity: 8,),
         "/confirm": (c) => const Placeholder(),
-        "/success": (c) => const ReservationSuccessScreen(),
-        "/tracking": (c) => const ReservationTrackingScreen(),
+        "/success": (c) => const success_screen.ReservationSuccessScreen(),
+        "/tracking": (c) => const TrackingPage(),
       },
     );
   }
@@ -127,11 +130,14 @@ class _MyHomePageState extends State<MyHomePage> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     try {
-      final snap = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       final role = (snap.data()?['role'] ?? 'user').toString();
       if (mounted) setState(() => _userRole = role);
     } catch (_) {
-      // keep default role
+     
     }
   }
 
@@ -169,15 +175,14 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                   ],
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 16,
+                ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      icon,
-                      size: 44,
-                      color: const Color(0xFF003465),
-                    ),
+                    Icon(icon, size: 44, color: const Color(0xFF003465)),
                     const SizedBox(height: 12),
                     Text(
                       title,
@@ -245,7 +250,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 },
                 style: TextButton.styleFrom(
                   backgroundColor: Colors.white.withOpacity(0.2),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -268,9 +276,7 @@ class _MyHomePageState extends State<MyHomePage> {
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: const BoxDecoration(
-                color: Color(0xFF003465),
-              ),
+              decoration: const BoxDecoration(color: Color(0xFF003465)),
               child: FirebaseAuth.instance.currentUser == null
                   ? Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -346,11 +352,11 @@ class _MyHomePageState extends State<MyHomePage> {
                                 radius: 35,
                                 backgroundImage:
                                     (imageUrl != null && imageUrl.isNotEmpty)
-                                        ? NetworkImage(imageUrl)
-                                        : const AssetImage(
-                                                'lib/images/default_profile.png',
-                                              )
-                                            as ImageProvider,
+                                    ? NetworkImage(imageUrl)
+                                    : const AssetImage(
+                                            'lib/images/default_profile.png',
+                                          )
+                                          as ImageProvider,
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -388,10 +394,12 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => NewinventoryWidget()),
-                );
+                final role = _userRole.toLowerCase();
+                if (role == 'admin') {
+                  Navigator.pushReplacementNamed(context, '/inventory_admin');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/inventory');
+                }
               },
             ),
             ListTile(
@@ -402,7 +410,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/inventory');
+                Navigator.pushNamed(context, '/renter');
               },
             ),
             ListTile(
@@ -456,7 +464,10 @@ class _MyHomePageState extends State<MyHomePage> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 440),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 24,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [

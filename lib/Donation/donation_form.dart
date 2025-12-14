@@ -83,8 +83,15 @@ class _DonationFormPageState extends State<DonationFormPage> {
     }
 
     try {
-      // STEP 4: Parse quantity from text field
-      final qty = int.tryParse(_quantityController.text.trim()) ?? 1;
+      // STEP 4: Parse quantity from text field and ensure it's > 0
+      final qtyText = _quantityController.text.trim();
+      int qty = int.tryParse(qtyText) ?? 1;
+      
+      // Ensure quantity is valid (must be > 0)
+      if (qty <= 0) {
+        qty = 1;
+      }
+      
       final itemName = _itemNameController.text.trim();
       
       // STEP 5: Call DonationService to save to Firestore
@@ -116,7 +123,7 @@ class _DonationFormPageState extends State<DonationFormPage> {
     if (uid == null) {
       // Shows login screen if user not authenticated
       return Scaffold(
-        appBar: AppBar(title: const Text('Donate Equipment')),
+        appBar: AppBar(),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

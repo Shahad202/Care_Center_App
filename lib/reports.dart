@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import 'package:project444/login.dart';
 import 'package:project444/profilePage.dart';
-import 'package:project444/inventory/inventory_admin.dart';
+// import 'package:project444/inventory/inventory_admin.dart';
 import 'package:project444/admin_dashboard.dart';
 import 'package:project444/admin_donation_details.dart';
 
@@ -448,6 +448,237 @@ Future<void> _loadReservationsData() async {
   }
 }
 
+  // Future<void> _loadReservationsData() async {
+  //   // try {
+  //   //   final snapshot = await FirebaseFirestore.instance
+  //   //       .collection('reservations')
+  //   //       .get();
+
+  //   //   _totalRentals = snapshot.docs.length;
+  //   //   List<ActiveRental> rentals = [];
+  //   //   int overdue = 0;
+
+  //   //   // Keep existing fake data if no real data exists
+  //   //   if (snapshot.docs.isEmpty && _activeRentals.isNotEmpty) {
+  //   //     return; // Keep the fake data
+  //   //   }
+
+  //   //   for (var doc in snapshot.docs) {
+  //   //     final data = doc.data();
+  //   //     final status = (data['status'] ?? 'pending').toString().toLowerCase();
+
+  //   //     if (status == 'active' || status == 'overdue') {
+  //   //       try {
+  //   //         final equipmentName = (data['equipmentName'] ?? 'Equipment')
+  //   //             .toString();
+  //   //         final startDate = (data['startDate'] as Timestamp?)?.toDate();
+  //   //         final endDate = (data['endDate'] as Timestamp?)?.toDate();
+  //   //         final userId = data['userId'] as String?;
+
+  //   //         if (startDate != null && endDate != null) {
+  //   //           final now = DateTime.now();
+  //   //           final daysRemaining = endDate.difference(now).inDays;
+
+  //   //           String rentalStatus = 'active';
+  //   //           if (daysRemaining < 0) {
+  //   //             rentalStatus = 'overdue';
+  //   //             overdue++;
+  //   //           } else if (daysRemaining <= 2) {
+  //   //             rentalStatus = 'due-soon';
+  //   //           }
+
+  //   //           String userName = 'Unknown User';
+  //   //           if (userId != null) {
+  //   //             try {
+  //   //               final userDoc = await FirebaseFirestore.instance
+  //   //                   .collection('users')
+  //   //                   .doc(userId)
+  //   //                   .get();
+  //   //               userName = userDoc.data()?['name'] ?? 'Unknown User';
+  //   //             } catch (_) {}
+  //   //           }
+
+  //   //           rentals.add(
+  //   //             ActiveRental(
+  //   //               equipment: equipmentName,
+  //   //               user: userName,
+  //   //               checkoutDate: _formatDate(startDate),
+  //   //               dueDate: _formatDate(endDate),
+  //   //               status: rentalStatus,
+  //   //               daysRemaining: daysRemaining,
+  //   //             ),
+  //   //           );
+
+  //   //           if (daysRemaining < 0) {
+  //   //             _notifications.add(
+  //   //               AppNotification(
+  //   //                 id: _notifications.length + 1,
+  //   //                 type: 'overdue',
+  //   //                 title: 'Overdue Return',
+  //   //                 message: '$equipmentName is ${-daysRemaining} days overdue',
+  //   //                 user: userName,
+  //   //                 checkoutDate: _formatDate(startDate),
+  //   //                 dueDate: _formatDate(endDate),
+  //   //                 time: '${-daysRemaining} days ago',
+  //   //                 priority: 'high',
+  //   //                 details:
+  //   //                     'This equipment is overdue. Please contact the user.',
+  //   //               ),
+  //   //             );
+  //   //           } else if (daysRemaining <= 1) {
+  //   //             _notifications.add(
+  //   //               AppNotification(
+  //   //                 id: _notifications.length + 1,
+  //   //                 type: 'upcoming',
+  //   //                 title: 'Return Reminder',
+  //   //                 message:
+  //   //                     '$equipmentName due ${daysRemaining == 0 ? "today" : "tomorrow"}',
+  //   //                 user: userName,
+  //   //                 checkoutDate: _formatDate(startDate),
+  //   //                 dueDate: _formatDate(endDate),
+  //   //                 time: 'Today',
+  //   //                 priority: 'medium',
+  //   //                 details: 'Reminder sent to customer.',
+  //   //               ),
+  //   //             );
+  //   //           }
+  //   //         }
+  //   //       } catch (e) {
+  //   //         print('Error processing reservation: $e');
+  //   //       }
+  //   //     }
+  //   //   }
+
+  //   //   _activeRentals = rentals.isEmpty ? _activeRentals : rentals;
+  //   //   _overdueCount = overdue > 0 ? overdue : _overdueCount;
+  //   // } catch (e) {
+  //   //   print('Error loading reservations: $e');
+  //   // }
+
+  // Future<void> _loadReservationsData() async {
+  //   try {
+  //     final snapshot = await FirebaseFirestore.instance
+  //         .collection('reservations')
+  //         .get();
+
+  //     _totalRentals = snapshot.docs.length;
+  //     List<ActiveRental> rentals = [];
+  //     int overdue = 0;
+
+  //     // مسح الإشعارات القديمة المتعلقة بالإيجارات
+  //     _notifications.removeWhere((n) => n.type == 'overdue' || n.type == 'upcoming');
+
+  //     for (var doc in snapshot.docs) {
+  //       final data = doc.data();
+  //       final status = (data['status'] ?? 'pending').toString().toLowerCase();
+
+  //       // قراءة جميع الإيجارات النشطة
+  //       if (status == 'active' || status == 'overdue' || status == 'pending') {
+  //         try {
+  //           final equipmentName = (data['equipmentName'] ?? data['itemName'] ?? 'Equipment').toString();
+  //           final startDate = (data['startDate'] as Timestamp?)?.toDate();
+  //           final endDate = (data['endDate'] as Timestamp?)?.toDate();
+  //           final userId = data['userId'] as String?;
+
+  //           if (startDate != null && endDate != null) {
+  //             final now = DateTime.now();
+  //             final daysRemaining = endDate.difference(now).inDays;
+
+  //             String rentalStatus = 'active';
+  //             if (daysRemaining < 0) {
+  //               rentalStatus = 'overdue';
+  //               overdue++;
+  //             } else if (daysRemaining <= 2) {
+  //               rentalStatus = 'due-soon';
+  //             }
+
+  //             String userName = 'Unknown User';
+  //             String userPhone = 'N/A';
+  //             String userEmail = 'N/A';
+
+  //             if (userId != null) {
+  //               try {
+  //                 final userDoc = await FirebaseFirestore.instance
+  //                     .collection('users')
+  //                     .doc(userId)
+  //                     .get();
+  //                 if (userDoc.exists) {
+  //                   final userData = userDoc.data();
+  //                   userName = userData?['name'] ?? 'Unknown User';
+  //                   userPhone = userData?['phone'] ?? 'N/A';
+  //                   userEmail = userData?['email'] ?? 'N/A';
+  //                 }
+  //               } catch (e) {
+  //                 print('Error loading user data: $e');
+  //               }
+  //             }
+
+  //             rentals.add(
+  //               ActiveRental(
+  //                 equipment: equipmentName,
+  //                 user: userName,
+  //                 checkoutDate: _formatDate(startDate),
+  //                 dueDate: _formatDate(endDate),
+  //                 status: rentalStatus,
+  //                 daysRemaining: daysRemaining,
+  //               ),
+  //             );
+
+  //             // إضافة إشعارات للإيجارات المتأخرة
+  //             if (daysRemaining < 0) {
+  //               _notifications.add(
+  //                 AppNotification(
+  //                   id: _notifications.length + 1,
+  //                   type: 'overdue',
+  //                   title: 'Overdue Return',
+  //                   message: '$equipmentName is ${-daysRemaining} days overdue',
+  //                   user: userName,
+  //                   phone: userPhone,
+  //                   email: userEmail,
+  //                   checkoutDate: _formatDate(startDate),
+  //                   dueDate: _formatDate(endDate),
+  //                   time: '${-daysRemaining} days ago',
+  //                   priority: 'high',
+  //                   details: 'This equipment is overdue. Please contact the user.',
+  //                 ),
+  //               );
+  //             }
+  //             // إضافة إشعارات للإيجارات القريبة من الانتهاء
+  //             else if (daysRemaining <= 1) {
+  //               _notifications.add(
+  //                 AppNotification(
+  //                   id: _notifications.length + 1,
+  //                   type: 'upcoming',
+  //                   title: 'Return Reminder',
+  //                   message: '$equipmentName due ${daysRemaining == 0 ? "today" : "tomorrow"}',
+  //                   user: userName,
+  //                   phone: userPhone,
+  //                   email: userEmail,
+  //                   checkoutDate: _formatDate(startDate),
+  //                   dueDate: _formatDate(endDate),
+  //                   time: 'Today',
+  //                   priority: 'medium',
+  //                   details: 'Reminder sent to customer.',
+  //                 ),
+  //               );
+  //             }
+  //           }
+  //         } catch (e) {
+  //           print('Error processing reservation: $e');
+  //         }
+  //       }
+  //     }
+
+  //     _activeRentals = rentals;
+  //     _overdueCount = overdue;
+
+  //     print('✅ Loaded ${rentals.length} active rentals'); // للتأكد من عمل الكود
+  //   } catch (e) {
+  //     print('Error loading reservations: $e');
+  //   }
+  // }
+  // }
+
   Future<void> _loadDonationsData() async {
   try {
     final snapshot = await FirebaseFirestore.instance
@@ -717,6 +948,7 @@ String _getMonthName(int month) {
                       var data = snapshot.data!.data() as Map<String, dynamic>;
                       String name = (data["name"] ?? "User").toString();
                       String? imageUrl = data["profileImage"] as String?;
+                      _userRole = (data['role'] ?? 'user').toString();
 
                       return Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -778,10 +1010,12 @@ String _getMonthName(int month) {
             ),
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => NewinventoryWidget()),
-              );
+              final role = _userRole.toLowerCase();
+              if (role == 'admin') {
+                Navigator.pushReplacementNamed(context, '/inventory_admin');
+              } else {
+                Navigator.pushReplacementNamed(context, '/inventory');
+              }
             },
           ),
           ListTile(
@@ -792,7 +1026,7 @@ String _getMonthName(int month) {
             ),
             onTap: () {
               Navigator.pop(context);
-              Navigator.pushNamed(context, '/inventory');
+              Navigator.pushNamed(context, '/renter');
             },
           ),
           ListTile(
@@ -811,6 +1045,7 @@ String _getMonthName(int month) {
             ),
             onTap: () {
               Navigator.pop(context);
+              Navigator.pushNamed(context, '/reports');
             },
           ),
           Padding(
@@ -1648,41 +1883,64 @@ Widget _buildTrackingTab() {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Row(
+                //   children: [
+                //     Expanded(
+                //       child: Column(
+                //         crossAxisAlignment: CrossAxisAlignment.start,
+                //         children: [
+                //           Text(
+                //             rental.equipment,
+                //             style: const TextStyle(
+                //               fontSize: 16,
+                //               fontWeight: FontWeight.bold,
+                //             ),
+                //           ),
+                //         ],
+                //       ),
+                //     ),
+                //     Container(
+                //       padding: const EdgeInsets.symmetric(
+                //         horizontal: 12,
+                //         vertical: 6,
+                //       ),
+                //       decoration: BoxDecoration(
+                //         color: _getStatusColor(rental.status).withOpacity(0.1),
+                //         border: Border.all(
+                //           color: _getStatusColor(rental.status),
+                //         ),
+                //         borderRadius: BorderRadius.circular(20),
+                //       ),
+                //       child: Text(
+                //         _getStatusText(rental.status),
+                //         style: TextStyle(
+                //           fontSize: 12,
+                //           fontWeight: FontWeight.w600,
+                //           color: _getStatusColor(rental.status),
+                //         ),
+                //       ),
+                //     ),
+                //   ],
+                // ),
                 Row(
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            rental.equipment,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                    Expanded(child: _buildTrackingFilterButton()),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: () => _loadReservationsData(),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(rental.status).withOpacity(0.1),
-                        border: Border.all(
-                          color: _getStatusColor(rental.status),
+                          ],
                         ),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        _getStatusText(rental.status),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: _getStatusColor(rental.status),
-                        ),
+                        child: Icon(Icons.refresh, color: Colors.indigo[600]),
                       ),
                     ),
                   ],
@@ -2406,7 +2664,7 @@ Widget _buildEmptyTrackingState() {
           const SizedBox(height: 16),
           const Text(
             'Priority Level',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                       style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(

@@ -1,13 +1,57 @@
 import 'package:flutter/material.dart';
+import 'package:project444/Reservation/reservation.dart';
+import 'package:project444/Reservation/reservation_tracking_screen.dart';
 
-class ReservationSuccessScreen extends StatelessWidget {
+
+class ReservationSuccessScreen extends StatefulWidget {
   const ReservationSuccessScreen({super.key});
+
+  @override
+  State<ReservationSuccessScreen> createState() =>
+      _ReservationSuccessScreenState();
+}
+
+class _ReservationSuccessScreenState extends State<ReservationSuccessScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _sizeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+
+    _sizeAnimation = Tween<double>(
+      begin: 0.8,
+      end: 1.2,
+    ).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _controller.reverse();
+      } else if (status == AnimationStatus.dismissed) {
+        _controller.forward();
+      }
+    });
+
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-
       appBar: AppBar(
         backgroundColor: const Color(0xFF0A66C2),
         title: const Text(
@@ -15,40 +59,47 @@ class ReservationSuccessScreen extends StatelessWidget {
           style: TextStyle(color: Colors.white),
         ),
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // صورة نجاح — نزّلي أي صورة نجاح وخلي اسمها:
-            // success.png داخل assets/images/
-            Image.asset("lib/images/success.png", height: 160),
-
+            AnimatedBuilder(
+              animation: _sizeAnimation,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _sizeAnimation.value,
+                  child: child,
+                );
+              },
+              child: const Icon(
+                Icons.check_circle,
+                size: 160,
+                color: Colors.green,
+              ),
+            ),
             const SizedBox(height: 30),
-
             const Text(
               "Your reservation has been confirmed!",
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-
             const SizedBox(height: 12),
-
             const Text(
               "You can now track the status of your reservation.",
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 15, color: Colors.grey),
             ),
-
             const SizedBox(height: 40),
-
             SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.pushNamed(context, "/tracking");
+                  Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ReservationTrackingScreen()),
+                );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0A66C2),
@@ -56,16 +107,13 @@ class ReservationSuccessScreen extends StatelessWidget {
                 child: const Text("View Tracking"),
               ),
             ),
-
             const SizedBox(height: 16),
-
             TextButton(
               onPressed: () {
-                Navigator.pushNamedAndRemoveUntil(
+                Navigator.pushAndRemoveUntil(
                   context,
-                  '/tabs', // your tabs page route
-                  (route) =>
-                      false, // removes all previous routes so the tabs page becomes root
+                  MaterialPageRoute(builder: (context) => const RenterPage()),
+                  (route) => false,
                 );
               },
               child: const Text(
