@@ -134,75 +134,6 @@ void dispose() {
   }
 
   
-
-  Future<void> _loadInventoryData() async {
-  try {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('inventory')
-        .get();
-
-    Map<String, int> equipmentCounts = {};
-    Map<String, int> statusCounts = {
-      'available': 0,
-      'rented': 0,
-      'maintenance': 0,
-      'reserved': 0,
-    };
-
-    for (var doc in snapshot.docs) {
-      final data = doc.data();
-      final itemName = (data['itemName'] ?? 'Other').toString();
-      var statusValue = (data['status'] ?? 'available').toString();
-      String status = statusValue.toLowerCase();
-      if (status.contains('avail')) status = 'available';
-      if (status.contains('rent')) status = 'rented';
-      if (status.contains('maint')) status = 'maintenance';
-      if (status.contains('reserv')) status = 'reserved';
-
-      final quantity = (data['quantity'] ?? 1) as int;
-
-      equipmentCounts[itemName] = (equipmentCounts[itemName] ?? 0) + quantity;
-
-      if (statusCounts.containsKey(status)) {
-        statusCounts[status] = statusCounts[status]! + quantity;
-      } else {
-        statusCounts['available'] = statusCounts['available']! + quantity;
-      }
-    }
-
-    
-    if (mounted) {
-      setState(() {
-        _equipmentStatus = [
-          StatusData(
-            'Available',
-            statusCounts['available']!,
-            const Color(0xFF10b981),
-          ),
-          StatusData('Rented', statusCounts['rented']!, const Color(0xFF3b82f6)),
-          StatusData(
-            'Maintenance',
-            statusCounts['maintenance']!,
-            const Color(0xFFf59e0b),
-          ),
-          StatusData(
-            'Reserved',
-            statusCounts['reserved']!,
-            const Color(0xFF8b5cf6),
-          ),
-        ];
-
-        _maintenanceCount = statusCounts['maintenance']!;
-        _isLoading = false; // 
-      });
-    }
-  } catch (e) {
-    print('Error loading inventory: $e');
-    if (mounted) {
-      setState(() => _isLoading = false); 
-    }
-  }
-}
 void _startReservationsStream() {
   _reservationsSubscription = FirebaseFirestore.instance
       .collection('reservations')
@@ -679,24 +610,157 @@ Future<void> _loadReservationsData() async {
   // }
   // }
 
-  Future<void> _loadDonationsData() async {
+
+Future<void> _loadInventoryData() async {
+  try {
+    final inventorySnapshot = await FirebaseFirestore.instance
+        .collection('inventory')
+        .get();
+
+    Map<String, int> equipmentCounts = {};
+    Map<String, int> statusCounts = {
+      'available': 0,
+      'rented': 0,
+      'maintenance': 0,
+      'reserved': 0,
+    };
+
+    // First, count inventory items by their status
+    for (var doc in inventorySnapshot.docs) {
+      final data = doc.data();
+      final itemName = (data['itemName'] ?? 'Other').toString();
+      var statusValue = (data['status'] ?? 'available').toString();
+      String status = statusValue.toLowerCase();
+      
+      if (status.contains('avail')) status = 'available';
+      if (status.contains('rent')) status = 'rented';
+      if (status.contains('maint')) status = 'maintenance';
+      if (status.contains('reserv')) status = 'reserved';
+
+      final quantity = (data['quantity'] ?? 1) as int;
+
+      equipmentCounts[itemName] = (equipmentCounts[itemName] ?? 0) + quantity;
+
+      if (statusCounts.containsKey(status)) {
+        statusCounts[status] = statusCounts[status]! + quantity;
+      } else {
+        statusCounts['available'] = statusCounts['available']! + quantity;
+      }
+    }
+
+    // Count approved reservations for "rented" count
+    final approvedReservationsSnapshot = await FirebaseFirestore.instance
+        .collection('reservations')
+        .where('status', isEqualTo: 'approved')
+        .get();
+
+    int approvedRentedCount = approvedReservationsSnapshot.docs.length;
+    
+    // Count donations that need maintenance
+    final donationsSnapshot = await FirebaseFirestore.instance
+        .collection('donations')
+        .get();
+    
+    int maintenanceFromDonations = 0;
+    
+    for (var doc in donationsSnapshot.docs) {
+      final data = doc.data();
+      final needsMaintenance = data['needsMaintenance'] as bool?;
+      final condition = (data['condition'] ?? '').toString();
+      final status = (data['status'] ?? 'pending').toString().toLowerCase();
+      
+      // Count as maintenance if:
+      // 1. Explicitly marked as needsMaintenance OR
+      // 2. Condition is Fair or Needs Repair
+      // 3. AND status is pending or approved (not rejected)
+      if (status != 'rejected') {
+        if (needsMaintenance == true || 
+            condition == 'Fair' || 
+            condition == 'Needs Repair') {
+          maintenanceFromDonations++;
+        }
+      }
+    }
+    
+    // Add maintenance count from donations to total maintenance
+    statusCounts['maintenance'] = 
+        (statusCounts['maintenance'] ?? 0) + maintenanceFromDonations;
+    
+    print('Found $approvedRentedCount approved reservations');
+    print('Found $maintenanceFromDonations items needing maintenance from donations');
+    print('Total maintenance count: ${statusCounts['maintenance']}');
+
+    // Update the rented count with approved reservations
+    statusCounts['rented'] = approvedRentedCount;
+
+    if (mounted) {
+      setState(() {
+        _equipmentStatus = [
+          StatusData(
+            'Available',
+            statusCounts['available']!,
+            const Color(0xFF10b981),
+          ),
+          StatusData(
+            'Rented', 
+            statusCounts['rented']!, 
+            const Color(0xFF3b82f6)
+          ),
+          StatusData(
+            'Maintenance',
+            statusCounts['maintenance']!,
+            const Color(0xFFf59e0b),
+          ),
+          StatusData(
+            'Reserved',
+            statusCounts['reserved']!,
+            const Color(0xFF8b5cf6),
+          ),
+        ];
+
+        _maintenanceCount = statusCounts['maintenance']!;
+        _isLoading = false;
+      });
+    }
+  } catch (e) {
+    print('Error loading inventory: $e');
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+}
+
+// Replace the _loadDonationsData method with this updated version
+
+Future<void> _loadDonationsData() async {
   try {
     final snapshot = await FirebaseFirestore.instance
         .collection('donations')
         .get();
 
-    int totalDonations = 0;
+    // Count ALL donations regardless of status
+    int totalDonations = snapshot.docs.length;
+    
+    // Also count by status for debugging
+    int pendingCount = 0;
+    int approvedCount = 0;
+    int rejectedCount = 0;
+    
     Map<String, int> donationCounts = {};
 
     for (var doc in snapshot.docs) {
       final data = doc.data();
       final status = (data['status'] ?? 'pending').toString().toLowerCase();
       final itemName = (data['itemName'] ?? 'Equipment').toString();
-      final quantity = (data['quantity'] ?? 1) as int;
+      
+      // Count by status
+      if (status == 'pending') pendingCount++;
+      else if (status == 'approved') approvedCount++;
+      else if (status == 'rejected') rejectedCount++;
 
-      totalDonations++;
       donationCounts[itemName] = (donationCounts[itemName] ?? 0) + 1;
 
+      // Only create notifications for pending donations
       if (status == 'pending') {
         final donorId = data['donorId'] as String?;
         String donorName = 'Anonymous';
@@ -729,11 +793,17 @@ Future<void> _loadReservationsData() async {
       }
     }
 
+    print('📊 Donations Summary:');
+    print('   Total: $totalDonations');
+    print('   Pending: $pendingCount');
+    print('   Approved: $approvedCount');
+    print('   Rejected: $rejectedCount');
+
     Map<String, int> rentedCounts = await _calculateRentedCounts();
 
     if (mounted) {
       setState(() {
-        _totalDonations = totalDonations;
+        _totalDonations = totalDonations; // Use total count of ALL donations
 
         Set<String> allEquipmentTypes = {
           ...donationCounts.keys,
@@ -743,8 +813,8 @@ Future<void> _loadReservationsData() async {
         _rentalData = allEquipmentTypes.map((equipmentName) {
           return RentalData(
             equipmentName,
-            rentedCounts[equipmentName] ?? 0,  
-            donationCounts[equipmentName] ?? 0, 
+            rentedCounts[equipmentName] ?? 0,
+            donationCounts[equipmentName] ?? 0,
           );
         }).toList();
       });

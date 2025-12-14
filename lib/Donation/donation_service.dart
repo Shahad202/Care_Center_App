@@ -11,7 +11,8 @@ class DonationService {
     required String description,
     required int quantity,
     required String location,
-    required String iconKey,
+    required String iconKey, 
+    required bool needsMaintenance,
   }) async {
     print('\n=== DonationService.addDonation Started ===');
     
