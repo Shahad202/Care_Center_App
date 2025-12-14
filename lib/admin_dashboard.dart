@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:project444/inventory/inventory_admin.dart';
 import 'package:project444/login.dart';
 import 'package:project444/profilePage.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:project444/rental_history_button.dart';
 import 'package:project444/common_drawer.dart';
 import 'admin_pending_donations.dart';
+import 'package:project444/inventory/inventory_guest.dart';
 // import 'package:project444/inventory/inventory_admin_new.dart';
 // import 'package:project444/inventory/inventory_user.dart';
 
@@ -114,7 +116,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const AdminPendingDonations()),
+                          MaterialPageRoute(
+                            builder: (_) => const AdminPendingDonations(),
+                          ),
                         );
                       },
                     ),
@@ -126,17 +130,33 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           : 'Browse available items',
                       onTap: () {
                         final role = _userRole.toLowerCase();
+
                         if (role == 'admin') {
-                          //Navigator.push(
-                            //context,
-                            //MaterialPageRoute(builder: (_) => InventoryAdminWidget()),
-                          //);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => NewinventoryWidget(),
+                            ),
+                          );
                         } else {
-                          //Navigator.push(
-                            //context,
-                            //MaterialPageRoute(builder: (_) => InventoryUserWidget()),
-                          //);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => UserInventoryWidget(),
+                            ),
+                          );
                         }
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    _dashboardCard(
+                      title: 'Pending Reservations',
+                      subtitle: 'Review and approve reservations',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          slideUpRoute(const AdminPendingReservations()),
+                        );
                       },
                     ),
                     const SizedBox(height: 20),
