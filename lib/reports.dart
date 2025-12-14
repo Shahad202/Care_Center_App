@@ -622,7 +622,6 @@ Future<void> _loadInventoryData() async {
       'available': 0,
       'rented': 0,
       'maintenance': 0,
-      'reserved': 0,
     };
 
     // First, count inventory items by their status
@@ -635,7 +634,6 @@ Future<void> _loadInventoryData() async {
       if (status.contains('avail')) status = 'available';
       if (status.contains('rent')) status = 'rented';
       if (status.contains('maint')) status = 'maintenance';
-      if (status.contains('reserv')) status = 'reserved';
 
       final quantity = (data['quantity'] ?? 1) as int;
 
@@ -710,11 +708,6 @@ Future<void> _loadInventoryData() async {
             'Maintenance',
             statusCounts['maintenance']!,
             const Color(0xFFf59e0b),
-          ),
-          StatusData(
-            'Reserved',
-            statusCounts['reserved']!,
-            const Color(0xFF8b5cf6),
           ),
         ];
 
@@ -889,7 +882,7 @@ Future<List<TrendData>> _calculateTrendData() async {
       print('Processing month: ${_getMonthName(monthDate.month)}');
 
       // Get all reservations that were DUE in this month
-      final snapshot = await FirebaseFirestore.instance
+      final reservationsSnapshot = await FirebaseFirestore.instance
           .collection('reservations')
           .where('endDate', 
                  isGreaterThanOrEqualTo: Timestamp.fromDate(monthStart))
@@ -900,7 +893,7 @@ Future<List<TrendData>> _calculateTrendData() async {
       int rentals = 0;
       int overdue = 0;
 
-      for (var doc in snapshot.docs) {
+      for (var doc in reservationsSnapshot.docs) {
         final data = doc.data();
         final endDate = (data['endDate'] as Timestamp?)?.toDate();
         final returnDate = data['returnDate'] != null 
@@ -913,7 +906,6 @@ Future<List<TrendData>> _calculateTrendData() async {
         // Count as rental
         rentals++;
 
-        
         if (returnDate != null) {
           // Was returned - check if it was late
           if (returnDate.isAfter(endDate)) {
@@ -929,12 +921,45 @@ Future<List<TrendData>> _calculateTrendData() async {
         }
       }
 
-      print('Rentals: $rentals, Overdue: $overdue');
+      // Get donations that need maintenance in this month
+      final donationsSnapshot = await FirebaseFirestore.instance
+          .collection('donations')
+          .where('createdAt',
+                 isGreaterThanOrEqualTo: Timestamp.fromDate(monthStart))
+          .where('createdAt',
+                 isLessThanOrEqualTo: Timestamp.fromDate(monthEnd))
+          .get();
+
+      int maintenanceThisMonth = 0;
+
+      for (var doc in donationsSnapshot.docs) {
+        final data = doc.data();
+        final needsMaintenance = data['needsMaintenance'] as bool?;
+        final condition = (data['condition'] ?? '').toString();
+        final status = (data['status'] ?? 'pending').toString().toLowerCase();
+        
+        // Count as maintenance if:
+        // 1. Explicitly marked as needsMaintenance OR
+        // 2. Condition is Fair or Needs Repair
+        // 3. AND status is pending or approved (not rejected)
+        if (status != 'rejected') {
+          if (needsMaintenance == true || 
+              condition == 'Fair' || 
+              condition == 'Needs Repair') {
+            maintenanceThisMonth++;
+          }
+        }
+      }
+
+      print('Month: ${_getMonthName(monthDate.month)}');
+      print('  Rentals: $rentals');
+      print('  Maintenance: $maintenanceThisMonth');
+      print('  Overdue: $overdue');
 
       trends.add(TrendData(
         _getMonthName(monthDate.month),
         rentals,
-        _maintenanceCount, 
+        maintenanceThisMonth,  // Use monthly maintenance count
         overdue,
       ));
     }
@@ -955,6 +980,7 @@ Future<List<TrendData>> _calculateTrendData() async {
     ];
   }
 }
+
 String _getMonthName(int month) {
   const months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -3180,45 +3206,104 @@ Widget _buildEmptyTrackingState() {
   }
 
   List<Widget> _buildActionButtons(AppNotification notification) {
-    List<Widget> buttons = [];
+  List<Widget> buttons = [];
 
-    // Donation Button
-    if (notification.type == 'donation' &&
-        notification.donationId != null &&
-        notification.donationData != null) {
-      buttons.add(
-        _buildActionButton(
-          'View Donation',
-          Colors.green[600]!,
-          Icons.volunteer_activism,
-          () {
-            setState(() => _selectedNotification = null);
-            Navigator.push(
-              context,
-              slideUpRoute(
-                AdminDonationDetails(
-                  donationId: notification.donationId!,
-                  donationData: notification.donationData!,
-                ),
+  // Donation Button - View Details
+  if (notification.type == 'donation' &&
+      notification.donationId != null &&
+      notification.donationData != null) {
+    buttons.add(
+      _buildActionButton(
+        'View Donation',
+        Colors.green[600]!,
+        Icons.volunteer_activism,
+        () {
+          setState(() => _selectedNotification = null);
+          Navigator.push(
+            context,
+            slideUpRoute(
+              AdminDonationDetails(
+                donationId: notification.donationId!,
+                donationData: notification.donationData!,
               ),
-            );
-          },
-        ),
-      );
-      buttons.add(const SizedBox(height: 12));
-    }
-
+            ),
+          );
+        },
+      ),
+    );
     buttons.add(const SizedBox(height: 12));
-
-    // Reminder Button
+    
+    // Donation Reminder - Get donor info from donationData
+    final donorId = notification.donationData?['donorId'] as String?;
+    String donorEmail = 'No email';
+    
+    // Try to get donor email from notification or fetch it
+    if (notification.email != null && notification.email != 'No email') {
+      donorEmail = notification.email!;
+    }
+    
+    buttons.add(
+      _buildActionButton(
+        'Send Reminder',
+        Colors.indigo[600]!,
+        Icons.email_outlined,
+        () async {
+          // If we don't have email, try to fetch donor info
+          if (donorEmail == 'No email' && donorId != null) {
+            try {
+              final userDoc = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(donorId)
+                  .get();
+              
+              if (userDoc.exists) {
+                final userData = userDoc.data();
+                donorEmail = userData?['email']?.toString() ?? 
+                            userData?['Email']?.toString() ?? 
+                            'No email';
+              }
+            } catch (e) {
+              print('Error fetching donor email: $e');
+            }
+          }
+          
+          if (donorEmail != 'No email') {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Reminder sent to donor: $donorEmail'),
+                  duration: const Duration(seconds: 2),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('No email address available for donor'),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          }
+          
+          if (mounted) {
+            setState(() => _selectedNotification = null);
+          }
+        },
+      ),
+    );
+  } else {
+    // For rental notifications (overdue, upcoming, etc.)
     buttons.add(
       _buildActionButton(
         'Send Reminder',
         Colors.indigo[600]!,
         Icons.email_outlined,
         () {
-          // Send email notification
-          if (notification.email != null) {
+          if (notification.email != null && notification.email != 'No email') {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Email reminder sent to ${notification.email}'),
@@ -3239,9 +3324,10 @@ Widget _buildEmptyTrackingState() {
         },
       ),
     );
-
-    return buttons;
   }
+
+  return buttons;
+}
 
   Widget _buildActionButton(
     String text,
