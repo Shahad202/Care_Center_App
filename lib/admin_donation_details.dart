@@ -133,7 +133,7 @@ class _AdminDonationDetailsState extends State<AdminDonationDetails> {
         'approvedAt': Timestamp.now(),  // Track approval timestamp
       });
 
-      // STEP 2: Create inventory entry from donation
+      // STEP 2: Create inventory entry from donation with status = 'Donated'
       await _firestore.collection('inventory').add({
         'name': data['itemName'] ?? 'Unknown',
         'condition': data['condition'] ?? 'Good',
@@ -141,10 +141,12 @@ class _AdminDonationDetailsState extends State<AdminDonationDetails> {
         'quantity': data['quantity'] ?? 0,
         'location': data['location'] ?? 'Not specified',
         'imageIds': data['imageIds'] ?? [],
-        'status': 'available',  // Ready for rental
+        'status': 'Donated',  // Changed from 'available' to 'Donated'
         'source': 'donation',   // Track origin
         'donorId': data['donorId'] ?? '',
         'donationId': widget.donationId,  // Link back to donation
+        'type': data['iconKey'] ?? 'other',  // Add type from iconKey
+        'category': data['category'] ?? 'Other',  // Add category
         'createdAt': Timestamp.now(),
       });
 
