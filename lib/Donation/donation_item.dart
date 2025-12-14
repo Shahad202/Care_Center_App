@@ -13,6 +13,7 @@ class DonationItem {
   List<String> imageIds;        // List of image IDs (for future image uploads)
   DateTime createdAt;           // When the donation was submitted
   String iconKey;               // Icon type: wheelchair, walker, crutches, etc.
+  bool needsMaintenance;        // NEW: Whether item needs maintenance
 
   // Constructor - creates a new DonationItem with all required fields
   DonationItem({
@@ -27,27 +28,30 @@ class DonationItem {
     required this.imageIds,
     required this.createdAt,
     required this.iconKey,
+    this.needsMaintenance = false,  // NEW: Default to false
   });
 
   // Factory Constructor - converts Firestore document to DonationItem
   factory DonationItem.fromDoc(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    
     // Ensure quantity is always > 0 (default to 1 if missing or invalid)
     int qty = data['quantity'] ?? 0;
     if (qty <= 0) qty = 1;
     
     return DonationItem(
-      id: doc.id,                                              // Document ID from Firestore
-      itemName: data['itemName'] ?? '',                        // Get from Firestore or empty string
+      id: doc.id,
+      itemName: data['itemName'] ?? '',
       condition: data['condition'] ?? '',
       description: data['description'] ?? '',
-      quantity: qty,                                           // Validated quantity (always > 0)
+      quantity: qty,
       location: data['location'] ?? '',
-      status: data['status'] ?? 'pending',                     // Default to 'pending' if missing
+      status: data['status'] ?? 'pending',
       donorId: data['donorId'] ?? '',
-      imageIds: List<String>.from(data['imageIds'] ?? []),    // Convert to List<String>
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),  // Convert Timestamp to DateTime
-      iconKey: data['iconKey'] ?? 'default',                   // Default icon if missing
+      imageIds: List<String>.from(data['imageIds'] ?? []),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      iconKey: data['iconKey'] ?? 'default',
+      needsMaintenance: data['needsMaintenance'] as bool? ?? false,  // NEW
     );
   }
 
@@ -64,6 +68,7 @@ class DonationItem {
       'imageIds': imageIds,
       'createdAt': createdAt,
       'iconKey': iconKey,
+      'needsMaintenance': needsMaintenance,  // NEW
     };
   }
 }

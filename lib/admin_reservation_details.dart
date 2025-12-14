@@ -113,25 +113,65 @@ class _AdminReservationDetailsState extends State<AdminReservationDetails> {
     setState(() => _isLoading = true);
 
     try {
+      final inventoryItemId = widget.reservationData['inventoryItemId'];
+      final quantity = widget.reservationData['quantity'] ?? 0;
+
       // Update reservation status to 'approved'
       await _firestore.collection('reservations').doc(widget.reservationId).update({
         'status': 'approved',
         'approvedAt': Timestamp.now(),
       });
 
-      // TODO: Update inventory to reduce available quantity if needed
-      // This depends on your inventory structure
+      // Update inventory to reduce available quantity
+      if (inventoryItemId != null && quantity > 0) {
+        try {
+          // Try to get inventory by document ID first
+          var inventoryRef = _firestore.collection('inventory').doc(inventoryItemId);
+          var inventoryDoc = await inventoryRef.get();
+          
+          // If not found, try to find by itemId field
+          if (!inventoryDoc.exists) {
+            final querySnapshot = await _firestore
+                .collection('inventory')
+                .where('itemId', isEqualTo: inventoryItemId)
+                .limit(1)
+                .get();
+            
+            if (querySnapshot.docs.isNotEmpty) {
+              inventoryRef = querySnapshot.docs.first.reference;
+              inventoryDoc = querySnapshot.docs.first;
+            }
+          }
+          
+          if (inventoryDoc.exists) {
+            final currentQuantity = inventoryDoc.data()?['quantity'] ?? 0;
+            final newQuantity = currentQuantity - quantity;
+            
+            await inventoryRef.update({
+              'quantity': newQuantity >= 0 ? newQuantity : 0,
+            });
+            
+            print('Reduced $quantity units from inventory. New quantity: $newQuantity');
+          } else {
+            print('Inventory item not found: $inventoryItemId');
+          }
+        } catch (e) {
+          print('Error updating inventory: $e');
+        }
+      }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Reservation approved successfully!'),
-          backgroundColor: Color(0xFF4CAF50),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Reservation approved successfully!'),
+            backgroundColor: Color(0xFF4CAF50),
+          ),
+        );
 
-      Future.delayed(const Duration(milliseconds: 400), () {
-        if (mounted) Navigator.pop(context, 'approved');
-      });
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (mounted) Navigator.pop(context, 'approved');
+        });
+      }
 
     } catch (e) {
       if (mounted) {
@@ -150,28 +190,122 @@ class _AdminReservationDetailsState extends State<AdminReservationDetails> {
   Future<void> _rejectReservation() async {
     if (_isLoading) return;
 
+    // Show confirmation dialog
     final confirm = await showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Reject Reservation',
-          style: TextStyle(color: Color(0xFF003465), fontWeight: FontWeight.w700),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF44336).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.warning_rounded,
+                color: Color(0xFFF44336),
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Reject Reservation?',
+                style: TextStyle(
+                  color: Color(0xFF003465),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ],
         ),
-        content: const Text(
-          'Are you sure you want to reject this reservation?',
-          style: TextStyle(color: Color(0xFF666666), fontSize: 15),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Are you sure you want to reject this reservation?',
+              style: TextStyle(
+                color: Color(0xFF666666),
+                fontSize: 15,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF3E0),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: const Color(0xFFFFA726).withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.info_outline,
+                    color: Color(0xFFF57C00),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'The reserved quantity will be returned to inventory',
+                      style: TextStyle(
+                        color: Colors.orange[900],
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF003465))),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(
+                color: Color(0xFF003465),
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Reject'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF44336),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              elevation: 0,
+            ),
+            child: const Text(
+              'Reject',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
           ),
         ],
       ),
@@ -182,21 +316,79 @@ class _AdminReservationDetailsState extends State<AdminReservationDetails> {
     setState(() => _isLoading = true);
 
     try {
+      final inventoryItemId = widget.reservationData['inventoryItemId'];
+      final quantity = widget.reservationData['quantity'] ?? 0;
+
+      // Update reservation status to 'rejected'
       await _firestore.collection('reservations').doc(widget.reservationId).update({
         'status': 'rejected',
         'rejectedAt': Timestamp.now(),
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Reservation rejected'),
-          backgroundColor: Color(0xFFFFA726),
-        ),
-      );
+      // Return quantity back to inventory
+      if (inventoryItemId != null && quantity > 0) {
+        try {
+          // Try to get inventory by document ID first
+          var inventoryRef = _firestore.collection('inventory').doc(inventoryItemId);
+          var inventoryDoc = await inventoryRef.get();
+          
+          // If not found, try to find by itemId field
+          if (!inventoryDoc.exists) {
+            final querySnapshot = await _firestore
+                .collection('inventory')
+                .where('itemId', isEqualTo: inventoryItemId)
+                .limit(1)
+                .get();
+            
+            if (querySnapshot.docs.isNotEmpty) {
+              inventoryRef = querySnapshot.docs.first.reference;
+              inventoryDoc = querySnapshot.docs.first;
+            }
+          }
+          
+          if (inventoryDoc.exists) {
+            final currentQuantity = inventoryDoc.data()?['quantity'] ?? 0;
+            final newQuantity = currentQuantity + quantity;
+            
+            await inventoryRef.update({
+              'quantity': newQuantity,
+            });
+            
+            print('Returned $quantity units to inventory. New quantity: $newQuantity');
+          } else {
+            print('Inventory item not found: $inventoryItemId');
+          }
+        } catch (e) {
+          print('Error returning quantity to inventory: $e');
+        }
+      }
 
-      Future.delayed(const Duration(milliseconds: 400), () {
-        if (mounted) Navigator.pop(context, 'rejected');
-      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Reservation rejected. ${quantity > 0 ? "$quantity units returned to inventory." : ""}',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFFFFA726),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (mounted) Navigator.pop(context, 'rejected');
+        });
+      }
 
     } catch (e) {
       if (mounted) {

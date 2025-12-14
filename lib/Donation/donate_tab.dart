@@ -189,23 +189,6 @@ class DonateTabPage extends StatelessWidget {
             context,
             MaterialPageRoute(builder: (_) => const DonationFormPage()),
           );
-
-          if (result != null) {
-            print('Donation form returned with result: ${result.id}');
-            onDonationAdded?.call(result);
-            
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Donation "${result.itemName}" submitted successfully!'),
-                  backgroundColor: const Color(0xFF4CAF50),
-                  duration: const Duration(seconds: 3),
-                ),
-              );
-            }
-          } else {
-            print('Donation form cancelled or no result');
-          }
         },
         child: Container(
           decoration: BoxDecoration(

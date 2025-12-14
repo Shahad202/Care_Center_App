@@ -2,28 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'item_detail.dart';
 
-class UserInventoryWidget extends StatefulWidget {
+class InventoryGuest extends StatefulWidget {
+  const InventoryGuest({super.key});
+
   @override
-  State<UserInventoryWidget> createState() => _UserInventoryWidgetState();
+  State<InventoryGuest> createState() => _InventoryGuestState();
 }
 
-class _UserInventoryWidgetState extends State<UserInventoryWidget> {
-  late TextEditingController _searchController;
-
-  String _selectedStatus = 'All';
-  String _sortBy = 'A-Z';
-  bool _isGridView = false;
-
+class _InventoryGuestState extends State<InventoryGuest> {
   final CollectionReference inventoryRef = FirebaseFirestore.instance
       .collection('inventory');
 
-  final List<String> _statusOptions = [
-    'All',
-    'Available',
-    'Rented',
-    'Donated',
-    'Maintenance',
-  ];
+  final TextEditingController _searchController = TextEditingController();
+
+  bool _isGridView = true;
+  String sortBy = 'Default';
+
+  List<QueryDocumentSnapshot> allItems = [];
+  List<QueryDocumentSnapshot> filteredItems = [];
+
+  // Filters
+  List<String> selectedTypes = [];
+  List<String> selectedCategories = [];
+  List<String> selectedStatuses = [];
+  List<String> selectedConditions = [];
 
   final Map<String, IconData> itemIcons = {
     'wheelchair': Icons.wheelchair_pickup,
@@ -37,54 +39,77 @@ class _UserInventoryWidgetState extends State<UserInventoryWidget> {
   @override
   void initState() {
     super.initState();
-    _searchController = TextEditingController();
+    _loadItems();
+    _searchController.addListener(_applyFilters);
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  Future<void> _loadItems() async {
+    final snap = await inventoryRef.get();
+    setState(() {
+      allItems = snap.docs;
+      filteredItems = snap.docs;
+    });
   }
 
-  List<QueryDocumentSnapshot> _applyFilters(List<QueryDocumentSnapshot> items) {
-    final query = _searchController.text.toLowerCase();
+  void _applyFilters() {
+    final search = _searchController.text.toLowerCase();
 
-    var filtered = items.where((doc) {
-      final data = doc.data() as Map<String, dynamic>;
+    filteredItems = allItems.where((doc) {
+      final d = doc.data() as Map<String, dynamic>;
 
-      final String name = data['name'] ?? '';
-      final String type = data['type'] ?? 'other';
-      final String category = data['category'] ?? '';
-      final String status = data['status'] ?? '';
-      final String location = data['location'] ?? '';
-      final String quantity = data['quantity'].toString();
-      final String description = data['description'] ?? '';
-      final String condition = data['condition'] ?? '';
-      final String rentalPrice = data['price'] ?? '0.000';
-      final List<String> tags = List<String>.from(data['tags'] ?? []);
-      final matchesSearch = name.contains(query) || category.contains(query);
+      final String name = d['name'] ?? '';
+      final String category = d['category'] ?? 'Other';
+      final String status = d['status'] ?? 'Available';
+      final String type = d['type'] ?? 'other';
+      final int quantity = d['quantity'] ?? 0;
 
-      final matchesStatus =
-          _selectedStatus == 'All' || status == _selectedStatus;
+      bool matchSearch =
+          name.toLowerCase().contains(search) ||
+          category.toLowerCase().contains(search);
 
-      return matchesSearch && matchesStatus;
+      bool matchType = selectedTypes.isEmpty || selectedTypes.contains(type);
+
+      bool matchCategory =
+          selectedCategories.isEmpty ||
+          selectedCategories.contains(d['category'] ?? 'Other');
+      bool matchStatus =
+          selectedStatuses.isEmpty ||
+          selectedStatuses.contains(d['status'] ?? 'Available');
+
+      bool matchCondition =
+          selectedConditions.isEmpty ||
+          selectedConditions.contains(d['condition'] ?? '');
+
+      return matchSearch &&
+          matchType &&
+          matchCategory &&
+          matchStatus &&
+          matchCondition;
     }).toList();
 
-    if (_sortBy == 'A-Z') {
-      filtered.sort((a, b) {
-        final an = (a['name'] ?? '').toString();
-        final bn = (b['name'] ?? '').toString();
-        return an.compareTo(bn);
-      });
-    } else {
-      filtered.sort((a, b) {
-        final an = (a['name'] ?? '').toString();
-        final bn = (b['name'] ?? '').toString();
-        return bn.compareTo(an);
-      });
-    }
+    _applySort();
+    setState(() {});
+  }
 
-    return filtered;
+  void _applySort() {
+    switch (sortBy) {
+      case 'NameAZ':
+        filteredItems.sort(
+          (a, b) => a['name'].toString().compareTo(b['name'].toString()),
+        );
+        break;
+      case 'NameZA':
+        filteredItems.sort(
+          (a, b) => b['name'].toString().compareTo(a['name'].toString()),
+        );
+        break;
+      case 'QtyLow':
+        filteredItems.sort((a, b) => a['quantity'].compareTo(b['quantity']));
+        break;
+      case 'QtyHigh':
+        filteredItems.sort((a, b) => b['quantity'].compareTo(a['quantity']));
+        break;
+    }
   }
 
   @override
@@ -93,146 +118,113 @@ class _UserInventoryWidgetState extends State<UserInventoryWidget> {
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         backgroundColor: const Color(0xFF155DFC),
-        title: const Text('Inventory'),
+        title: const Text('Inventory', style: TextStyle(color: Colors.white)),
       ),
       body: Column(
         children: [
-          // 🔍 Search + Actions
+          // 🔍 Search
           Padding(
             padding: const EdgeInsets.all(16),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search...',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+
+          // Buttons
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      hintText: 'Search inventory...',
-                      prefixIcon: const Icon(Icons.search),
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
                 IconButton(
                   icon: const Icon(Icons.filter_list),
-                  onPressed: _showFilterDialog,
+                  onPressed: _showFilterSheet,
                 ),
                 IconButton(
                   icon: const Icon(Icons.swap_vert),
-                  onPressed: () {
-                    setState(() {
-                      _sortBy = _sortBy == 'A-Z' ? 'Z-A' : 'A-Z';
-                    });
-                  },
+                  onPressed: _showSortSheet,
                 ),
+                const Spacer(),
                 IconButton(
                   icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
-                  onPressed: () {
-                    setState(() => _isGridView = !_isGridView);
-                  },
+                  onPressed: () => setState(() => _isGridView = !_isGridView),
                 ),
               ],
             ),
           ),
 
-          //  Items from Firebase
+          // Items
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: inventoryRef.snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('No items found'));
-                }
-
-                final items = _applyFilters(snapshot.data!.docs);
-
-                if (items.isEmpty) {
-                  return const Center(child: Text('No items found'));
-                }
-
-                return _isGridView
-                    ? GridView.builder(
-                        padding: const EdgeInsets.all(16),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                              childAspectRatio: 0.75,
-                            ),
-                        itemCount: items.length,
-                        itemBuilder: (_, i) => _buildItemCard(items[i]),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: items.length,
-                        itemBuilder: (_, i) => _buildItemCard(items[i]),
-                      );
-              },
-            ),
+            child: _isGridView
+                ? GridView.builder(
+                    padding: const EdgeInsets.all(16),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 0.75,
+                        ),
+                    itemCount: filteredItems.length,
+                    itemBuilder: (_, i) => _gridItem(filteredItems[i]),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: filteredItems.length,
+                    itemBuilder: (_, i) => _listItem(filteredItems[i]),
+                  ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildItemCard(QueryDocumentSnapshot doc) {
-    final item = doc.data() as Map<String, dynamic>;
+  Widget _gridItem(QueryDocumentSnapshot doc) {
+    final d = doc.data() as Map<String, dynamic>;
+
+    final String name = d['name'] ?? '';
+    final String status = d['status'] ?? 'Available';
+    final String type = d['type'] ?? 'other';
 
     return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ItemDetailScreen(
-              itemId: doc.id,
-              data: item,
-              isGuest: true,
-              itemIcons: itemIcons,
-            ),
-          ),
-        );
-      },
-
+      onTap: () => _openDetails(d, doc.id),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: const [
-            BoxShadow(color: Color.fromRGBO(0, 0, 0, 0.05), blurRadius: 8),
-          ],
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
         ),
-        child: Row(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(itemIcons[item['type']] ?? Icons.inventory_2, size: 32),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item['name'] ?? '',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    item['location'] ?? '',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ],
-              ),
+            Icon(
+              itemIcons[type] ?? Icons.inventory_2,
+              size: 50,
+              color: Colors.grey,
+            ),
+            const SizedBox(height: 12),
+
+            // ✅ الاسم مرة وحدة فقط
+            Text(
+              name,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+
+            const SizedBox(height: 6),
+
+            // ✅ الحالة مرة وحدة فقط
+            Text(
+              status,
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
             ),
           ],
         ),
@@ -240,28 +232,96 @@ class _UserInventoryWidgetState extends State<UserInventoryWidget> {
     );
   }
 
-  void _showFilterDialog() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Filter by Status'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: _statusOptions.map((status) {
-            return RadioListTile(
-              title: Text(status),
-              value: status,
-              groupValue: _selectedStatus,
-              onChanged: (val) {
-                setState(() {
-                  _selectedStatus = val.toString();
-                });
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
+  Widget _listItem(QueryDocumentSnapshot doc) {
+    final d = doc.data() as Map<String, dynamic>;
+
+    final String name = d['name'] ?? '';
+    final String category = d['category'] ?? 'Other';
+    final String status = d['status'] ?? 'Available';
+    final String type = d['type'] ?? 'other';
+    final int quantity = d['quantity'] ?? 0;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        leading: Icon(itemIcons[type] ?? Icons.inventory_2, color: Colors.grey),
+        title: Text(name),
+        subtitle: Text(category),
+        trailing: Text(
+          status,
+          style: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
+    );
+  }
+
+  void _openDetails(Map<String, dynamic> d, String id) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ItemDetailScreen(
+          itemId: id,
+          data: d,
+          isGuest: true,
+          itemIcons: itemIcons,
+        ),
+      ),
+    );
+  }
+
+  // FILTER
+  void _showFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _filterTile('Available', selectedStatuses),
+          _filterTile('Rented', selectedStatuses),
+          _filterTile('Donated', selectedStatuses),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterTile(String v, List<String> list) {
+    return CheckboxListTile(
+      title: Text(v),
+      value: list.contains(v),
+      onChanged: (c) {
+        setState(() {
+          c! ? list.add(v) : list.remove(v);
+          _applyFilters();
+        });
+      },
+    );
+  }
+
+  // SORT
+  void _showSortSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _sortTile('Name A–Z', 'NameAZ'),
+          _sortTile('Name Z–A', 'NameZA'),
+          _sortTile('Qty Low–High', 'QtyLow'),
+          _sortTile('Qty High–Low', 'QtyHigh'),
+        ],
+      ),
+    );
+  }
+
+  Widget _sortTile(String t, String v) {
+    return ListTile(
+      title: Text(t),
+      trailing: sortBy == v ? const Icon(Icons.check) : null,
+      onTap: () {
+        sortBy = v;
+        _applyFilters();
+        Navigator.pop(context);
+      },
     );
   }
 }
