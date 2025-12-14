@@ -9,5 +9,15 @@ service cloud.firestore {
       allow create, update: if request.auth != null
         && request.resource.data.donorId == request.auth.uid;
     }
+
+    // Inventory collection
+    match /inventory/{itemId} {
+      // Anyone can read inventory items
+      allow read: if true;
+
+      // Only authenticated admins can write/update/delete
+      allow write, update, delete: if request.auth != null
+        && get(/databases/$(db)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
   }
 }

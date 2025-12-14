@@ -1,144 +1,117 @@
 import 'package:flutter/material.dart';
+import 'package:project444/Reservation/reservation.dart';
 
-class ReservationTrackingScreen extends StatelessWidget {
-  const ReservationTrackingScreen({super.key});
+
+
+class ReservationSuccessScreen extends StatefulWidget {
+  const ReservationSuccessScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0A66C2),
-        title: const Text(
-          "Reservation Tracking",
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
+  State<ReservationSuccessScreen> createState() => _ReservationSuccessScreenState();
+}
 
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Reservation Status",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-
-              const SizedBox(height: 24),
-
-              _statusStep(
-                title: "Request Sent",
-                subtitle: "Your reservation request has been created.",
-                isDone: true,
-              ),
-
-              _statusStep(
-                title: "Pending Approval",
-                subtitle: "Waiting for the admin to review your request.",
-                isDone: false,
-              ),
-
-              _statusStep(
-                title: "Approved",
-                subtitle: "Your reservation will start soon.",
-                isDone: false,
-              ),
-
-              _statusStep(
-                title: "Ready for Pickup",
-                subtitle: "Your equipment is available now.",
-                isDone: false,
-              ),
-
-              _statusStep(
-                title: "Returned",
-                subtitle: "Reservation completed successfully.",
-                isDone: false,
-              ),
-
-              const SizedBox(height:24),
-
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.popUntil(
-                      context,
-                      ModalRoute.withName("/inventory"),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0A66C2),
-                  ),
-                  child: const Text("Back to Inventory"),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+class _ReservationSuccessScreenState extends State<ReservationSuccessScreen> with SingleTickerProviderStateMixin{
+ 
+ late AnimationController _controller;
+  late Animation<double> _sizeAnimation;
+ 
+ 
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
     );
+    _sizeAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut)
+    );
+  _controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _controller.reverse();
+      } else if (status == AnimationStatus.dismissed) {
+        _controller.forward();
+      }
+    });
+    _controller.forward();
+
   }
 
-  // تصميم كل خطوة
-  Widget _statusStep({
-    required String title,
-    required String subtitle,
-    required bool isDone,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDone ? const Color(0xFF0A66C2) : Colors.grey.shade300,
-          width: 1.5,
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+
+
+  Widget build(BuildContext context) {
+    return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF0A66C2),
+          title: const Text(
+            "Reservation Successful",
+            style: TextStyle(color: Colors.white),
+          ),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            offset: const Offset(0, 2),
-            blurRadius: 5,
-          ),
-        ],
-      ),
-
-      child: Row(
-        children: [
-          Icon(
-            isDone ? Icons.check_circle : Icons.radio_button_unchecked,
-            color: isDone ? const Color(0xFF0A66C2) : Colors.grey,
-            size: 28,
-          ),
-
-          const SizedBox(width: 16),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: isDone ? const Color(0xFF0A66C2) : Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-              ],
+        body: Padding(padding:  const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedBuilder(
+              animation: _sizeAnimation,
+              builder: (context, child){
+                return Transform.scale(
+                  scale: _sizeAnimation.value,
+                  child: child,
+                );
+              },
+              child: Image.asset("lib/images/success.png", height: 160),
+              ),
+            const SizedBox(height: 30),
+            const Text(
+              "Your reservation has been confirmed!",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-          ),
-        ],
-      ),
+            const SizedBox(height: 12),
+            const Text(
+              "You can now track the status of your reservation.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, color: Colors.grey),
+            ),
+            const SizedBox(height: 40),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: (){
+                  Navigator.pushNamed(context, "/tracking");
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0A66C2),
+                ),
+                child: const Text("View Tracking"),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: (){
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const RenterPage()),
+                  (route) => false,
+                );
+              },
+              child: const Text(
+                "Back to Inventory",
+                style: TextStyle(color: Color(0xFF0A66C2)),
+              ),
+             )
+          ],
+        ),
+        )
     );
   }
 }

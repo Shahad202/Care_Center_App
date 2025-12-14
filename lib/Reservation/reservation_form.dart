@@ -41,7 +41,7 @@ class _ReservationFormPageState extends State<ReservationFormPage> {
   }
 void _selectItem(Map<String, dynamic> item, String id) {
   _selectedItem = {...item, 'id': id};
-  int bottomSheetQuantity = 1; // separate local state for bottom sheet
+  int bottomSheetQuantity = 1; 
   final available = (item['quantity'] ?? 0) as int;
 
   showModalBottomSheet(
@@ -97,8 +97,8 @@ void _selectItem(Map<String, dynamic> item, String id) {
                   child: ElevatedButton(
                     onPressed: available > 0
                         ? () {
-                            Navigator.pop(context); // close bottom sheet
-                            // Pass the correct bottom sheet quantity to the next screen
+                            Navigator.pop(context); 
+                           
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -135,20 +135,15 @@ void _selectItem(Map<String, dynamic> item, String id) {
       final data = d.data()! as Map<String, dynamic>;
       return {...data, 'id': d.id};
     }).where((item) {
-  final rawSource = item['source'];
-  final source = (rawSource == 'donation') ? 'donation' : 'center';
-  if (sourceFilter != 'all' && source != sourceFilter) return false;
 
-  
-  if ((item['status'] ?? '').toString().toLowerCase() != 'available') return false;
-
-  
-  if (lowerSearch.isEmpty) return true;
-  final name = (item['name'] ?? '').toString().toLowerCase();
-  final desc = (item['description'] ?? '').toString().toLowerCase();
-  return name.contains(lowerSearch) || desc.contains(lowerSearch);
-  })
-  .toList();
+      if (sourceFilter != 'all' && (item['source'] ?? '') != sourceFilter)
+        return false;
+      if ((item['status'] ?? '') != 'available') return false; 
+      if (lowerSearch.isEmpty) return true;
+      final name = (item['name'] ?? '').toString().toLowerCase();
+      final desc = (item['description'] ?? '').toString().toLowerCase();
+      return name.contains(lowerSearch) || desc.contains(lowerSearch);
+    }).toList();
 
     results.sort((a, b) =>
         (a['name'] ?? '').toString().compareTo((b['name'] ?? '').toString()));

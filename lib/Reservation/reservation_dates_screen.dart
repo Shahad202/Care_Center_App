@@ -76,7 +76,7 @@ class _ReservationDatesScreenState extends State<ReservationDatesScreen> {
             'Requested quantity exceeds available quantity ($availableQuantity)');
       }
 
-      // 1. Add reservation
+      
       await FirebaseFirestore.instance.collection('reservations').add({
         'userId': user.uid,
         'inventoryItemId': widget.inventoryItemId,
@@ -88,12 +88,12 @@ class _ReservationDatesScreenState extends State<ReservationDatesScreen> {
         'createdAt': Timestamp.now(),
       });
 
-      // 2. Update inventory quantity
+      
       await inventoryRef.update({
         'quantity': FieldValue.increment(-widget.requestedQuantity),
       });
 
-      // 3. Navigate to success
+      
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
