@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import 'package:project444/login.dart';
 import 'package:project444/profilePage.dart';
-//import 'package:project444/inventory/inventory_admin.dart';
+// import 'package:project444/inventory/inventory_admin.dart';
 import 'package:project444/admin_dashboard.dart';
 import 'package:project444/admin_donation_details.dart';
 
@@ -117,78 +117,7 @@ void dispose() {
 }
 
   void _initializeFakeDataForUnfinishedPages() {
-
-    // Add fake usage trend data for rental trends chart
-    if (_usageTrend.isEmpty) {
-      _usageTrend = [
-        TrendData('Aug', 85, 3, 2),
-        TrendData('Sep', 95, 4, 3),
-        TrendData('Oct', 110, 5, 2),
-        TrendData('Nov', 120, 6, 4),
-        TrendData('Dec', 135, 7, 3),
-      ];
-    }
-
-    // Add fake notifications for alerts/tracking tab
-    if (_notifications.isEmpty) {
-      _notifications = [
-        AppNotification(
-          id: 1,
-          type: 'overdue',
-          title: 'Overdue Return',
-          message: 'Wheelchair is 2 days overdue',
-          user: 'Ahmed Al-Khalifa',
-          phone: '+973 3333 1234',
-          email: 'ahmed.alkhalifa@email.com',
-          checkoutDate: '2024-11-25',
-          dueDate: '2024-12-03',
-          time: '2 hours ago',
-          priority: 'high',
-          details:
-              'This wheelchair was rented for elderly care. Customer has been contacted twice. Late fee: 2 BD per day.',
-        ),
-        AppNotification(
-          id: 2,
-          type: 'upcoming',
-          title: 'Return Reminder',
-          message: 'Walker due tomorrow',
-          user: 'Fatima Mohammed',
-          phone: '+973 3333 5678',
-          email: 'fatima.m@email.com',
-          checkoutDate: '2024-11-28',
-          dueDate: '2024-12-06',
-          time: '5 hours ago',
-          priority: 'medium',
-          details:
-              'Automated reminder sent to customer. Equipment is in good condition. Extension available upon request.',
-        ),
-        AppNotification(
-          id: 3,
-          type: 'maintenance',
-          title: 'Maintenance Required',
-          message: 'Oxygen machine needs inspection',
-          user: 'System Alert',
-          lastMaintenance: '2024-09-15',
-          nextMaintenance: '2024-12-15',
-          maintenanceType: 'Routine Inspection',
-          time: '1 day ago',
-          priority: 'high',
-          details:
-              'Equipment has completed 90 days since last maintenance. Requires pressure test and filter replacement. Currently not available for rental.',
-        ),
-      ];
-    }
-
-    // Add fake equipment usage data for charts (since inventory page not finished)
-    if (_rentalData.isEmpty) {
-      _rentalData = [
-        RentalData('Wheelchairs', 25, 8),
-        RentalData('Walkers', 18, 5),
-        RentalData('Hospital Beds', 12, 3),
-        RentalData('Crutches', 22, 6),
-        RentalData('Oxygen Machines', 15, 4),
-      ];
-    }
+  
   }
 
   Future<void> _loadUserRole() async {
@@ -279,16 +208,17 @@ void _startReservationsStream() {
       .collection('reservations')
       .snapshots()
       .listen((snapshot) async {
-    print(" RESERVATION DOCUMENTS START - Real-time Update");
+    print("RESERVATION DOCUMENTS START - Real-time Update");
     for (var doc in snapshot.docs) {
-      print(" Document ID: ${doc.id}");
+      print("Document ID: ${doc.id}");
       print(doc.data());
     }
-    print(" RESERVATION DOCUMENTS END");
+    print("RESERVATION DOCUMENTS END");
 
     List<ActiveRental> rentals = [];
     int overdue = 0;
 
+    // Clear old rental notifications (keep new rental notifications)
     _notifications.removeWhere(
       (n) => n.type == 'overdue' || n.type == 'upcoming',
     );
@@ -317,16 +247,49 @@ void _startReservationsStream() {
       }
 
       String userName = 'Unknown User';
-      if (userId != null) {
-        try {
-          final userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(userId)
-              .get();
-          userName = userDoc.data()?['name'] ?? 'Unknown User';
-        } catch (_) {}
-      }
+String userPhone = 'No phone';
+String userEmail = 'No email';
 
+if (userId != null) {
+  try {
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .get();
+    
+    if (userDoc.exists) {
+      final userData = userDoc.data();
+      
+      
+      userName = userData?['name']?.toString() ?? 'Unknown User';
+      
+    
+      userPhone = userData?['contact']?.toString() ??      // المحاولة 1
+                  userData?['phone']?.toString() ??         // المحاولة 2
+                  userData?['phoneNumber']?.toString() ??   // المحاولة 3
+                  userData?['mobile']?.toString() ??        // المحاولة 4
+                  userData?['Phone']?.toString() ??         // المحاولة 5
+                  userData?['contactNumber']?.toString() ?? // المحاولة 6
+                  'No phone';
+      
+      
+      userEmail = userData?['email']?.toString() ?? 
+                  userData?['Email']?.toString() ?? 
+                  'No email';
+      
+    
+      print('User loaded for Alert:');
+      print('   Name: $userName');
+      print('   Phone: $userPhone');
+      print('   Email: $userEmail');
+      print('   All fields in user doc: ${userData?.keys.join(", ")}');
+    } else {
+      print('User document not found');
+    }
+  } catch (e) {
+    print('Error loading user: $e');
+  }
+}
       rentals.add(
         ActiveRental(
           equipment: itemName,
@@ -337,6 +300,66 @@ void _startReservationsStream() {
           daysRemaining: daysRemaining,
         ),
       );
+
+      
+      final daysSinceStart = now.difference(startDate).inDays;
+if (daysSinceStart <= 1 && reservationStatus == 'active') {
+  _notifications.add(
+    AppNotification(
+      id: _notifications.length + 1,
+      type: 'rental',
+      title: 'New Rental',
+      message: '$itemName rented by $userName',
+      user: userName,
+      phone: userPhone, 
+      email: userEmail, 
+      checkoutDate: _formatDate(startDate),
+      dueDate: _formatDate(endDate),
+      equipmentType: itemName,
+      time: _formatTimestamp(data['createdAt'] ?? Timestamp.now()),
+      priority: 'low',
+      details: 'New equipment rental - ${_formatDate(endDate)} return date.',
+    ),
+  );
+}
+
+if (rentalStatus == 'overdue') {
+  _notifications.add(
+    AppNotification(
+      id: _notifications.length + 1,
+      type: 'overdue',
+      title: 'Overdue Rental',
+      message: '$itemName is ${daysRemaining.abs()} days overdue',
+      user: userName,
+      phone: userPhone, 
+      email: userEmail,  
+      checkoutDate: _formatDate(startDate),
+      dueDate: _formatDate(endDate),
+      equipmentType: itemName,
+      time: '${daysRemaining.abs()} days ago',
+      priority: 'high',
+      details: 'Please contact customer immediately to return equipment.',
+    ),
+  );
+} else if (rentalStatus == 'due-soon') {
+  _notifications.add(
+    AppNotification(
+      id: _notifications.length + 1,
+      type: 'upcoming',
+      title: 'Rental Due Soon',
+      message: '$itemName due in $daysRemaining days',
+      user: userName,
+      phone: userPhone, 
+      email: userEmail,  
+      checkoutDate: _formatDate(startDate),
+      dueDate: _formatDate(endDate),
+      equipmentType: itemName,
+      time: 'In $daysRemaining days',
+      priority: 'medium',
+      details: 'Send reminder to customer about upcoming return date.',
+    ),
+  );
+}
     }
 
     if (mounted) {
@@ -347,11 +370,9 @@ void _startReservationsStream() {
       });
     }
 
-    print(" Real-time update: ${rentals.length} reservations loaded");
+    print("Real-time update: ${rentals.length} reservations loaded");
   });
 }
-
-
 Future<void> _loadReservationsData() async {
   try {
     final snapshot = await FirebaseFirestore.instance
@@ -746,6 +767,7 @@ Future<Map<String, int>> _calculateRentedCounts() async {
       final data = doc.data();
       final itemName = (data['itemName'] ?? 'Unknown').toString();
       final status = (data['status'] ?? 'pending').toString().toLowerCase();
+
       if (status == 'active' || status == 'pending') {
         rentedCounts[itemName] = (rentedCounts[itemName] ?? 0) + 1;
       }
@@ -788,7 +810,7 @@ Future<List<TrendData>> _calculateTrendData() async {
 
     print('Start tracking trends with Firebase');
 
-    
+    // Loop through last 5 months
     for (int i = 4; i >= 0; i--) {
       final monthDate = DateTime(now.year, now.month - i, 1);
       final monthStart = DateTime(monthDate.year, monthDate.month, 1);
@@ -796,12 +818,12 @@ Future<List<TrendData>> _calculateTrendData() async {
 
       print('Processing month: ${_getMonthName(monthDate.month)}');
 
- 
+      // Get all reservations that were DUE in this month
       final snapshot = await FirebaseFirestore.instance
           .collection('reservations')
-          .where('startDate', 
+          .where('endDate', 
                  isGreaterThanOrEqualTo: Timestamp.fromDate(monthStart))
-          .where('startDate', 
+          .where('endDate', 
                  isLessThanOrEqualTo: Timestamp.fromDate(monthEnd))
           .get();
 
@@ -811,19 +833,33 @@ Future<List<TrendData>> _calculateTrendData() async {
       for (var doc in snapshot.docs) {
         final data = doc.data();
         final endDate = (data['endDate'] as Timestamp?)?.toDate();
+        final returnDate = data['returnDate'] != null 
+            ? (data['returnDate'] as Timestamp).toDate() 
+            : null;
         final status = (data['status'] ?? '').toString().toLowerCase();
         
+        if (endDate == null) continue;
         
+        // Count as rental
         rentals++;
 
         
-        if (endDate != null && endDate.isBefore(now) && 
-            status != 'completed' && status != 'returned') {
-          overdue++;
+        if (returnDate != null) {
+          // Was returned - check if it was late
+          if (returnDate.isAfter(endDate)) {
+            overdue++;
+          }
+        } else {
+          // Not returned yet - check if past due date
+          if (endDate.isBefore(now) && 
+              status != 'completed' && 
+              status != 'returned') {
+            overdue++;
+          }
         }
       }
 
-      print('  Rentals: $rentals, Late: $overdue');
+      print('Rentals: $rentals, Overdue: $overdue');
 
       trends.add(TrendData(
         _getMonthName(monthDate.month),
@@ -833,13 +869,13 @@ Future<List<TrendData>> _calculateTrendData() async {
       ));
     }
 
-    print('Trends have been calculated successfully');
+    print('Trends calculated successfully');
     return trends;
 
   } catch (e) {
-    print(' Error in calculating directions: $e');
+    print('Error calculating trends: $e');
     
-    
+    // Return empty data on error
     return [
       TrendData('Aug', 0, 0, 0),
       TrendData('Sep', 0, 0, 0),
@@ -849,8 +885,6 @@ Future<List<TrendData>> _calculateTrendData() async {
     ];
   }
 }
-
-
 String _getMonthName(int month) {
   const months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -3381,14 +3415,22 @@ class _RentalHistoryPageState extends State<RentalHistoryPage> {
                 .get();
             
             if (userDoc.exists) {
-              final userData = userDoc.data();
-              userName = userData?['name']?.toString() ?? 'Unknown User';
-              phone = userData?['phone']?.toString() ?? 'N/A';
-              email = userData?['email']?.toString() ?? 'N/A';
-              print('User: $userName');
-            } else {
-              print('User document not found: $userId');
-            }
+  final userData = userDoc.data();
+  userName = userData?['name']?.toString() ?? 'Unknown User';
+  
+  
+  phone = userData?['contact']?.toString() ?? 
+          userData?['phoneNumber']?.toString() ?? 
+          userData?['mobile']?.toString() ?? 
+          userData?['contact']?.toString() ?? 
+          'No phone';
+          
+  email = userData?['email']?.toString() ?? 
+          userData?['Email']?.toString() ?? 
+          'No email';
+  
+  print('History User: $userName, contact: $phone');
+}
           } catch (e) {
             print('Error loading user: $e');
           }
