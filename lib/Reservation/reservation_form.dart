@@ -19,16 +19,17 @@ class ReservationFormPage extends StatefulWidget {
 
 class _ReservationFormPageState extends State<ReservationFormPage> {
   final TextEditingController _searchController = TextEditingController();
-  String _filterSource = 'all';
+
+  String _filterSource = 'all'; 
   String _search = '';
-  Map<String, dynamic>? _selectedItem;
-  int _selectedQuantity = 1;
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(() {
-      setState(() => _search = _searchController.text.trim().toLowerCase());
+      setState(() {
+        _search = _searchController.text.trim().toLowerCase();
+      });
     });
   }
 
@@ -38,15 +39,62 @@ class _ReservationFormPageState extends State<ReservationFormPage> {
     super.dispose();
   }
 
-  void _selectItem(Map<String, dynamic> item, String id) {
-    _selectedItem = {...item, 'id': id};
-    int bottomSheetQuantity = 1;
+
+  String _resolveSource(Map<String, dynamic> item) {
+    final rawSource = item['source'];
+    if (rawSource == null) return 'center';
+
+    final s = rawSource.toString().toLowerCase();
+    if (s == 'donation' || s == 'donated') {
+      return 'donation';
+    }
+    return 'center';
+  }
+
+  List<Map<String, dynamic>> _applyFilters(
+    List<QueryDocumentSnapshot> docs,
+  ) {
+    final results = docs
+        .map((d) => {...(d.data() as Map<String, dynamic>), 'id': d.id})
+        .where((item) {
+          final statusAvailable =
+              (item['status'] ?? '').toString().toLowerCase() == 'available';
+
+          final source = _resolveSource(item);
+          final sourceMatches =
+              _filterSource == 'all' || source == _filterSource;
+
+          final name =
+              (item['name'] ?? '').toString().toLowerCase();
+          final desc =
+              (item['description'] ?? '').toString().toLowerCase();
+
+          final searchMatches = _search.isEmpty ||
+              name.contains(_search) ||
+              desc.contains(_search);
+
+          return statusAvailable && sourceMatches && searchMatches;
+        })
+        .toList();
+
+    results.sort(
+      (a, b) =>
+          (a['name'] ?? '').toString().compareTo(
+                (b['name'] ?? '').toString(),
+              ),
+    );
+
+    return results;
+  }
+
+  void _selectItem(Map<String, dynamic> item) {
+    int quantity = 1;
     final available = (item['quantity'] ?? 0) as int;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => FractionallySizedBox(
+      builder: (_) => FractionallySizedBox(
         heightFactor: 0.5,
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -63,46 +111,33 @@ class _ReservationFormPageState extends State<ReservationFormPage> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    item['description'] ?? '',
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  Text(item['description'] ?? ''),
                   const SizedBox(height: 12),
-                  Text(
-                    'Available: $available',
-                    style: const TextStyle(fontSize: 14),
-                  ),
+                  Text('Available: $available'),
                   const SizedBox(height: 12),
+
                   Row(
                     children: [
-                      const Text('Quantity:', style: TextStyle(fontSize: 16)),
-                      const SizedBox(width: 12),
-                      IconButton(
-                        onPressed: bottomSheetQuantity > 1
-                            ? () => setModalState(() => bottomSheetQuantity--)
-                            : null,
-                        icon: const Icon(Icons.remove_circle_outline),
-                      ),
-                      Text(
-                        '$bottomSheetQuantity',
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                      IconButton(
-                        onPressed: bottomSheetQuantity < available
-                            ? () => setModalState(() => bottomSheetQuantity++)
-                            : null,
-                        icon: const Icon(Icons.add_circle_outline),
-                      ),
+                      const Text('Quantity:'),
                       const SizedBox(width: 8),
-                      if (bottomSheetQuantity >= available)
-                        const Text(
-                          ' (max)',
-                          style: TextStyle(color: Colors.grey),
-                        ),
+                      IconButton(
+                        icon: const Icon(Icons.remove),
+                        onPressed: quantity > 1
+                            ? () => setModalState(() => quantity--)
+                            : null,
+                      ),
+                      Text('$quantity'),
+                      IconButton(
+                        icon: const Icon(Icons.add),
+                        onPressed: quantity < available
+                            ? () => setModalState(() => quantity++)
+                            : null,
+                      ),
                     ],
                   ),
+
                   const Spacer(),
+
                   SizedBox(
                     width: double.infinity,
                     height: 48,
@@ -110,14 +145,13 @@ class _ReservationFormPageState extends State<ReservationFormPage> {
                       onPressed: available > 0
                           ? () {
                               Navigator.pop(context);
-
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => ReservationDatesScreen(
                                     inventoryItemId: item['id'],
                                     itemName: item['name'],
-                                    requestedQuantity: bottomSheetQuantity,
+                                    requestedQuantity: quantity,
                                   ),
                                 ),
                               );
@@ -134,44 +168,8 @@ class _ReservationFormPageState extends State<ReservationFormPage> {
             },
           ),
         ),
-      )
+      ),
     );
-  }
-
-  List<Map<String, dynamic>> _applyFilters(List<QueryDocumentSnapshot> docs) {
-    final lowerSearch = _search.toLowerCase();
-    final sourceFilter = _filterSource;
-
-    final results = docs
-        .map((d) {
-          final data = d.data()! as Map<String, dynamic>;
-          return {...data, 'id': d.id};
-        })
-        .where((item) {
-          final rawSource = item['source'];
-          final source = (rawSource == 'donation') ? 'donation' : 'center';
-
-          final statusAvailable =
-              (item['status'] ?? '').toString().toLowerCase() == 'available';
-          final sourceMatches = sourceFilter == 'all' || source == sourceFilter;
-
-          final name = (item['name'] ?? '').toString().toLowerCase();
-          final desc = (item['description'] ?? '').toString().toLowerCase();
-          final searchMatches =
-              lowerSearch.isEmpty ||
-              name.contains(lowerSearch) ||
-              desc.contains(lowerSearch);
-
-          return statusAvailable && sourceMatches && searchMatches;
-        })
-        .toList();
-
-    results.sort(
-      (a, b) =>
-          (a['name'] ?? '').toString().compareTo((b['name'] ?? '').toString()),
-    );
-
-    return results;
   }
 
   @override
@@ -188,12 +186,14 @@ class _ReservationFormPageState extends State<ReservationFormPage> {
             TextField(
               controller: _searchController,
               decoration: const InputDecoration(
-                hintText: 'Search equipment by name or description',
+                hintText: 'Search equipment',
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(),
               ),
             ),
+
             const SizedBox(height: 8),
+
             Row(
               children: [
                 const Text('Filter:'),
@@ -201,22 +201,26 @@ class _ReservationFormPageState extends State<ReservationFormPage> {
                 DropdownButton<String>(
                   value: _filterSource,
                   items: const [
-                    DropdownMenuItem(value: 'all', child: Text('All')),
-                    DropdownMenuItem(value: 'donation', child: Text('Donated')),
-                    DropdownMenuItem(value: 'center', child: Text('Center')),
+                    DropdownMenuItem(
+                        value: 'all', child: Text('All')),
+                    DropdownMenuItem(
+                        value: 'donation', child: Text('Donated')),
+                    DropdownMenuItem(
+                        value: 'center', child: Text('Center')),
                   ],
-                  onChanged: (v) => setState(() => _filterSource = v ?? 'all'),
+                  onChanged: (v) =>
+                      setState(() => _filterSource = v ?? 'all'),
                 ),
                 const Spacer(),
                 TextButton(
-                  onPressed: () {
-                    _searchController.clear();
-                  },
+                  onPressed: () => _searchController.clear(),
                   child: const Text('Clear'),
                 ),
               ],
             ),
+
             const SizedBox(height: 8),
+
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
@@ -224,16 +228,18 @@ class _ReservationFormPageState extends State<ReservationFormPage> {
                     .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
+                    return const Center(child: Text('Error loading data'));
                   }
                   if (!snapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  final docs = snapshot.data!.docs;
-                  final items = _applyFilters(docs);
+
+                  final items =
+                      _applyFilters(snapshot.data!.docs);
 
                   if (items.isEmpty) {
-                    return const Center(child: Text('No matching items'));
+                    return const Center(
+                        child: Text('No matching items'));
                   }
 
                   return ListView.builder(
@@ -241,31 +247,32 @@ class _ReservationFormPageState extends State<ReservationFormPage> {
                     itemBuilder: (context, i) {
                       final item = items[i];
                       final qty = (item['quantity'] ?? 0) as int;
+                      final source = _resolveSource(item);
+
                       return Card(
                         child: ListTile(
-                          leading:
-                              item['imageIds'] is List &&
-                                  (item['imageIds'] as List).isNotEmpty
-                              ? const Icon(Icons.image)
-                              : const Icon(Icons.inventory),
+                          leading: const Icon(Icons.inventory),
                           title: Text(item['name'] ?? 'Unnamed'),
                           subtitle: Text(
-                            '${item['source'] == 'donation' ? 'Donated' : 'Center'} • ${item['condition'] ?? ''} • Available: $qty',
+                            '${source == 'donation' ? 'Donated' : 'Center'} • '
+                            '${item['condition'] ?? ''} • Available: $qty',
                           ),
                           trailing: qty > 0
                               ? ElevatedButton(
                                   onPressed: () =>
-                                      _selectItem(item, item['id']),
-                                  child: const Text('Select'),
+                                      _selectItem(item),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF1874CF),
+                                    backgroundColor:
+                                        const Color(0xFF1874CF),
                                   ),
+                                  child: const Text('Select'),
                                 )
                               : const Text(
                                   'Out',
-                                  style: TextStyle(color: Colors.red),
+                                  style:
+                                      TextStyle(color: Colors.red),
                                 ),
-                          onTap: () => _selectItem(item, item['id']),
+                          onTap: () => _selectItem(item),
                         ),
                       );
                     },
@@ -279,3 +286,4 @@ class _ReservationFormPageState extends State<ReservationFormPage> {
     );
   }
 }
+
