@@ -15,21 +15,21 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
 
   Future<void> _approveDonation() async {
     setState(() => _isProcessing = true);
-    
+
     try {
       final donationId = widget.donation['id'];
-      
+
       // Validate and ensure quantity is valid (must be > 0)
       int quantity = widget.donation['quantity'] ?? 0;
       if (quantity <= 0) {
         quantity = 1; // Default to 1 if invalid
       }
-      
+
       // 1. Add to inventory collection
       await FirebaseFirestore.instance.collection('inventory').add({
         'name': widget.donation['itemName'],
         'category': _getCategoryFromIcon(widget.donation['iconKey']),
-        'status': 'available',
+        'status': 'Available',
         'quantity': quantity,
         'condition': widget.donation['condition'],
         'description': widget.donation['description'] ?? '',
@@ -39,13 +39,13 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
         'addedAt': FieldValue.serverTimestamp(),
         'iconKey': widget.donation['iconKey'],
       });
-      
+
       // 2. Update donation status to approved
       await FirebaseFirestore.instance
           .collection('donations')
           .doc(donationId)
           .update({'status': 'approved'});
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -58,10 +58,7 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -71,16 +68,16 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
 
   Future<void> _rejectDonation() async {
     setState(() => _isProcessing = true);
-    
+
     try {
       final donationId = widget.donation['id'];
-      
+
       // Update donation status to rejected
       await FirebaseFirestore.instance
           .collection('donations')
           .doc(donationId)
           .update({'status': 'rejected'});
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -93,10 +90,7 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -122,7 +116,7 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
   Future<String> _getUserRole() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return 'guest';
-    
+
     try {
       final doc = await FirebaseFirestore.instance
           .collection('users')
@@ -133,7 +127,7 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
       return 'user';
     }
   }
-  
+
   // Condition Color
   Color _getConditionColor(String condition) {
     switch (condition.toLowerCase()) {
@@ -150,7 +144,7 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
         return const Color(0xFF4CAF50);
     }
   }
-  
+
   // Status Color
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
@@ -201,8 +195,19 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
   }
 
   String _getMonthName(int month) => const [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ][month - 1];
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ][month - 1];
 
   IconData _mapIcon(String key) {
     switch (key) {
@@ -229,7 +234,7 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
         // Subtle gradient background
         gradient: LinearGradient(
           colors: [
-            const Color(0xFF003465).withOpacity(0.1),  // Dark blue 10%
+            const Color(0xFF003465).withOpacity(0.1), // Dark blue 10%
             const Color(0xFF1976D2).withOpacity(0.05), // Medium blue 5%
           ],
         ),
@@ -237,9 +242,11 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
       ),
       child: Center(
         child: Icon(
-          _mapIcon(iconKey),  // Maps to appropriate icon (wheelchair, walker, etc.)
+          _mapIcon(
+            iconKey,
+          ), // Maps to appropriate icon (wheelchair, walker, etc.)
           color: const Color(0xFF003465),
-          size: 96,  // Large icon
+          size: 96, // Large icon
         ),
       ),
     );
@@ -250,16 +257,18 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
     // STEP 1: Extract key data from the donation Map
     final iconKey = (widget.donation['iconKey'] ?? 'default').toString();
     final statusColor = _getStatusColor(widget.donation['status'] ?? 'pending');
-    final conditionColor = _getConditionColor(widget.donation['condition'] ?? 'good');
+    final conditionColor = _getConditionColor(
+      widget.donation['condition'] ?? 'good',
+    );
 
     // STEP 2: Return Scaffold with AppBar
     return Scaffold(
-      backgroundColor: const Color(0xFFF7FBFF),  // Light blue background
+      backgroundColor: const Color(0xFFF7FBFF), // Light blue background
       appBar: AppBar(
-        backgroundColor: const Color(0xFF003465),  // Dark blue header
+        backgroundColor: const Color(0xFF003465), // Dark blue header
         title: const Text('Donation Details'),
       ),
-      
+
       // STEP 3: Build scrollable body (for long descriptions)
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -269,14 +278,15 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
             // STEP 4: Large icon display (240px height)
             SizedBox(height: 240, child: _iconTile(iconKey)),
             const SizedBox(height: 20),
-            
+
             // STEP 5: Item name + Status badge
             Row(
               children: [
                 // Item name (left side)
                 Expanded(
                   child: Text(
-                    widget.donation['itemName'] ?? 'Unknown Item',  // e.g., "Wheelchair"
+                    widget.donation['itemName'] ??
+                        'Unknown Item', // e.g., "Wheelchair"
                     style: const TextStyle(
                       color: Color(0xFF003465),
                       fontSize: 26,
@@ -286,23 +296,39 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
                     ),
                   ),
                 ),
-                
+
                 // Status badge (right side)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.12),  // Status color with 12% opacity
+                    color: statusColor.withOpacity(
+                      0.12,
+                    ), // Status color with 12% opacity
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: statusColor.withOpacity(0.6), width: 1.5),
+                    border: Border.all(
+                      color: statusColor.withOpacity(0.6),
+                      width: 1.5,
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.circle, color: statusColor, size: 10),  // Status dot
+                      Icon(
+                        Icons.circle,
+                        color: statusColor,
+                        size: 10,
+                      ), // Status dot
                       const SizedBox(width: 6),
                       Text(
                         _getStatusText(widget.donation['status'] ?? 'pending'),
-                        style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                   ),
@@ -310,7 +336,7 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
               ],
             ),
             const SizedBox(height: 24),
-            
+
             // STEP 6: Details section
             _sectionTitle('Details'),
             const SizedBox(height: 12),
@@ -341,7 +367,7 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
                 _formatDate(widget.donation['createdAt']),
               ),
             ]),
-            
+
             // STEP 7: Description section (only if description exists)
             if (widget.donation['description'] != null &&
                 widget.donation['description'].toString().isNotEmpty) ...[
@@ -350,7 +376,9 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
               const SizedBox(height: 10),
               Container(
                 width: double.infinity,
-                constraints: const BoxConstraints(minHeight: 80),  // Minimum 80px height
+                constraints: const BoxConstraints(
+                  minHeight: 80,
+                ), // Minimum 80px height
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -358,30 +386,33 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
                   border: Border.all(color: const Color(0xFFE6E8EB), width: 1),
                 ),
                 child: Text(
-                  widget.donation['description'],  // User-provided description text
+                  widget
+                      .donation['description'], // User-provided description text
                   style: const TextStyle(
                     color: Color(0xFF424242),
                     fontSize: 15,
-                    height: 1.6,  // Better line spacing
+                    height: 1.6, // Better line spacing
                     letterSpacing: 0.1,
                   ),
                 ),
               ),
             ],
-            
+
             const SizedBox(height: 30),
-            
+
             // Admin Action Buttons
             FutureBuilder<String>(
               future: _getUserRole(),
               builder: (context, snapshot) {
                 final isAdmin = snapshot.data == 'admin';
-                final status = widget.donation['status']?.toString().toLowerCase() ?? 'pending';
-                
+                final status =
+                    widget.donation['status']?.toString().toLowerCase() ??
+                    'pending';
+
                 if (!isAdmin || status != 'pending') {
                   return const SizedBox.shrink();
                 }
-                
+
                 return Column(
                   children: [
                     _sectionTitle('Admin Actions'),
@@ -442,14 +473,14 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
   }
 
   Widget _sectionTitle(String title) => Text(
-        title,
-        style: const TextStyle(
-          color: Color(0xFF003465),
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.3,
-        ),
-      );
+    title,
+    style: const TextStyle(
+      color: Color(0xFF003465),
+      fontSize: 20,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -0.3,
+    ),
+  );
 
   Widget _detailCard(List<Widget> children) {
     return Container(
@@ -467,7 +498,9 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
         ],
       ),
       child: Column(
-        children: children.expand((w) => [w, const SizedBox(height: 12)]).toList()..removeLast(),
+        children:
+            children.expand((w) => [w, const SizedBox(height: 12)]).toList()
+              ..removeLast(),
       ),
     );
   }
@@ -479,14 +512,16 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
     Color? highlightColor,
   ]) {
     if (value == null) return const SizedBox.shrink();
-    
+
     return Row(
       children: [
         // Icon box on left
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: (highlightColor ?? const Color(0xFF003465)).withOpacity(0.08),
+            color: (highlightColor ?? const Color(0xFF003465)).withOpacity(
+              0.08,
+            ),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
@@ -496,25 +531,26 @@ class _DonationDetailsPageState extends State<DonationDetailsPage> {
           ),
         ),
         const SizedBox(width: 14),
-        
+
         // Label + Value on right
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                label,  // "Condition", "Quantity", etc.
+                label, // "Condition", "Quantity", etc.
                 style: const TextStyle(
-                  color: Color(0xFFAAA6B2),  // Gray label
+                  color: Color(0xFFAAA6B2), // Gray label
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
-                value.toString(),  // Actual value
+                value.toString(), // Actual value
                 style: TextStyle(
-                  color: highlightColor ?? const Color(0xFF003465),  // Colored text
+                  color:
+                      highlightColor ?? const Color(0xFF003465), // Colored text
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),

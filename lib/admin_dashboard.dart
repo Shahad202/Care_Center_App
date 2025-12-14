@@ -8,7 +8,12 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:project444/rental_history_button.dart';
 import 'package:project444/common_drawer.dart';
 import 'admin_pending_donations.dart';
-import 'inventory/inventory_guest.dart';
+import 'package:project444/inventory/inventory_guest.dart';
+// import 'package:project444/inventory/inventory_admin_new.dart';
+// import 'package:project444/inventory/inventory_user.dart';
+
+import 'admin_reservation_details.dart';
+import 'admin_pending_reservations.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -143,7 +148,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         }
                       },
                     ),
-
+                    const SizedBox(height: 20),
+                    _dashboardCard(
+                      title: 'Pending Reservations',
+                      subtitle: 'Review and approve reservations',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          slideUpRoute(const AdminPendingReservations()),
+                        );
+                      },
+                    ),
                     const SizedBox(height: 20),
                     _dashboardCard(
                       title: 'Reports & Analytics',

@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 import 'package:project444/login.dart';
 import 'package:project444/profilePage.dart';
-import 'package:project444/inventory/inventory_admin.dart';
+// import 'package:project444/inventory/inventory_admin.dart';
 import 'package:project444/admin_dashboard.dart';
 import 'package:project444/admin_donation_details.dart';
 
@@ -48,7 +49,7 @@ class _CareCenterState extends State<CareCenter> {
   AppNotification? _selectedNotification;
   String _userRole = 'guest';
   bool _isLoading = true;
-
+StreamSubscription<QuerySnapshot>? _reservationsSubscription;
   // Dynamic data from Firebase
   List<RentalData> _rentalData = [];
   List<TrendData> _usageTrend = [];
@@ -73,84 +74,50 @@ class _CareCenterState extends State<CareCenter> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _loadUserRole();
-    _loadFirebaseData(); // هذي الحين تنادي _initializeFakeDataForUnfinishedPages بنفسها
+void initState() {
+  super.initState();
+  _loadUserRole();
+  _startReservationsStream();
+  _loadData(); 
+}
+
+Future<void> _loadData() async {
+  setState(() => _isLoading = true);
+  
+  try {
+    
+    await Future.wait([
+      _loadInventoryData(),
+      _loadDonationsData(),
+    ]);
+    
+    
+    print('Rental trends are being calculated.');
+    final trends = await _calculateTrendData();
+    
+    if (mounted) {
+      setState(() {
+        _usageTrend = trends;
+        print(' Trends have been updated: ${trends.length} month');
+      });
+    }
+    
+  } catch (e) {
+    print('Error loading data: $e');
   }
+  
+  if (mounted) {
+    setState(() => _isLoading = false);
+  }
+}
+@override
+void dispose() {
+  _reservationsSubscription?.cancel();
+  super.dispose();
+}
 
   void _initializeFakeDataForUnfinishedPages() {
-    // Add fake usage trend data for rental trends chart
-    if (_usageTrend.isEmpty) {
-      _usageTrend = [
-        TrendData('Aug', 85, 3, 2),
-        TrendData('Sep', 95, 4, 3),
-        TrendData('Oct', 110, 5, 2),
-        TrendData('Nov', 120, 6, 4),
-        TrendData('Dec', 135, 7, 3),
-      ];
-    }
-
-    // Add fake notifications for alerts/tracking tab
-    if (_notifications.isEmpty) {
-      _notifications = [
-        AppNotification(
-          id: 1,
-          type: 'overdue',
-          title: 'Overdue Return',
-          message: 'Wheelchair is 2 days overdue',
-          user: 'Ahmed Al-Khalifa',
-          phone: '+973 3333 1234',
-          email: 'ahmed.alkhalifa@email.com',
-          checkoutDate: '2024-11-25',
-          dueDate: '2024-12-03',
-          time: '2 hours ago',
-          priority: 'high',
-          details:
-              'This wheelchair was rented for elderly care. Customer has been contacted twice. Late fee: 2 BD per day.',
-        ),
-        AppNotification(
-          id: 2,
-          type: 'upcoming',
-          title: 'Return Reminder',
-          message: 'Walker due tomorrow',
-          user: 'Fatima Mohammed',
-          phone: '+973 3333 5678',
-          email: 'fatima.m@email.com',
-          checkoutDate: '2024-11-28',
-          dueDate: '2024-12-06',
-          time: '5 hours ago',
-          priority: 'medium',
-          details:
-              'Automated reminder sent to customer. Equipment is in good condition. Extension available upon request.',
-        ),
-        AppNotification(
-          id: 3,
-          type: 'maintenance',
-          title: 'Maintenance Required',
-          message: 'Oxygen machine needs inspection',
-          user: 'System Alert',
-          lastMaintenance: '2024-09-15',
-          nextMaintenance: '2024-12-15',
-          maintenanceType: 'Routine Inspection',
-          time: '1 day ago',
-          priority: 'high',
-          details:
-              'Equipment has completed 90 days since last maintenance. Requires pressure test and filter replacement. Currently not available for rental.',
-        ),
-      ];
-    }
-
-    // Add fake equipment usage data for charts (since inventory page not finished)
-    if (_rentalData.isEmpty) {
-      _rentalData = [
-        RentalData('Wheelchairs', 25, 8),
-        RentalData('Walkers', 18, 5),
-        RentalData('Hospital Beds', 12, 3),
-        RentalData('Crutches', 22, 6),
-        RentalData('Oxygen Machines', 15, 4),
-      ];
-    }
+  
   }
 
   Future<void> _loadUserRole() async {
@@ -166,172 +133,320 @@ class _CareCenterState extends State<CareCenter> {
     } catch (_) {}
   }
 
-  Future<void> _loadFirebaseData() async {
-    setState(() => _isLoading = true);
-
-    try {
-      await Future.wait([
-        _loadInventoryData(),
-        _loadReservationsData(),
-        _loadDonationsData(),
-      ]);
-
-      // Initialize fake data AFTER loading Firebase data
-      _initializeFakeDataForUnfinishedPages();
-    } catch (e) {
-      print('Error loading Firebase data: $e');
-    }
-
-    setState(() => _isLoading = false);
-  }
+  
 
   Future<void> _loadInventoryData() async {
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('inventory')
-          .get();
+  try {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('inventory')
+        .get();
 
-      Map<String, int> equipmentCounts = {};
-      Map<String, int> statusCounts = {
-        'available': 0,
-        'rented': 0,
-        'maintenance': 0,
-        'reserved': 0,
-      };
+    Map<String, int> equipmentCounts = {};
+    Map<String, int> statusCounts = {
+      'available': 0,
+      'rented': 0,
+      'maintenance': 0,
+      'reserved': 0,
+    };
 
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final itemName = (data['itemName'] ?? 'Other').toString();
-        var statusValue = (data['status'] ?? 'available').toString();
-        // Normalize status: handle both camelCase and lowercase
-        String status = statusValue.toLowerCase();
-        if (status.contains('avail')) status = 'available';
-        if (status.contains('rent')) status = 'rented';
-        if (status.contains('maint')) status = 'maintenance';
-        if (status.contains('reserv')) status = 'reserved';
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      final itemName = (data['itemName'] ?? 'Other').toString();
+      var statusValue = (data['status'] ?? 'available').toString();
+      String status = statusValue.toLowerCase();
+      if (status.contains('avail')) status = 'available';
+      if (status.contains('rent')) status = 'rented';
+      if (status.contains('maint')) status = 'maintenance';
+      if (status.contains('reserv')) status = 'reserved';
 
-        final quantity = (data['quantity'] ?? 1) as int;
+      final quantity = (data['quantity'] ?? 1) as int;
 
-        equipmentCounts[itemName] = (equipmentCounts[itemName] ?? 0) + quantity;
+      equipmentCounts[itemName] = (equipmentCounts[itemName] ?? 0) + quantity;
 
-        if (statusCounts.containsKey(status)) {
-          statusCounts[status] = statusCounts[status]! + quantity;
-        } else {
-          // If status doesn't match, default to available
-          statusCounts['available'] = statusCounts['available']! + quantity;
-        }
+      if (statusCounts.containsKey(status)) {
+        statusCounts[status] = statusCounts[status]! + quantity;
+      } else {
+        statusCounts['available'] = statusCounts['available']! + quantity;
       }
+    }
 
-      _equipmentStatus = [
-        StatusData(
-          'Available',
-          statusCounts['available']!,
-          const Color(0xFF10b981),
-        ),
-        StatusData('Rented', statusCounts['rented']!, const Color(0xFF3b82f6)),
-        StatusData(
-          'Maintenance',
-          statusCounts['maintenance']!,
-          const Color(0xFFf59e0b),
-        ),
-        StatusData(
-          'Reserved',
-          statusCounts['reserved']!,
-          const Color(0xFF8b5cf6),
-        ),
-      ];
+    
+    if (mounted) {
+      setState(() {
+        _equipmentStatus = [
+          StatusData(
+            'Available',
+            statusCounts['available']!,
+            const Color(0xFF10b981),
+          ),
+          StatusData('Rented', statusCounts['rented']!, const Color(0xFF3b82f6)),
+          StatusData(
+            'Maintenance',
+            statusCounts['maintenance']!,
+            const Color(0xFFf59e0b),
+          ),
+          StatusData(
+            'Reserved',
+            statusCounts['reserved']!,
+            const Color(0xFF8b5cf6),
+          ),
+        ];
 
-      _maintenanceCount = statusCounts['maintenance']!;
-    } catch (e) {
-      print('Error loading inventory: $e');
+        _maintenanceCount = statusCounts['maintenance']!;
+        _isLoading = false; // 
+      });
+    }
+  } catch (e) {
+    print('Error loading inventory: $e');
+    if (mounted) {
+      setState(() => _isLoading = false); 
     }
   }
+}
+void _startReservationsStream() {
+  _reservationsSubscription = FirebaseFirestore.instance
+      .collection('reservations')
+      .snapshots()
+      .listen((snapshot) async {
+    print("RESERVATION DOCUMENTS START - Real-time Update");
+    for (var doc in snapshot.docs) {
+      print("Document ID: ${doc.id}");
+      print(doc.data());
+    }
+    print("RESERVATION DOCUMENTS END");
 
-  Future<void> _loadReservationsData() async {
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('reservations')
-          .get();
+    List<ActiveRental> rentals = [];
+    int overdue = 0;
 
-      print("📡 RESERVATION DOCUMENTS START");
-      for (var doc in snapshot.docs) {
-        print("➡ Document ID: ${doc.id}");
-        print(doc.data());
+    // Clear old rental notifications (keep new rental notifications)
+    _notifications.removeWhere(
+      (n) => n.type == 'overdue' || n.type == 'upcoming',
+    );
+
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      final itemName = (data['itemName'] ?? 'Unknown Item').toString();
+      final startDate = (data['startDate'] as Timestamp?)?.toDate();
+      final endDate = (data['endDate'] as Timestamp?)?.toDate();
+      final userId = data['userId'] as String?;
+      final reservationStatus = (data['status'] ?? 'pending')
+          .toString()
+          .toLowerCase();
+
+      if (startDate == null || endDate == null) continue;
+
+      final now = DateTime.now();
+      final daysRemaining = endDate.difference(now).inDays;
+
+      String rentalStatus = 'active';
+      if (daysRemaining < 0) {
+        rentalStatus = 'overdue';
+        overdue++;
+      } else if (daysRemaining <= 2) {
+        rentalStatus = 'due-soon';
       }
-      print("📡 RESERVATION DOCUMENTS END");
 
-      List<ActiveRental> rentals = [];
-      int overdue = 0;
+      String userName = 'Unknown User';
+String userPhone = 'No phone';
+String userEmail = 'No email';
 
-      _notifications.removeWhere(
-        (n) => n.type == 'overdue' || n.type == 'upcoming',
+if (userId != null) {
+  try {
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .get();
+    
+    if (userDoc.exists) {
+      final userData = userDoc.data();
+      
+      
+      userName = userData?['name']?.toString() ?? 'Unknown User';
+      
+    
+      userPhone = userData?['contact']?.toString() ??      // المحاولة 1
+                  userData?['phone']?.toString() ??         // المحاولة 2
+                  userData?['phoneNumber']?.toString() ??   // المحاولة 3
+                  userData?['mobile']?.toString() ??        // المحاولة 4
+                  userData?['Phone']?.toString() ??         // المحاولة 5
+                  userData?['contactNumber']?.toString() ?? // المحاولة 6
+                  'No phone';
+      
+      
+      userEmail = userData?['email']?.toString() ?? 
+                  userData?['Email']?.toString() ?? 
+                  'No email';
+      
+    
+      print('User loaded for Alert:');
+      print('   Name: $userName');
+      print('   Phone: $userPhone');
+      print('   Email: $userEmail');
+      print('   All fields in user doc: ${userData?.keys.join(", ")}');
+    } else {
+      print('User document not found');
+    }
+  } catch (e) {
+    print('Error loading user: $e');
+  }
+}
+      rentals.add(
+        ActiveRental(
+          equipment: itemName,
+          user: userName,
+          checkoutDate: _formatDate(startDate),
+          dueDate: _formatDate(endDate),
+          status: rentalStatus,
+          daysRemaining: daysRemaining,
+        ),
       );
 
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
+      
+      final daysSinceStart = now.difference(startDate).inDays;
+if (daysSinceStart <= 1 && reservationStatus == 'active') {
+  _notifications.add(
+    AppNotification(
+      id: _notifications.length + 1,
+      type: 'rental',
+      title: 'New Rental',
+      message: '$itemName rented by $userName',
+      user: userName,
+      phone: userPhone, 
+      email: userEmail, 
+      checkoutDate: _formatDate(startDate),
+      dueDate: _formatDate(endDate),
+      equipmentType: itemName,
+      time: _formatTimestamp(data['createdAt'] ?? Timestamp.now()),
+      priority: 'low',
+      details: 'New equipment rental - ${_formatDate(endDate)} return date.',
+    ),
+  );
+}
 
-        // Read fields exactly as in your document
-        final itemName = (data['itemName'] ?? 'Unknown Item').toString();
-        final startDate = (data['startDate'] as Timestamp?)?.toDate();
-        final endDate = (data['endDate'] as Timestamp?)?.toDate();
-        final userId = data['userId'] as String?;
-        final reservationStatus = (data['status'] ?? 'pending')
-            .toString()
-            .toLowerCase();
+if (rentalStatus == 'overdue') {
+  _notifications.add(
+    AppNotification(
+      id: _notifications.length + 1,
+      type: 'overdue',
+      title: 'Overdue Rental',
+      message: '$itemName is ${daysRemaining.abs()} days overdue',
+      user: userName,
+      phone: userPhone, 
+      email: userEmail,  
+      checkoutDate: _formatDate(startDate),
+      dueDate: _formatDate(endDate),
+      equipmentType: itemName,
+      time: '${daysRemaining.abs()} days ago',
+      priority: 'high',
+      details: 'Please contact customer immediately to return equipment.',
+    ),
+  );
+} else if (rentalStatus == 'due-soon') {
+  _notifications.add(
+    AppNotification(
+      id: _notifications.length + 1,
+      type: 'upcoming',
+      title: 'Rental Due Soon',
+      message: '$itemName due in $daysRemaining days',
+      user: userName,
+      phone: userPhone, 
+      email: userEmail,  
+      checkoutDate: _formatDate(startDate),
+      dueDate: _formatDate(endDate),
+      equipmentType: itemName,
+      time: 'In $daysRemaining days',
+      priority: 'medium',
+      details: 'Send reminder to customer about upcoming return date.',
+    ),
+  );
+}
+    }
 
-        // Dates must exist, otherwise skip
-        if (startDate == null || endDate == null) continue;
-
-        // Calculate due time
-        final now = DateTime.now();
-        final daysRemaining = endDate.difference(now).inDays;
-
-        // Determine rental status for UI
-        String rentalStatus = 'active';
-        if (daysRemaining < 0) {
-          rentalStatus = 'overdue';
-          overdue++;
-        } else if (daysRemaining <= 2) {
-          rentalStatus = 'due-soon';
-        }
-
-        // Fetch user details
-        String userName = 'Unknown User';
-        if (userId != null) {
-          try {
-            final userDoc = await FirebaseFirestore.instance
-                .collection('users')
-                .doc(userId)
-                .get();
-
-            userName = userDoc.data()?['name'] ?? 'Unknown User';
-          } catch (_) {}
-        }
-
-        // Add to rental list for tracking
-        rentals.add(
-          ActiveRental(
-            equipment: itemName,
-            user: userName,
-            checkoutDate: _formatDate(startDate),
-            dueDate: _formatDate(endDate),
-            status: rentalStatus,
-            daysRemaining: daysRemaining,
-          ),
-        );
-      }
-
-      // Send result to tracking UI
+    if (mounted) {
       setState(() {
         _activeRentals = rentals;
         _overdueCount = overdue;
+        _totalRentals = rentals.length;
       });
-
-      print("✔ Loaded ${rentals.length} reservations into tracking");
-    } catch (e) {
-      print("❌ Error loading reservations: $e");
     }
+
+    print("Real-time update: ${rentals.length} reservations loaded");
+  });
+}
+Future<void> _loadReservationsData() async {
+  try {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('reservations')
+        .get();
+
+    print(" MANUAL REFRESH - RESERVATION DOCUMENTS START");
+    for (var doc in snapshot.docs) {
+      print("➡ Document ID: ${doc.id}");
+      print(doc.data());
+    }
+    print(" RESERVATION DOCUMENTS END");
+
+    List<ActiveRental> rentals = [];
+    int overdue = 0;
+
+    _notifications.removeWhere(
+      (n) => n.type == 'overdue' || n.type == 'upcoming',
+    );
+
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      final itemName = (data['itemName'] ?? 'Unknown Item').toString();
+      final startDate = (data['startDate'] as Timestamp?)?.toDate();
+      final endDate = (data['endDate'] as Timestamp?)?.toDate();
+      final userId = data['userId'] as String?;
+
+      if (startDate == null || endDate == null) continue;
+
+      final now = DateTime.now();
+      final daysRemaining = endDate.difference(now).inDays;
+
+      String rentalStatus = 'active';
+      if (daysRemaining < 0) {
+        rentalStatus = 'overdue';
+        overdue++;
+      } else if (daysRemaining <= 2) {
+        rentalStatus = 'due-soon';
+      }
+
+      String userName = 'Unknown User';
+      if (userId != null) {
+        try {
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .get();
+          userName = userDoc.data()?['name'] ?? 'Unknown User';
+        } catch (_) {}
+      }
+
+      rentals.add(
+        ActiveRental(
+          equipment: itemName,
+          user: userName,
+          checkoutDate: _formatDate(startDate),
+          dueDate: _formatDate(endDate),
+          status: rentalStatus,
+          daysRemaining: daysRemaining,
+        ),
+      );
+    }
+
+    setState(() {
+      _activeRentals = rentals;
+      _overdueCount = overdue;
+      _totalRentals = rentals.length;
+    });
+
+    print(" Manual refresh: Loaded ${rentals.length} reservations");
+  } catch (e) {
+    print(" Error loading reservations: $e");
   }
+}
 
   // Future<void> _loadReservationsData() async {
   //   // try {
@@ -565,93 +680,105 @@ class _CareCenterState extends State<CareCenter> {
   // }
 
   Future<void> _loadDonationsData() async {
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('donations')
-          .get();
+  try {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('donations')
+        .get();
 
-      int totalDonations = 0;
-      Map<String, int> donationCounts = {};
+    int totalDonations = 0;
+    Map<String, int> donationCounts = {};
 
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final status = (data['status'] ?? 'pending').toString().toLowerCase();
-        final itemName = (data['itemName'] ?? 'Equipment').toString();
-        final quantity = (data['quantity'] ?? 1) as int;
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      final status = (data['status'] ?? 'pending').toString().toLowerCase();
+      final itemName = (data['itemName'] ?? 'Equipment').toString();
+      final quantity = (data['quantity'] ?? 1) as int;
 
-        // Count number of donation entries, not quantities
-        totalDonations++;
-        donationCounts[itemName] = (donationCounts[itemName] ?? 0) + 1;
+      totalDonations++;
+      donationCounts[itemName] = (donationCounts[itemName] ?? 0) + 1;
 
-        if (status == 'pending') {
-          final donorId = data['donorId'] as String?;
-          String donorName = 'Anonymous';
-          if (donorId != null) {
-            try {
-              final userDoc = await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(donorId)
-                  .get();
-              donorName = userDoc.data()?['name'] ?? 'Anonymous';
-            } catch (_) {}
-          }
-
-          _notifications.add(
-            AppNotification(
-              id: _notifications.length + 1,
-              type: 'donation',
-              title: 'New Donation',
-              message: '$itemName donation pending approval',
-              user: donorName,
-              equipmentType: itemName,
-              condition: data['condition'] ?? 'Good',
-              time: _formatTimestamp(data['createdAt']),
-              priority: 'low',
-              details: 'Requires inspection before approval.',
-              donationId: doc.id,
-              donationData: data,
-            ),
-          );
+      if (status == 'pending') {
+        final donorId = data['donorId'] as String?;
+        String donorName = 'Anonymous';
+        if (donorId != null) {
+          try {
+            final userDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(donorId)
+                .get();
+            donorName = userDoc.data()?['name'] ?? 'Anonymous';
+          } catch (_) {}
         }
+
+        _notifications.add(
+          AppNotification(
+            id: _notifications.length + 1,
+            type: 'donation',
+            title: 'New Donation',
+            message: '$itemName donation pending approval',
+            user: donorName,
+            equipmentType: itemName,
+            condition: data['condition'] ?? 'Good',
+            time: _formatTimestamp(data['createdAt']),
+            priority: 'low',
+            details: 'Requires inspection before approval.',
+            donationId: doc.id,
+            donationData: data,
+          ),
+        );
       }
-
-      _totalDonations = totalDonations;
-
-      _rentalData = donationCounts.entries.map((e) {
-        return RentalData(e.key, 0, e.value);
-      }).toList();
-
-      _usageTrend = [
-        TrendData(
-          'Aug',
-          _totalRentals > 80 ? 85 : _totalRentals - 45,
-          _maintenanceCount,
-          _overdueCount,
-        ),
-        TrendData(
-          'Sep',
-          _totalRentals > 70 ? 95 : _totalRentals - 35,
-          _maintenanceCount,
-          _overdueCount,
-        ),
-        TrendData(
-          'Oct',
-          _totalRentals > 60 ? 110 : _totalRentals - 20,
-          _maintenanceCount,
-          _overdueCount,
-        ),
-        TrendData(
-          'Nov',
-          _totalRentals > 50 ? 130 : _totalRentals - 10,
-          _maintenanceCount,
-          _overdueCount,
-        ),
-        TrendData('Dec', _totalRentals, _maintenanceCount, _overdueCount),
-      ];
-    } catch (e) {
-      print('Error loading donations: $e');
     }
+
+    Map<String, int> rentedCounts = await _calculateRentedCounts();
+
+    if (mounted) {
+      setState(() {
+        _totalDonations = totalDonations;
+
+        Set<String> allEquipmentTypes = {
+          ...donationCounts.keys,
+          ...rentedCounts.keys,
+        };
+
+        _rentalData = allEquipmentTypes.map((equipmentName) {
+          return RentalData(
+            equipmentName,
+            rentedCounts[equipmentName] ?? 0,  
+            donationCounts[equipmentName] ?? 0, 
+          );
+        }).toList();
+      });
+    }
+  } catch (e) {
+    print('Error loading donations: $e');
   }
+}
+
+
+Future<Map<String, int>> _calculateRentedCounts() async {
+  try {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('reservations')
+        .get();
+
+    Map<String, int> rentedCounts = {};
+
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      final itemName = (data['itemName'] ?? 'Unknown').toString();
+      final status = (data['status'] ?? 'pending').toString().toLowerCase();
+
+      if (status == 'active' || status == 'pending') {
+        rentedCounts[itemName] = (rentedCounts[itemName] ?? 0) + 1;
+      }
+    }
+
+    return rentedCounts;
+  } catch (e) {
+    print('Error calculating rented counts: $e');
+    return {};
+  }
+}
 
   String _formatDate(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -675,6 +802,96 @@ class _CareCenterState extends State<CareCenter> {
       return 'Recently';
     }
   }
+
+Future<List<TrendData>> _calculateTrendData() async {
+  try {
+    final now = DateTime.now();
+    List<TrendData> trends = [];
+
+    print('Start tracking trends with Firebase');
+
+    // Loop through last 5 months
+    for (int i = 4; i >= 0; i--) {
+      final monthDate = DateTime(now.year, now.month - i, 1);
+      final monthStart = DateTime(monthDate.year, monthDate.month, 1);
+      final monthEnd = DateTime(monthDate.year, monthDate.month + 1, 0, 23, 59, 59);
+
+      print('Processing month: ${_getMonthName(monthDate.month)}');
+
+      // Get all reservations that were DUE in this month
+      final snapshot = await FirebaseFirestore.instance
+          .collection('reservations')
+          .where('endDate', 
+                 isGreaterThanOrEqualTo: Timestamp.fromDate(monthStart))
+          .where('endDate', 
+                 isLessThanOrEqualTo: Timestamp.fromDate(monthEnd))
+          .get();
+
+      int rentals = 0;
+      int overdue = 0;
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final endDate = (data['endDate'] as Timestamp?)?.toDate();
+        final returnDate = data['returnDate'] != null 
+            ? (data['returnDate'] as Timestamp).toDate() 
+            : null;
+        final status = (data['status'] ?? '').toString().toLowerCase();
+        
+        if (endDate == null) continue;
+        
+        // Count as rental
+        rentals++;
+
+        
+        if (returnDate != null) {
+          // Was returned - check if it was late
+          if (returnDate.isAfter(endDate)) {
+            overdue++;
+          }
+        } else {
+          // Not returned yet - check if past due date
+          if (endDate.isBefore(now) && 
+              status != 'completed' && 
+              status != 'returned') {
+            overdue++;
+          }
+        }
+      }
+
+      print('Rentals: $rentals, Overdue: $overdue');
+
+      trends.add(TrendData(
+        _getMonthName(monthDate.month),
+        rentals,
+        _maintenanceCount, 
+        overdue,
+      ));
+    }
+
+    print('Trends calculated successfully');
+    return trends;
+
+  } catch (e) {
+    print('Error calculating trends: $e');
+    
+    // Return empty data on error
+    return [
+      TrendData('Aug', 0, 0, 0),
+      TrendData('Sep', 0, 0, 0),
+      TrendData('Oct', 0, 0, 0),
+      TrendData('Nov', 0, 0, 0),
+      TrendData('Dec', _totalRentals, _maintenanceCount, _overdueCount),
+    ];
+  }
+}
+String _getMonthName(int month) {
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+  return months[month - 1];
+}
 
   Widget _buildDrawer() {
     return Drawer(
@@ -880,97 +1097,64 @@ class _CareCenterState extends State<CareCenter> {
   }
 
   Widget _buildHeader() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.indigo[600]!, Colors.indigo[700]!],
-        ),
+  return Container(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: [Colors.indigo[600]!, Colors.indigo[700]!],
       ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              Builder(
-                builder: (context) => InkWell(
-                  onTap: () => Scaffold.of(context).openDrawer(),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.menu,
-                      color: Colors.white,
-                      size: 22,
-                    ),
+    ),
+    child: SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            Builder(
+              builder: (context) => InkWell(
+                onTap: () => Scaffold.of(context).openDrawer(),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.menu,
+                    color: Colors.white,
+                    size: 22,
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
-              Container(
+            ),
+            const Spacer(),
+            InkWell(
+              onTap: () {
+                // Navigate to history page
+                Navigator.push(
+                  context,
+                  slideUpRoute(const RentalHistoryPage()),
+                );
+              },
+              child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
-                  Icons.medical_services,
+                  Icons.history,
                   color: Colors.white,
                   size: 24,
                 ),
               ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Care Center',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      'Admin Dashboard',
-                      style: TextStyle(color: Color(0xFFc7d2fe), fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              InkWell(
-                onTap: () {
-                  // Navigate to history page
-                  Navigator.push(
-                    context,
-                    slideUpRoute(const RentalHistoryPage()),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.history,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
-  }
-
+    ),
+  );
+}
   Widget _buildContent() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -1638,36 +1822,50 @@ class _CareCenterState extends State<CareCenter> {
     );
   }
 
-  Widget _buildTrackingTab() {
-    // Apply filters
-    List<ActiveRental> filteredRentals = _activeRentals.where((rental) {
-      // Status filter
-      if (_trackingStatusFilter != 'all' &&
-          rental.status != _trackingStatusFilter) {
-        return false;
-      }
+  
 
-      // Equipment filter ,
-      if (_trackingEquipmentFilter != 'all' &&
-          !rental.equipment.toLowerCase().contains(
-            _trackingEquipmentFilter.toLowerCase(),
-          )) {
-        return false;
-      }
+Widget _buildTrackingTab() {
+  // Apply filters
+  List<ActiveRental> filteredRentals = _activeRentals.where((rental) {
+    // Status filter
+    if (_trackingStatusFilter != 'all' &&
+        rental.status != _trackingStatusFilter) {
+      return false;
+    }
 
-      return true;
-    }).toList();
+    // Equipment filter
+    if (_trackingEquipmentFilter != 'all' &&
+        !rental.equipment.toLowerCase().contains(
+          _trackingEquipmentFilter.toLowerCase(),
+        )) {
+      return false;
+    }
 
-    return Column(
-      children: [
-        _buildTrackingFilterButton(),
-        if (_showTrackingFilters) ...[
-          const SizedBox(height: 16),
-          _buildTrackingFilters(),
-        ],
+    return true;
+  }).toList();
+
+  return Column(
+    children: [
+      // Filter button only (no refresh)
+      _buildTrackingFilterButton(),
+      
+      // Filters Panel (if shown)
+      if (_showTrackingFilters) ...[
         const SizedBox(height: 16),
-        _buildTrackingStats(filteredRentals),
-        const SizedBox(height: 16),
+        _buildTrackingFilters(),
+      ],
+      
+      const SizedBox(height: 16),
+      
+      // Statistics
+      _buildTrackingStats(filteredRentals),
+      
+      const SizedBox(height: 16),
+      
+      // Rentals List
+      if (filteredRentals.isEmpty)
+        _buildEmptyTrackingState()
+      else
         ...filteredRentals.map((rental) {
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
@@ -1729,7 +1927,7 @@ class _CareCenterState extends State<CareCenter> {
                     Expanded(child: _buildTrackingFilterButton()),
                     const SizedBox(width: 8),
                     InkWell(
-                      onTap: () => _loadFirebaseData(),
+                      onTap: () => _loadReservationsData(),
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -1787,39 +1985,41 @@ class _CareCenterState extends State<CareCenter> {
             ),
           );
         }).toList(),
-        if (filteredRentals.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
-                const SizedBox(height: 16),
-                const Text(
-                  'No Rentals Found',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Try adjusting your filters',
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
+    ],
+  );
+}
 
+// Empty state widget
+Widget _buildEmptyTrackingState() {
+  return Container(
+    padding: const EdgeInsets.all(32),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 10,
+        ),
+      ],
+    ),
+    child: Column(
+      children: [
+        Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+        const SizedBox(height: 16),
+        const Text(
+          'No Rentals Found',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Try adjusting your filters',
+          style: TextStyle(color: Colors.grey[600]),
+        ),
+      ],
+    ),
+  );
+}
   Widget _buildTrackingFilterButton() {
     return InkWell(
       onTap: () => setState(() => _showTrackingFilters = !_showTrackingFilters),
@@ -1978,9 +2178,7 @@ class _CareCenterState extends State<CareCenter> {
         ],
       ),
     );
-  }
-
-  Widget _buildTrackingStats(List<ActiveRental> filteredRentals) {
+  }Widget _buildTrackingStats(List<ActiveRental> filteredRentals) {
     int overdueCount = filteredRentals
         .where((r) => r.status == 'overdue')
         .length;
@@ -2897,9 +3095,7 @@ class _CareCenterState extends State<CareCenter> {
         ),
       ),
     );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
+  }Widget _buildDetailRow(String label, String value) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -3119,87 +3315,10 @@ class RentalHistoryPage extends StatefulWidget {
 }
 
 class _RentalHistoryPageState extends State<RentalHistoryPage> {
-  String _viewMode = 'all'; // 'all', 'active', 'completed'
+  String _viewMode = 'all';
   String _searchQuery = '';
-
-  // Sample data - replace with actual data from your backend
-  final List<RentalHistory> _allRentals = [
-    // Active Rentals
-    RentalHistory(
-      id: 1,
-      equipment: 'Wheelchair',
-      user: 'Ahmed Al-Khalifa',
-      phone: '+973 3333 1234',
-      email: 'ahmed.alkhalifa@email.com',
-      checkoutDate: '2024-11-25',
-      dueDate: '2024-12-03',
-      returnDate: null,
-      status: 'overdue',
-      notes: 'Customer contacted twice',
-    ),
-    RentalHistory(
-      id: 2,
-      equipment: 'Walker',
-      user: 'Fatima Mohammed',
-      phone: '+973 3333 5678',
-      email: 'fatima.m@email.com',
-      checkoutDate: '2024-11-28',
-      dueDate: '2024-12-06',
-      returnDate: null,
-      status: 'active',
-      notes: 'Reminder sent',
-    ),
-    RentalHistory(
-      id: 3,
-      equipment: 'Hospital Bed',
-      user: 'Mohammed Ali',
-      phone: '+973 3333 7890',
-      email: 'mohammed.ali@email.com',
-      checkoutDate: '2024-11-20',
-      dueDate: '2024-12-20',
-      returnDate: null,
-      status: 'active',
-      notes: 'Extension requested',
-    ),
-    // Completed Rentals
-    RentalHistory(
-      id: 4,
-      equipment: 'Crutches',
-      user: 'Ali Hassan',
-      phone: '+973 3333 9999',
-      email: 'ali.hassan@email.com',
-      checkoutDate: '2024-11-15',
-      dueDate: '2024-12-03',
-      returnDate: '2024-12-03',
-      status: 'completed',
-      notes: 'Returned on time, excellent condition',
-    ),
-    RentalHistory(
-      id: 5,
-      equipment: 'Wheelchair',
-      user: 'Sara Ahmed',
-      phone: '+973 3333 4567',
-      email: 'sara.ahmed@email.com',
-      checkoutDate: '2024-10-20',
-      dueDate: '2024-11-20',
-      returnDate: '2024-11-18',
-      status: 'completed',
-      notes: 'Returned early',
-    ),
-    RentalHistory(
-      id: 6,
-      equipment: 'Oxygen Machine',
-      user: 'Khalid Ibrahim',
-      phone: '+973 3333 2468',
-      email: 'khalid.i@email.com',
-      checkoutDate: '2024-10-01',
-      dueDate: '2024-11-01',
-      returnDate: '2024-11-05',
-      status: 'completed',
-      notes: 'Returned late, late fee applied',
-    ),
-  ];
-
+  bool _isLoading = true; 
+  List<RentalHistory> _allRentals = []; 
   List<RentalHistory> get _filteredRentals {
     List<RentalHistory> filtered = _allRentals;
 
@@ -3209,8 +3328,7 @@ class _RentalHistoryPageState extends State<RentalHistoryPage> {
     } else if (_viewMode == 'completed') {
       filtered = filtered.where((r) => r.status == 'completed').toList();
     }
-
-    // Filter by search query
+// Filter by search query
     if (_searchQuery.isNotEmpty) {
       filtered = filtered.where((r) {
         return r.user.toLowerCase().contains(_searchQuery.toLowerCase()) ||
@@ -3223,13 +3341,212 @@ class _RentalHistoryPageState extends State<RentalHistoryPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  void initState() {
+    super.initState();
+    _loadRentalsFromFirebase(); 
+  }
+
+ 
+  Future<void> _loadRentalsFromFirebase() async {
+  print('Starting to load rentals from Firebase...');
+  
+  if (mounted) {
+    setState(() => _isLoading = true);
+  }
+
+  try {
+    
+    final snapshot = await FirebaseFirestore.instance
+        .collection('reservations')
+        .get()
+        .timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            throw Exception('Connection timeout');
+          },
+        );
+
+    print('Found ${snapshot.docs.length} reservations');
+
+    if (snapshot.docs.isEmpty) {
+      print('No reservations found in Firebase');
+      if (mounted) {
+        setState(() {
+          _allRentals = [];
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
+    List<RentalHistory> rentals = [];
+
+    for (var doc in snapshot.docs) {
+      try {
+        final data = doc.data();
+        
+        print('Processing document: ${doc.id}');
+        print('   Data: ${data.keys.join(", ")}');
+        
+        final itemName = (data['itemName'] ?? 'Unknown Item').toString();
+        final startDate = (data['startDate'] as Timestamp?)?.toDate();
+        final endDate = (data['endDate'] as Timestamp?)?.toDate();
+        final userId = data['userId'] as String?;
+        final reservationStatus = (data['status'] ?? 'pending')
+            .toString()
+            .toLowerCase();
+
+        // Skip if dates are missing
+        if (startDate == null || endDate == null) {
+          print('Skipping: Missing dates');
+          continue;
+        }
+
+        String userName = 'Unknown User';
+        String phone = 'N/A';
+        String email = 'N/A';
+
+        // Get user data
+        if (userId != null && userId.isNotEmpty) {
+          try {
+            final userDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(userId)
+                .get();
+            
+            if (userDoc.exists) {
+  final userData = userDoc.data();
+  userName = userData?['name']?.toString() ?? 'Unknown User';
+  
+  
+  phone = userData?['contact']?.toString() ?? 
+          userData?['phoneNumber']?.toString() ?? 
+          userData?['mobile']?.toString() ?? 
+          userData?['contact']?.toString() ?? 
+          'No phone';
+          
+  email = userData?['email']?.toString() ?? 
+          userData?['Email']?.toString() ?? 
+          'No email';
+  
+  print('History User: $userName, contact: $phone');
+}
+          } catch (e) {
+            print('Error loading user: $e');
+          }
+        }
+
+        // Calculate status
+        final now = DateTime.now();
+        final daysRemaining = endDate.difference(now).inDays;
+        String status;
+        String? returnDate;
+
+        if (reservationStatus == 'completed' || 
+            reservationStatus == 'returned') {
+          status = 'completed';
+          returnDate = data['returnDate'] != null 
+              ? _formatDate((data['returnDate'] as Timestamp).toDate())
+              : _formatDate(endDate);
+        } else if (daysRemaining < 0) {
+          status = 'overdue';
+        } else {
+          status = 'active';
+        }
+
+        rentals.add(
+          RentalHistory(
+            id: rentals.length + 1,
+            equipment: itemName,
+            user: userName,
+            phone: phone,
+            email: email,
+            checkoutDate: _formatDate(startDate),
+            dueDate: _formatDate(endDate),
+            returnDate: returnDate,
+            status: status,
+            notes: data['notes']?.toString() ?? '',
+          ),
+        );
+        
+        print('Added rental: $itemName for $userName');
+        
+      } catch (e) {
+        print('Error processing document ${doc.id}: $e');
+        continue;
+      }
+    }
+
+    // Sort by date manually
+    rentals.sort((a, b) {
+      try {
+        final dateA = DateTime.parse(a.checkoutDate);
+        final dateB = DateTime.parse(b.checkoutDate);
+        return dateB.compareTo(dateA); // Most recent first
+      } catch (e) {
+        return 0;
+      }
+    });
+
+    print('Successfully loaded ${rentals.length} rentals');
+
+    if (mounted) {
+      setState(() {
+        _allRentals = rentals;
+        _isLoading = false;
+      });
+    }
+
+  } catch (e) {
+    print('Error loading rentals: $e');
+    print('Error type: ${e.runtimeType}');
+    
+    if (mounted) {
+      setState(() {
+        _allRentals = [];
+        _isLoading = false;
+      });
+      
+      // Show error to user
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading history: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
+  }
+}
+
+  String _formatDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+@override
+Widget build(BuildContext context) {
+  if (_isLoading) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: Column(
         children: [
           _buildHeader(),
-          Expanded(
+          const Expanded(
+            child: Center(
+              child: CircularProgressIndicator(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+          return Scaffold(
+    backgroundColor: Colors.grey[50],
+    body: Column(
+      children: [
+        _buildHeader(),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _loadRentalsFromFirebase,
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -3248,7 +3565,7 @@ class _RentalHistoryPageState extends State<RentalHistoryPage> {
               ),
             ),
           ),
-        ],
+    )],
       ),
     );
   }

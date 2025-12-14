@@ -10,15 +10,19 @@ class AddItemScreen extends StatefulWidget {
 
 class _AddItemScreenState extends State<AddItemScreen> {
   final _formKey = GlobalKey<FormState>();
+  final CollectionReference inventoryRef = FirebaseFirestore.instance
+      .collection('inventory');
 
-  // Form Controllers
   late TextEditingController _itemNameController;
   late TextEditingController _descriptionController;
   late TextEditingController _rentalPriceController;
-
-  // Form State Variables
+  late TextEditingController _locationController;
   String? _selectedItemType;
+  String? _selectedCategory;
   String? _selectedCondition;
+  String? _selectedLocation;
+  String? _selectedAvailability;
+
   int _quantity = 1;
   List<String> _tags = [];
   String _newTag = '';
@@ -31,6 +35,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
     'hospital bed',
     'other',
   ];
+
   final List<String> _categories = [
     'Mobility Aid',
     'Medical Device',
@@ -38,7 +43,20 @@ class _AddItemScreenState extends State<AddItemScreen> {
     'Other',
   ];
 
-  String? _selectedCategory;
+  final List<String> _conditions = [
+    'New',
+    'Like new',
+    'Good',
+    'Fair',
+    'Needs Repair',
+  ];
+
+  final List<String> _statuses = [
+    'Available',
+    'Rented',
+    'Donated',
+    'Maintenance',
+  ];
 
   final Map<String, IconData> itemIcons = {
     'wheelchair': Icons.wheelchair_pickup,
@@ -49,35 +67,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
     'other': Icons.inventory_2,
   };
 
-  String? _selectedIconKey; // icon selected by user
-
-  final List<String> _conditions = [
-    'New',
-    'Like new',
-    'Good',
-    'Fair',
-    'Needs Repair',
-  ];
-
-  // Location list
-  final List<String> locationOptions = [
-    'Ward A - Room 101',
-    'Ward B - Room 205',
-    'Clinic Room 3',
-    'Storage Room A',
-  ];
-
-  // Availability Status list
-  final List<String> availabilityOptions = [
-    'Available',
-    'Rented',
-    'Donated',
-    'Maintenance',
-  ];
-
-  // Selected values
-  String? _selectedLocation;
-  String? _selectedAvailability;
+  String? _selectedIconKey;
 
   @override
   void initState() {
@@ -85,6 +75,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
     _itemNameController = TextEditingController();
     _descriptionController = TextEditingController();
     _rentalPriceController = TextEditingController();
+    _locationController = TextEditingController();
   }
 
   @override
@@ -93,6 +84,34 @@ class _AddItemScreenState extends State<AddItemScreen> {
     _descriptionController.dispose();
     _rentalPriceController.dispose();
     super.dispose();
+    _locationController.dispose();
+  }
+
+  Future<void> _saveItem() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    await inventoryRef.add({
+      'name': _itemNameController.text.trim(),
+      'category': _selectedCategory,
+      'type': _selectedItemType ?? 'other',
+      'description': _descriptionController.text.trim(),
+      'condition': _selectedCondition,
+      'quantity': _quantity,
+      'location': _locationController.text.trim(),
+      'status': _selectedAvailability,
+      'tags': _tags,
+      'price': _rentalPriceController.text.trim(),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Item saved successfully!'),
+        backgroundColor: Color.fromRGBO(0, 201, 80, 1),
+      ),
+    );
+
+    Navigator.pop(context, true);
   }
 
   @override
@@ -101,18 +120,13 @@ class _AddItemScreenState extends State<AddItemScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: const Color(0xFF155DFC),
-        elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Add New Item',
-          style: TextStyle(
-            fontFamily: 'Arimo',
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
+          style: TextStyle(color: Colors.white),
         ),
       ),
       body: SingleChildScrollView(
@@ -122,129 +136,50 @@ class _AddItemScreenState extends State<AddItemScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Item Name Field
-              _buildFormField(
-                label: 'Item Name *',
-                hintText: 'Enter item name',
-                controller: _itemNameController,
+              _textField('Item Name *', _itemNameController),
+              _dropdown(
+                'Category *',
+                _selectedCategory,
+                _categories,
+                (v) => setState(() => _selectedCategory = v),
               ),
-              const SizedBox(height: 20),
-
-              _buildDropdownField(
-                label: 'Category *',
-                value: _selectedCategory,
-                items: _categories,
-                onChanged: (value) {
-                  setState(() => _selectedCategory = value);
-                },
+              _dropdown(
+                'Item Type *',
+                _selectedItemType,
+                _itemTypes,
+                (v) => setState(() => _selectedItemType = v),
               ),
-
-              const SizedBox(height: 20),
-
-              // Item Type Dropdown
-              _buildDropdownField(
-                label: 'Item Type *',
-                value: _selectedItemType,
-                items: _itemTypes,
-                onChanged: (value) {
-                  setState(() => _selectedItemType = value);
-                },
+              _textField('Description *', _descriptionController, lines: 4),
+              _dropdown(
+                'Condition *',
+                _selectedCondition,
+                _conditions,
+                (v) => setState(() => _selectedCondition = v),
               ),
-              const SizedBox(height: 20),
+              _quantityField(),
+              _textField('Location *', _locationController),
 
-              // Description Field
-              _buildFormField(
-                label: 'Description *',
-                hintText: 'Enter item description',
-                controller: _descriptionController,
-                maxLines: 4,
+              _dropdown(
+                'Availability Status *',
+                _selectedAvailability,
+                _statuses,
+                (v) => setState(() => _selectedAvailability = v),
               ),
-              const SizedBox(height: 20),
-
-              // Condition Dropdown
-              _buildDropdownField(
-                label: 'Condition *',
-                value: _selectedCondition,
-                items: _conditions,
-                onChanged: (value) {
-                  setState(() => _selectedCondition = value);
-                },
-              ),
-              const SizedBox(height: 20),
-
-              // Quantity Field
-              _buildQuantityField(),
-              const SizedBox(height: 20),
-
-              // Location Field
-              _buildDropdownField(
-                label: 'Location *',
-                value: _selectedLocation,
-                items: locationOptions,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedLocation = value!;
-                  });
-                },
-              ),
-
-              const SizedBox(height: 20),
-
-              // Availability Status Field
-              _buildDropdownField(
-                label: 'Availability Status *',
-                value: _selectedAvailability,
-                items: availabilityOptions,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedAvailability = value!;
-                  });
-                },
-              ),
-
-              const SizedBox(height: 20),
-
-              // Tags Field
-              _buildTagsField(),
-              const SizedBox(height: 20),
-
-              // Upload Images
-              _buildIconPickerSection(),
-              const SizedBox(height: 20),
-
-              // Rental Price Field
-              _buildFormField(
-                label: 'Rental Price Per Day (Optional)',
-                hintText: 'BD 0.000',
-                controller: _rentalPriceController,
-                keyboardType: TextInputType.number,
+              _tagsField(),
+              _iconPicker(),
+              _textField(
+                'Rental Price (Optional)',
+                _rentalPriceController,
+                number: true,
               ),
               const SizedBox(height: 30),
-
-              // Save Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _saveItem,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF155DFC),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text(
-                    'Save Item',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontFamily: 'Arimo',
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
-                  ),
+                  child: const Text('Save Item'),
                 ),
               ),
-              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -252,397 +187,145 @@ class _AddItemScreenState extends State<AddItemScreen> {
     );
   }
 
-  Widget _buildFormField({
-    required String label,
-    required String hintText,
-    required TextEditingController controller,
-    int maxLines = 1,
-    TextInputType keyboardType = TextInputType.text,
+  Widget _textField(
+    String label,
+    TextEditingController c, {
+    int lines = 1,
+    bool number = false,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: Color.fromRGBO(31, 41, 55, 1),
-            fontFamily: 'Arimo',
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          maxLines: maxLines,
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: const TextStyle(
-              color: Color.fromRGBO(156, 163, 175, 1),
-              fontFamily: 'Arimo',
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: Color.fromRGBO(209, 213, 219, 1),
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: Color.fromRGBO(209, 213, 219, 1),
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF155DFC), width: 2),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
-          ),
-          validator: (value) {
-            if (value?.isEmpty ?? true) {
-              return 'This field is required';
-            }
-            return null;
-          },
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: TextFormField(
+        controller: c,
+        maxLines: lines,
+        keyboardType: number ? TextInputType.number : TextInputType.text,
+        decoration: InputDecoration(labelText: label),
+        validator: (v) => (v == null || v.isEmpty) ? 'Required field' : null,
+      ),
     );
   }
 
-  Widget _buildDropdownField({
-    required String label,
-    required String? value,
-    required List<String> items,
-    required Function(String?) onChanged,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: Color.fromRGBO(31, 41, 55, 1),
-            fontFamily: 'Arimo',
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
-        ),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: value,
-          onChanged: onChanged,
-          decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: Color.fromRGBO(209, 213, 219, 1),
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: Color.fromRGBO(209, 213, 219, 1),
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF155DFC), width: 2),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
-          ),
-          items: items.map((item) {
-            return DropdownMenuItem(value: item, child: Text(item));
-          }).toList(),
-          validator: (value) {
-            if (value == null) {
-              return 'Please select an option';
-            }
-            return null;
-          },
-        ),
-      ],
+  Widget _dropdown(
+    String label,
+    String? value,
+    List<String> items,
+    Function(String?) onChanged,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        decoration: InputDecoration(labelText: label),
+        items: items
+            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+            .toList(),
+        onChanged: onChanged,
+        validator: (v) => v == null ? 'Required field' : null,
+      ),
     );
   }
 
-  Widget _buildQuantityField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Quantity *',
-          style: TextStyle(
-            color: Color.fromRGBO(31, 41, 55, 1),
-            fontFamily: 'Arimo',
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
+  Widget _quantityField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Row(
+        children: [
+          const Text('Quantity'),
+          const Spacer(),
+          IconButton(
+            onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null,
+            icon: const Icon(Icons.remove),
           ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color.fromRGBO(209, 213, 219, 1)),
-            borderRadius: BorderRadius.circular(8),
+          Text('$_quantity'),
+          IconButton(
+            onPressed: () => setState(() => _quantity++),
+            icon: const Icon(Icons.add),
           ),
-          child: Row(
+        ],
+      ),
+    );
+  }
+
+  Widget _tagsField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Tags'),
+          Row(
             children: [
-              IconButton(
-                icon: const Icon(Icons.remove),
-                onPressed: _quantity > 1
-                    ? () {
-                        setState(() => _quantity--);
-                      }
-                    : null,
-              ),
-              Expanded(
-                child: Center(
-                  child: Text(
-                    '$_quantity',
-                    style: const TextStyle(
-                      fontFamily: 'Arimo',
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.add),
-                color: const Color(0xFF155DFC),
+              Expanded(child: TextField(onChanged: (v) => _newTag = v)),
+              ElevatedButton(
                 onPressed: () {
-                  setState(() => _quantity++);
+                  if (_newTag.isNotEmpty) {
+                    setState(() {
+                      _tags.add(_newTag);
+                      _newTag = '';
+                    });
+                  }
                 },
+                child: const Text('Add'),
               ),
             ],
           ),
-        ),
-      ],
+          Wrap(
+            spacing: 8,
+            children: _tags
+                .map(
+                  (t) => Chip(
+                    label: Text(t),
+                    onDeleted: () => setState(() => _tags.remove(t)),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildTagsField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Tags',
-          style: TextStyle(
-            color: Color.fromRGBO(31, 41, 55, 1),
-            fontFamily: 'Arimo',
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
+  Widget _iconPicker() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: GestureDetector(
+        onTap: () => _showIconDialog(),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+          child: Center(
+            child: Icon(
+              _selectedIconKey != null
+                  ? itemIcons[_selectedIconKey]
+                  : Icons.cloud_upload_outlined,
+              size: 40,
+            ),
           ),
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                onChanged: (value) => _newTag = value,
-                decoration: InputDecoration(
-                  hintText: 'Add a tag',
-                  hintStyle: const TextStyle(
-                    color: Color.fromRGBO(156, 163, 175, 1),
-                    fontFamily: 'Arimo',
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      color: Color.fromRGBO(209, 213, 219, 1),
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      color: Color.fromRGBO(209, 213, 219, 1),
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: _addTag,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF155DFC),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text(
-                'Add',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontFamily: 'Arimo',
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          children: _tags.map((tag) {
-            return Chip(
-              label: Text(tag),
-              onDeleted: () {
-                setState(() => _tags.remove(tag));
-              },
-              backgroundColor: const Color.fromRGBO(242, 244, 246, 1),
-            );
-          }).toList(),
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _buildIconPickerSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Select Icon',
-          style: TextStyle(
-            color: Color.fromRGBO(31, 41, 55, 1),
-            fontFamily: 'Arimo',
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Display selected icon
-        GestureDetector(
-          onTap: () => _showIconSelectionDialog(),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            decoration: BoxDecoration(
-              border: Border.all(color: const Color.fromRGBO(209, 213, 219, 1)),
-              borderRadius: BorderRadius.circular(8),
-              color: const Color.fromRGBO(249, 250, 251, 1),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  _selectedIconKey != null
-                      ? itemIcons[_selectedIconKey]
-                      : Icons.cloud_upload_outlined,
-                  size: 40,
-                  color: const Color.fromRGBO(156, 163, 175, 1),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _selectedIconKey != null
-                      ? "Selected: $_selectedIconKey"
-                      : 'Tap to choose an icon',
-                  style: const TextStyle(
-                    color: Color.fromRGBO(107, 114, 128, 1),
-                    fontFamily: 'Arimo',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _addTag() {
-    if (_newTag.isNotEmpty) {
-      setState(() {
-        _tags.add(_newTag);
-        _newTag = '';
-      });
-    }
-  }
-
-  void _saveItem() {
-    if (_formKey.currentState!.validate()) {
-      final newItem = {
-        'name': _itemNameController.text.trim(),
-        'category': _selectedCategory,
-        'type': _selectedItemType,
-        'description': _descriptionController.text.trim(),
-        'condition': _selectedCondition,
-        'quantity': _quantity.toString(),
-        'location': _selectedLocation,
-        'status': _selectedAvailability,
-        'tags': _tags,
-        'price': _rentalPriceController.text.trim(),
-      };
-
-      print("NEW ITEM ADDED: $newItem");
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Item saved successfully!')));
-
-      Navigator.pop(context);
-    }
-  }
-
-  void _showIconSelectionDialog() {
+  void _showIconDialog() {
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Text(
-            "Choose Icon",
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: GridView.count(
-              crossAxisCount: 6,
-              shrinkWrap: true,
-              children: itemIcons.entries.map((entry) {
-                return GestureDetector(
+      builder: (_) => AlertDialog(
+        title: const Text('Choose Icon'),
+        content: Wrap(
+          spacing: 12,
+          children: itemIcons.entries
+              .map(
+                (e) => GestureDetector(
                   onTap: () {
-                    setState(() {
-                      _selectedIconKey = entry.key;
-                    });
+                    setState(() => _selectedIconKey = e.key);
                     Navigator.pop(context);
                   },
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(entry.value, size: 40, color: Colors.blueGrey),
-                      const SizedBox(height: 6),
-                      Text(
-                        entry.key,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        );
-      },
+                  child: Icon(e.value, size: 36),
+                ),
+              )
+              .toList(),
+        ),
+      ),
     );
   }
 }

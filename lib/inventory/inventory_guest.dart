@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'item_detail.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'item_detail.dart';
 
 class UserInventoryWidget extends StatefulWidget {
   @override
@@ -13,6 +13,9 @@ class _UserInventoryWidgetState extends State<UserInventoryWidget> {
   String _selectedStatus = 'All';
   String _sortBy = 'A-Z';
   bool _isGridView = false;
+
+  final CollectionReference inventoryRef = FirebaseFirestore.instance
+      .collection('inventory');
 
   final List<String> _statusOptions = [
     'All',
@@ -31,92 +34,57 @@ class _UserInventoryWidgetState extends State<UserInventoryWidget> {
     'other': Icons.inventory_2,
   };
 
-  final List<Map<String, dynamic>> _inventoryItems = [
-    {
-      'name': 'Wheelchair',
-      'type': 'wheelchair',
-      'category': 'Mobility Aid',
-      'status': 'Available',
-      'location': 'Ward A - Room 101',
-      'quantity': '5',
-      'price': '6.000',
-      'description': 'Standard manual wheelchair.',
-      'condition': 'New',
-      'tags': ['Mobility'],
-    },
-    {
-      'name': 'Walker',
-      'type': 'walker',
-      'category': 'Mobility Aid',
-      'status': 'Rented',
-      'location': 'Ward B - Room 205',
-      'quantity': '3',
-      'price': '4.500',
-      'description': 'Lightweight aluminum walker.',
-      'condition': 'Good',
-      'tags': ['Portable'],
-    },
-    {
-      'name': 'Hospital Bed',
-      'type': 'hospital bed',
-      'category': 'Furniture',
-      'status': 'Maintenance',
-      'location': 'Storage Room A',
-      'quantity': '2',
-      'price': '50.000',
-      'description': 'Electric adjustable hospital bed.',
-      'condition': 'Fair',
-      'tags': ['Electric'],
-    },
-    {
-      'name': 'Blood Pressure Monitor',
-      'type': 'other',
-      'category': 'Medical Device',
-      'status': 'Donated',
-      'location': 'Clinic Room 3',
-      'quantity': '8',
-      'price': '3.000',
-      'description': 'Digital BP monitor.',
-      'condition': 'Like new',
-      'tags': ['Medical'],
-    },
-  ];
-
-  List<Map<String, dynamic>> _filteredItems = [];
-
   @override
   void initState() {
     super.initState();
     _searchController = TextEditingController();
-    _searchController.addListener(_applyFilters);
-    _filteredItems = List.from(_inventoryItems);
   }
 
-  void _applyFilters() {
-    setState(() {
-      _filteredItems = _inventoryItems.where((item) {
-        final searchMatch =
-            item['name'].toLowerCase().contains(
-              _searchController.text.toLowerCase(),
-            ) ||
-            item['category'].toLowerCase().contains(
-              _searchController.text.toLowerCase(),
-            );
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
-        final statusMatch =
-            _selectedStatus == 'All' ||
-            item['status'].toString().toLowerCase() ==
-                _selectedStatus.toLowerCase();
+  List<QueryDocumentSnapshot> _applyFilters(List<QueryDocumentSnapshot> items) {
+    final query = _searchController.text.toLowerCase();
 
-        return searchMatch && statusMatch;
-      }).toList();
+    var filtered = items.where((doc) {
+      final data = doc.data() as Map<String, dynamic>;
 
-      if (_sortBy == 'A-Z') {
-        _filteredItems.sort((a, b) => a['name'].compareTo(b['name']));
-      } else {
-        _filteredItems.sort((a, b) => b['name'].compareTo(a['name']));
-      }
-    });
+      final String name = data['name'] ?? '';
+      final String type = data['type'] ?? 'other';
+      final String category = data['category'] ?? '';
+      final String status = data['status'] ?? '';
+      final String location = data['location'] ?? '';
+      final String quantity = data['quantity'].toString();
+      final String description = data['description'] ?? '';
+      final String condition = data['condition'] ?? '';
+      final String rentalPrice = data['price'] ?? '0.000';
+      final List<String> tags = List<String>.from(data['tags'] ?? []);
+      final matchesSearch = name.contains(query) || category.contains(query);
+
+      final matchesStatus =
+          _selectedStatus == 'All' || status == _selectedStatus;
+
+      return matchesSearch && matchesStatus;
+    }).toList();
+
+    if (_sortBy == 'A-Z') {
+      filtered.sort((a, b) {
+        final an = (a['name'] ?? '').toString();
+        final bn = (b['name'] ?? '').toString();
+        return an.compareTo(bn);
+      });
+    } else {
+      filtered.sort((a, b) {
+        final an = (a['name'] ?? '').toString();
+        final bn = (b['name'] ?? '').toString();
+        return bn.compareTo(an);
+      });
+    }
+
+    return filtered;
   }
 
   @override
@@ -129,7 +97,7 @@ class _UserInventoryWidgetState extends State<UserInventoryWidget> {
       ),
       body: Column(
         children: [
-          // 🔍 Search + Buttons
+          // 🔍 Search + Actions
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -137,6 +105,7 @@ class _UserInventoryWidgetState extends State<UserInventoryWidget> {
                 Expanded(
                   child: TextField(
                     controller: _searchController,
+                    onChanged: (_) => setState(() {}),
                     decoration: InputDecoration(
                       hintText: 'Search inventory...',
                       prefixIcon: const Icon(Icons.search),
@@ -148,26 +117,18 @@ class _UserInventoryWidgetState extends State<UserInventoryWidget> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-
-                // Filter
                 IconButton(
                   icon: const Icon(Icons.filter_list),
                   onPressed: _showFilterDialog,
                 ),
-
-                // Sort
                 IconButton(
                   icon: const Icon(Icons.swap_vert),
                   onPressed: () {
                     setState(() {
                       _sortBy = _sortBy == 'A-Z' ? 'Z-A' : 'A-Z';
-                      _applyFilters();
                     });
                   },
                 ),
-
-                // View Toggle
                 IconButton(
                   icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
                   onPressed: () {
@@ -178,58 +139,69 @@ class _UserInventoryWidgetState extends State<UserInventoryWidget> {
             ),
           ),
 
-          // 📦 Items
+          //  Items from Firebase
           Expanded(
-            child: _filteredItems.isEmpty
-                ? const Center(child: Text('No items found'))
-                : _isGridView
-                ? GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: 0.75,
-                        ),
-                    itemCount: _filteredItems.length,
-                    itemBuilder: (_, i) => _buildItemCard(_filteredItems[i]),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _filteredItems.length,
-                    itemBuilder: (_, i) => _buildItemCard(_filteredItems[i]),
-                  ),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: inventoryRef.snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text('No items found'));
+                }
+
+                final items = _applyFilters(snapshot.data!.docs);
+
+                if (items.isEmpty) {
+                  return const Center(child: Text('No items found'));
+                }
+
+                return _isGridView
+                    ? GridView.builder(
+                        padding: const EdgeInsets.all(16),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: 0.75,
+                            ),
+                        itemCount: items.length,
+                        itemBuilder: (_, i) => _buildItemCard(items[i]),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: items.length,
+                        itemBuilder: (_, i) => _buildItemCard(items[i]),
+                      );
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  //  Card
-  Widget _buildItemCard(Map<String, dynamic> item) {
+  Widget _buildItemCard(QueryDocumentSnapshot doc) {
+    final item = doc.data() as Map<String, dynamic>;
+
     return InkWell(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => ItemDetailScreen(
-              name: item['name'],
-              category: item['category'],
-              status: item['status'],
-              location: item['location'],
-              quantity: item['quantity'],
-              description: item['description'],
-              condition: item['condition'],
-              tags: List<String>.from(item['tags']),
-              rentalPrice: item['price'],
+              itemId: doc.id,
+              data: item,
               isGuest: true,
               itemIcons: itemIcons,
-              itemTypes: item['type'],
             ),
           ),
         );
       },
+
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
@@ -249,13 +221,16 @@ class _UserInventoryWidgetState extends State<UserInventoryWidget> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item['name'],
+                    item['name'] ?? '',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Text(item['location'], style: const TextStyle(fontSize: 12)),
+                  Text(
+                    item['location'] ?? '',
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 ],
               ),
             ),
@@ -265,7 +240,6 @@ class _UserInventoryWidgetState extends State<UserInventoryWidget> {
     );
   }
 
-  // 🎛 Filter Dialog
   void _showFilterDialog() {
     showDialog(
       context: context,
@@ -281,7 +255,6 @@ class _UserInventoryWidgetState extends State<UserInventoryWidget> {
               onChanged: (val) {
                 setState(() {
                   _selectedStatus = val.toString();
-                  _applyFilters();
                 });
                 Navigator.pop(context);
               },

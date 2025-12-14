@@ -1,41 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:project444/inventory/edit_item.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'edit_item.dart';
 
-class ItemDetailScreen extends StatefulWidget {
-  final String name;
-  final String itemTypes;
-  final String category;
-  final String status;
-  final String location;
-  final String quantity;
-  final String description;
-  final String condition;
-  final List<String> tags;
-  final String rentalPrice;
+class ItemDetailScreen extends StatelessWidget {
+  final Map<String, dynamic> data;
   final bool isGuest;
   final Map<String, IconData> itemIcons;
+  final String itemId;
+
   const ItemDetailScreen({
     Key? key,
-    required this.name,
-    required this.itemTypes,
-    required this.category,
-    required this.status,
-    required this.location,
-    required this.quantity,
-    required this.description,
-    required this.condition,
-    required this.tags,
-    required this.rentalPrice,
+    required this.itemId,
+    required this.data,
     required this.isGuest,
     required this.itemIcons,
   }) : super(key: key);
 
-  @override
-  State<ItemDetailScreen> createState() => _ItemDetailScreenState();
-}
-
-class _ItemDetailScreenState extends State<ItemDetailScreen> {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'Available':
@@ -87,11 +67,21 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final String name = data['name'] ?? '';
+    final String type = data['type'] ?? 'other';
+    final String category = data['category'] ?? '';
+    final String status = data['status'] ?? '';
+    final String location = data['location'] ?? '';
+    final String quantity = data['quantity'].toString();
+    final String description = data['description'] ?? '';
+    final String condition = data['condition'] ?? '';
+    final String rentalPrice = data['price'] ?? '0.000';
+    final List<String> tags = List<String>.from(data['tags'] ?? []);
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: const Color.fromRGBO(21, 93, 252, 1),
-        elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
@@ -105,31 +95,25 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
             fontWeight: FontWeight.w700,
           ),
         ),
-        centerTitle: false,
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Item Image with Status Badge
-            // Item Image with Icon instead of static image
             Container(
               width: double.infinity,
               height: 250,
-              decoration: const BoxDecoration(
-                color: Color.fromRGBO(243, 244, 246, 1),
-              ),
+              color: const Color.fromRGBO(243, 244, 246, 1),
               child: Stack(
                 children: [
                   Center(
                     child: Icon(
-                      widget.itemIcons[widget.itemTypes.toLowerCase()] ??
+                      itemIcons[type.toLowerCase()] ??
                           Icons.inventory_2_outlined,
                       size: 120,
                       color: const Color.fromRGBO(100, 116, 139, 1),
                     ),
                   ),
-
                   Positioned(
                     top: 16,
                     right: 16,
@@ -139,11 +123,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(widget.status),
+                        color: _getStatusColor(status),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        widget.status,
+                        status,
                         style: const TextStyle(
                           color: Colors.white,
                           fontFamily: 'Arimo',
@@ -157,134 +141,70 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               ),
             ),
 
-            // Content Section
             Padding(
-              padding: const EdgeInsets.all(20.0),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Item Name
                   Text(
-                    widget.name,
+                    name,
                     style: const TextStyle(
-                      color: Color.fromRGBO(31, 41, 55, 1),
-                      fontFamily: 'Arimo',
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 20),
 
-                  // Type Section
-                  _buildDetailSection(
-                    icon: Icons.type_specimen,
-                    label: 'Item Type',
-                    value: widget.itemTypes,
+                  _detail(Icons.type_specimen, 'Item Type', type),
+                  _detail(Icons.category, 'Category', category),
+                  _detail(
+                    Icons.description,
+                    'Description',
+                    description,
+                    large: true,
                   ),
-                  const SizedBox(height: 20),
-
-                  // Type Section
-                  _buildDetailSection(
-                    icon: Icons.category,
-                    label: 'category',
-                    value: widget.category,
+                  _conditionDetail(condition),
+                  _detail(Icons.inventory_2, 'Quantity', '$quantity units'),
+                  _detail(Icons.location_on, 'Location', location),
+                  _tags(tags),
+                  _detail(
+                    Icons.attach_money,
+                    'Rental Price',
+                    'BD $rentalPrice per day',
                   ),
-                  const SizedBox(height: 16),
 
-                  // Description Section
-                  _buildDetailSection(
-                    icon: Icons.description,
-                    label: 'Description',
-                    value: widget.description,
-                    isLargeText: true,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Condition Section
-                  _buildDetailSection(
-                    icon: Icons.check_circle,
-                    label: 'Condition',
-                    value: widget.condition,
-                    isCondition: true,
-                    conditionColor: _getConditionColor(widget.condition),
-                    conditionTextColor: _getConditionTextColor(
-                      widget.condition,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Quantity Section
-                  _buildDetailSection(
-                    icon: Icons.inventory_2,
-                    label: 'Quantity',
-                    value: '${widget.quantity} units',
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Location Section
-                  _buildDetailSection(
-                    icon: Icons.location_on,
-                    label: 'Location',
-                    value: widget.location,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Tags Section
-                  _buildTagsSection(),
-                  const SizedBox(height: 16),
-
-                  // Rental Price Section
-                  _buildDetailSection(
-                    icon: Icons.attach_money,
-                    label: 'Rental Price',
-                    value: 'BD ${widget.rentalPrice} per day',
-                  ),
                   const SizedBox(height: 32),
 
-                  // Edit Item Button
-                  if (!widget.isGuest)
+                  if (!isGuest)
                     SizedBox(
                       width: double.infinity,
                       height: 48,
                       child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.push(
+                        onPressed: () async {
+                          final r = await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => EditItemScreen(
-                                name: widget.name,
-                                itemTypes: widget.itemTypes,
-                                category: widget.category,
-                                status: widget.status,
-                                location: widget.location,
-                                description: widget.description,
-                                condition: widget.condition,
-                                quantity: widget.quantity,
-                                rentalPrice: widget.rentalPrice,
-                              ),
+                              builder: (_) =>
+                                  EditItemScreen(itemId: itemId, data: data),
                             ),
                           );
+                          if (r == true) Navigator.pop(context, true);
                         },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color.fromRGBO(21, 93, 252, 1),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
                         icon: const Icon(Icons.edit, color: Colors.white),
                         label: const Text(
                           'Edit Item',
                           style: TextStyle(
                             color: Colors.white,
-                            fontFamily: 'Arimo',
-                            fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color.fromRGBO(21, 93, 252, 1),
+                        ),
                       ),
                     ),
-                  // Show RESERVE button ONLY for guest
-                  if (widget.isGuest)
+
+                  if (isGuest)
                     SizedBox(
                       width: double.infinity,
                       height: 48,
@@ -292,28 +212,19 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text("Reservation request sent!"),
+                              content: Text('Reservation request sent!'),
                             ),
                           );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
                         ),
                         child: const Text(
-                          "Reserve Item",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          'Reserve Item',
+                          style: TextStyle(color: Colors.white),
                         ),
                       ),
                     ),
-
-                  const SizedBox(height: 20),
                 ],
               ),
             ),
@@ -323,37 +234,30 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     );
   }
 
-  Widget _buildDetailSection({
-    required IconData icon,
-    required String label,
-    required String value,
-    bool isLargeText = false,
-    bool isCondition = false,
-    Color? conditionColor,
-    Color? conditionTextColor,
+  Widget _detail(
+    IconData icon,
+    String label,
+    String value, {
+    bool large = false,
   }) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color.fromRGBO(249, 250, 251, 1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color.fromRGBO(229, 231, 235, 1),
-          width: 1,
-        ),
+        border: Border.all(color: const Color.fromRGBO(229, 231, 235, 1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: const Color.fromRGBO(21, 93, 252, 1), size: 20),
+              Icon(icon, size: 20, color: const Color.fromRGBO(21, 93, 252, 1)),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: const TextStyle(
-                  color: Color.fromRGBO(107, 114, 128, 1),
-                  fontFamily: 'Arimo',
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -361,99 +265,50 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          if (isCondition)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: conditionColor,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                value,
-                style: TextStyle(
-                  color: conditionTextColor,
-                  fontFamily: 'Arimo',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            )
-          else
-            Text(
-              value,
-              style: TextStyle(
-                color: const Color.fromRGBO(31, 41, 55, 1),
-                fontFamily: 'Arimo',
-                fontSize: isLargeText ? 14 : 16,
-                fontWeight: FontWeight.w600,
-                height: isLargeText ? 1.5 : 1.0,
-              ),
-            ),
+          Text(value, style: TextStyle(fontSize: large ? 14 : 16)),
         ],
       ),
     );
   }
 
-  Widget _buildTagsSection() {
+  Widget _conditionDetail(String value) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _getConditionColor(value),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        value,
+        style: TextStyle(
+          color: _getConditionTextColor(value),
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _tags(List<String> tags) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color.fromRGBO(249, 250, 251, 1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color.fromRGBO(229, 231, 235, 1),
-          width: 1,
-        ),
+        border: Border.all(color: const Color.fromRGBO(229, 231, 235, 1)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.local_offer,
-                color: Color.fromRGBO(21, 93, 252, 1),
-                size: 20,
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: tags
+            .map(
+              (t) => Chip(
+                label: Text(t),
+                backgroundColor: const Color.fromRGBO(219, 234, 254, 1),
               ),
-              const SizedBox(width: 8),
-              const Text(
-                'Tags',
-                style: TextStyle(
-                  color: Color.fromRGBO(107, 114, 128, 1),
-                  fontFamily: 'Arimo',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: widget.tags.map((tag) {
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color.fromRGBO(219, 234, 254, 1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  tag,
-                  style: const TextStyle(
-                    color: Color.fromRGBO(21, 93, 252, 1),
-                    fontFamily: 'Arimo',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
+            )
+            .toList(),
       ),
     );
   }
