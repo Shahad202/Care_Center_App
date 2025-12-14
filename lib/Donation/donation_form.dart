@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'donation_service.dart';
 import 'donation_item.dart';
 
+
 class DonationFormPage extends StatefulWidget {
   const DonationFormPage({super.key});
 
@@ -12,16 +13,44 @@ class DonationFormPage extends StatefulWidget {
 }
 
 class _DonationFormPageState extends State<DonationFormPage> {
-  final _formKey = GlobalKey<FormState>();           // For form validation
-  final _itemNameController = TextEditingController();     // Item name input
-  final _descriptionController = TextEditingController();  // Description input
-  final _quantityController = TextEditingController();     // Quantity input
-  final _locationController = TextEditingController();     // Location input
+  final _formKey = GlobalKey<FormState>();
+  final _itemNameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _quantityController = TextEditingController();
 
-  String? _selectedCondition;  // Dropdown: New, Like New, Good, Fair, Needs Repair
-  String? _selectedIconKey;    // User's selected icon (wheelchair, walker, etc.)
+  String? _selectedCondition;
+  String? _selectedIconKey;
+  String? _selectedLocation;  //Selected location from dropdown
 
   final List<String> _conditions = ['New', 'Like New', 'Good', 'Fair', 'Needs Repair'];
+  
+  //Bahrain locations list
+  final List<String> _bahrainLocations = [
+    'Manama',
+    'Muharraq',
+    'Riffa',
+    'Hamad Town',
+    'Isa Town',
+    'Sitra',
+    'Budaiya',
+    'Jidhafs',
+    'Tubli',
+    'Adliya',
+    'Juffair',
+    'Seef',
+    'Sanabis',
+    'Zinj',
+    'Hoora',
+    'Gudaibiya',
+    'Sanad',
+    'Aali',
+    'Busaiteen',
+    'Amwaj Islands',
+    'Durrat Al Bahrain',
+    'Hidd',
+    'Other',
+  ];
+
   final Map<String, Map<String, dynamic>> _iconOptions = {
     'wheelchair': {
       'icon': Icons.wheelchair_pickup,
@@ -56,7 +85,6 @@ class _DonationFormPageState extends State<DonationFormPage> {
     _itemNameController.dispose();
     _descriptionController.dispose();
     _quantityController.dispose();
-    _locationController.dispose();
     super.dispose();
   }
 
@@ -67,51 +95,53 @@ class _DonationFormPageState extends State<DonationFormPage> {
   }
 
   Future<void> _submitDonation() async {
-    // STEP 1: Validate the form fields
     if (!(_formKey.currentState?.validate() ?? false)) return;
     
-    // STEP 2: Check if icon is selected
     if (_selectedIconKey == null) {
       _showMessage('Please select an icon for the item.', color: Colors.red);
       return;
     }
     
-    // STEP 3: Authentication check - redirect to login if not logged in
     if (FirebaseAuth.instance.currentUser == null) {
       Navigator.pushNamed(context, '/login');
       return;
     }
 
     try {
-      // STEP 4: Parse quantity from text field and ensure it's > 0
       final qtyText = _quantityController.text.trim();
       int qty = int.tryParse(qtyText) ?? 1;
       
-      // Ensure quantity is valid (must be > 0)
       if (qty <= 0) {
         qty = 1;
       }
       
       final itemName = _itemNameController.text.trim();
+      final condition = _selectedCondition ?? 'Good';
       
-      // STEP 5: Call DonationService to save to Firestore
+      final needsMaintenance = (condition == 'Fair' || condition == 'Needs Repair');
+      
       final donation = await DonationService().addDonation(
         itemName: itemName,
-        condition: _selectedCondition ?? 'Good',
+        condition: condition,
         description: _descriptionController.text.trim(),
         quantity: qty,
-        location: _locationController.text.trim(),
+        location: _selectedLocation ?? 'Not Specified',  // Use selected location
         iconKey: _selectedIconKey!,
+        needsMaintenance: needsMaintenance,
       );
       
-      // STEP 6: Show success message
-      _showMessage('Donation submitted successfully!', color: Colors.green);
+      if (needsMaintenance) {
+        _showMessage(
+          'Donation submitted! Item scheduled for maintenance.',
+          color: Colors.orange,
+        );
+      } else {
+        _showMessage('Donation submitted successfully!', color: Colors.green);
+      }
       
-      // STEP 7: Return to previous screen with the donation result
       if (mounted) Navigator.pop(context, donation);
       
     } catch (e) {
-      // STEP 8: Handle errors and show error message
       _showMessage('Error: $e', color: Colors.red);
     }
   }
@@ -121,7 +151,6 @@ class _DonationFormPageState extends State<DonationFormPage> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
     if (uid == null) {
-      // Shows login screen if user not authenticated
       return Scaffold(
         appBar: AppBar(),
         body: Center(
@@ -265,20 +294,24 @@ class _DonationFormPageState extends State<DonationFormPage> {
                 ),
               ),
               const SizedBox(height: 16),
+              //Location Dropdown
               _labeled(
                 'Location *',
-                TextFormField(
-                  controller: _locationController,
+                DropdownButtonFormField<String>(
+                  value: _selectedLocation,
                   decoration: InputDecoration(
-                    hintText: 'City / Area',
+                    hintText: 'Select your area',
                     border: _outline(),
                     focusedBorder: _outline(color: const Color(0xFF003465)),
                   ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Location is required';
-                    if (_invalidCharsRegex.hasMatch(v)) return 'Invalid characters not allowed';
-                    return null;
-                  },
+                  items: _bahrainLocations
+                      .map((location) => DropdownMenuItem(
+                            value: location,
+                            child: Text(location),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedLocation = v),
+                  validator: (v) => v == null ? 'Please select a location' : null,
                 ),
               ),
               const SizedBox(height: 16),
