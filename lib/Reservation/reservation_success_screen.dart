@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:project444/Reservation/reservation.dart';
+import 'package:project444/Reservation/reservation_tracking_screen.dart';
+
 
 class ReservationSuccessScreen extends StatefulWidget {
   const ReservationSuccessScreen({super.key});
@@ -21,10 +23,14 @@ class _ReservationSuccessScreenState extends State<ReservationSuccessScreen>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
+
     _sizeAnimation = Tween<double>(
       begin: 0.8,
       end: 1.2,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    ).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         _controller.reverse();
@@ -32,6 +38,7 @@ class _ReservationSuccessScreenState extends State<ReservationSuccessScreen>
         _controller.forward();
       }
     });
+
     _controller.forward();
   }
 
@@ -41,6 +48,7 @@ class _ReservationSuccessScreenState extends State<ReservationSuccessScreen>
     super.dispose();
   }
 
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
@@ -64,7 +72,11 @@ class _ReservationSuccessScreenState extends State<ReservationSuccessScreen>
                   child: child,
                 );
               },
-              child: Image.asset("lib/images/success.png", height: 160),
+              child: const Icon(
+                Icons.check_circle,
+                size: 160,
+                color: Colors.green,
+              ),
             ),
             const SizedBox(height: 30),
             const Text(
@@ -84,7 +96,10 @@ class _ReservationSuccessScreenState extends State<ReservationSuccessScreen>
               height: 50,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.pushNamed(context, "/tracking");
+                  Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ReservationTrackingScreen()),
+                );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0A66C2),

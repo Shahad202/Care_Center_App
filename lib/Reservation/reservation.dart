@@ -318,7 +318,7 @@ class _RenterPageState extends State<RenterPage> {
       case 0:
         return const HowItWorksTab();
       case 1:
-        return const browsePage();
+        return const BrowsePageTab();
       case 2:
         return const TrackingPage();
       default:
