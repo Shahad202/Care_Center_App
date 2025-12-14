@@ -96,7 +96,7 @@ class MyApp extends StatelessWidget {
         '/admin': (c) => const AdminPage(userName: ''),
         '/login': (c) => const LoginPage(),
         '/signup': (c) => const SignupPage(),
-        "/inventory": (c) => UserInventoryWidget(),
+        "/inventory": (c) => InventoryGuest(),
         "/inventory_admin": (c) => NewinventoryWidget(),
         "/renter": (c) => const RenterPage(),
         "/reports": (c) => const CareCenter(),
@@ -137,9 +137,7 @@ class _MyHomePageState extends State<MyHomePage> {
           .get();
       final role = (snap.data()?['role'] ?? 'user').toString();
       if (mounted) setState(() => _userRole = role);
-    } catch (_) {
-     
-    }
+    } catch (_) {}
   }
 
   Widget _lockedFeature(String title, IconData icon) {
