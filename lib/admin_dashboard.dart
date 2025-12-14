@@ -7,6 +7,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'admin_pending_donations.dart';
 import 'navigation_transitions.dart';
 
+import 'admin_reservation_details.dart';
+import 'admin_pending_reservations.dart';
+
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
 
@@ -257,11 +260,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ),
                     const SizedBox(height: 20),
                     _dashboardCard(
-                      title: 'Inventory Management',
-                      subtitle: 'Manage items in inventory',
+                      title: 'Reservation Management',
+                      subtitle: 'Manage items in reservation',
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Coming soon...')),
+                        Navigator.push(
+                          context,
+                          slideUpRoute(AdminPendingReservations()),
                         );
                       },
                     ),

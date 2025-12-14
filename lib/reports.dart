@@ -247,36 +247,49 @@ void _startReservationsStream() {
       }
 
       String userName = 'Unknown User';
-      String userPhone = 'N/A';
-      String userEmail = 'N/A';
-      
-      if (userId != null) {
-        try {
-          final userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(userId)
-              .get();
-          
-          if (userDoc.exists) {
-  final userData = userDoc.data();
-  userName = userData?['name'] ?? 'Unknown User';
-  
-  userPhone = userData?['Contact'] ?? 
-              userData?['phoneNumber'] ?? 
-              userData?['mobile'] ?? 
-              userData?['Contact'] ?? 
-              'N/A';
-              
-  userEmail = userData?['email'] ?? 
-              userData?['Email'] ?? 
-              'No email';
-  
-  
-  print('User: $userName, Contact: $userPhone, Email: $userEmail');
-}
-        } catch (_) {}
-      }
+String userPhone = 'No phone';
+String userEmail = 'No email';
 
+if (userId != null) {
+  try {
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .get();
+    
+    if (userDoc.exists) {
+      final userData = userDoc.data();
+      
+      
+      userName = userData?['name']?.toString() ?? 'Unknown User';
+      
+    
+      userPhone = userData?['contact']?.toString() ??      // المحاولة 1
+                  userData?['phone']?.toString() ??         // المحاولة 2
+                  userData?['phoneNumber']?.toString() ??   // المحاولة 3
+                  userData?['mobile']?.toString() ??        // المحاولة 4
+                  userData?['Phone']?.toString() ??         // المحاولة 5
+                  userData?['contactNumber']?.toString() ?? // المحاولة 6
+                  'No phone';
+      
+      
+      userEmail = userData?['email']?.toString() ?? 
+                  userData?['Email']?.toString() ?? 
+                  'No email';
+      
+    
+      print('User loaded for Alert:');
+      print('   Name: $userName');
+      print('   Phone: $userPhone');
+      print('   Email: $userEmail');
+      print('   All fields in user doc: ${userData?.keys.join(", ")}');
+    } else {
+      print('User document not found');
+    }
+  } catch (e) {
+    print('Error loading user: $e');
+  }
+}
       rentals.add(
         ActiveRental(
           equipment: itemName,
@@ -290,67 +303,63 @@ void _startReservationsStream() {
 
       
       final daysSinceStart = now.difference(startDate).inDays;
-      if (daysSinceStart <= 1 && reservationStatus == 'active') {
-        
-        _notifications.add(
-          AppNotification(
-            id: _notifications.length + 1,
-            type: 'rental',
-            title: 'New Rental',
-            message: '$itemName rented by $userName',
-            user: userName,
-            phone: userPhone,
-            email: userEmail,
-            checkoutDate: _formatDate(startDate),
-            dueDate: _formatDate(endDate),
-            equipmentType: itemName,
-            time: _formatTimestamp(data['createdAt'] ?? Timestamp.now()),
-            priority: 'low',
-            details: 'New equipment rental - ${_formatDate(endDate)} return date.',
-          ),
-        );
-      }
+if (daysSinceStart <= 1 && reservationStatus == 'active') {
+  _notifications.add(
+    AppNotification(
+      id: _notifications.length + 1,
+      type: 'rental',
+      title: 'New Rental',
+      message: '$itemName rented by $userName',
+      user: userName,
+      phone: userPhone, 
+      email: userEmail, 
+      checkoutDate: _formatDate(startDate),
+      dueDate: _formatDate(endDate),
+      equipmentType: itemName,
+      time: _formatTimestamp(data['createdAt'] ?? Timestamp.now()),
+      priority: 'low',
+      details: 'New equipment rental - ${_formatDate(endDate)} return date.',
+    ),
+  );
+}
 
-      
-      if (rentalStatus == 'overdue') {
-        
-        _notifications.add(
-          AppNotification(
-            id: _notifications.length + 1,
-            type: 'overdue',
-            title: 'Overdue Rental',
-            message: '$itemName is ${daysRemaining.abs()} days overdue',
-            user: userName,
-            phone: userPhone,
-            email: userEmail,
-            checkoutDate: _formatDate(startDate),
-            dueDate: _formatDate(endDate),
-            equipmentType: itemName,
-            time: '${daysRemaining.abs()} days ago',
-            priority: 'high',
-            details: 'Please contact customer immediately to return equipment.',
-          ),
-        );
-      } else if (rentalStatus == 'due-soon') {
-       
-        _notifications.add(
-          AppNotification(
-            id: _notifications.length + 1,
-            type: 'upcoming',
-            title: 'Rental Due Soon',
-            message: '$itemName due in $daysRemaining days',
-            user: userName,
-            phone: userPhone,
-            email: userEmail,
-            checkoutDate: _formatDate(startDate),
-            dueDate: _formatDate(endDate),
-            equipmentType: itemName,
-            time: 'In $daysRemaining days',
-            priority: 'medium',
-            details: 'Send reminder to customer about upcoming return date.',
-          ),
-        );
-      }
+if (rentalStatus == 'overdue') {
+  _notifications.add(
+    AppNotification(
+      id: _notifications.length + 1,
+      type: 'overdue',
+      title: 'Overdue Rental',
+      message: '$itemName is ${daysRemaining.abs()} days overdue',
+      user: userName,
+      phone: userPhone, 
+      email: userEmail,  
+      checkoutDate: _formatDate(startDate),
+      dueDate: _formatDate(endDate),
+      equipmentType: itemName,
+      time: '${daysRemaining.abs()} days ago',
+      priority: 'high',
+      details: 'Please contact customer immediately to return equipment.',
+    ),
+  );
+} else if (rentalStatus == 'due-soon') {
+  _notifications.add(
+    AppNotification(
+      id: _notifications.length + 1,
+      type: 'upcoming',
+      title: 'Rental Due Soon',
+      message: '$itemName due in $daysRemaining days',
+      user: userName,
+      phone: userPhone, 
+      email: userEmail,  
+      checkoutDate: _formatDate(startDate),
+      dueDate: _formatDate(endDate),
+      equipmentType: itemName,
+      time: 'In $daysRemaining days',
+      priority: 'medium',
+      details: 'Send reminder to customer about upcoming return date.',
+    ),
+  );
+}
     }
 
     if (mounted) {
@@ -603,8 +612,7 @@ Future<List<TrendData>> _calculateTrendData() async {
         // Count as rental
         rentals++;
 
-        // Check if it was overdue in this month
-        // Overdue = returned late OR still not returned after due date
+        
         if (returnDate != null) {
           // Was returned - check if it was late
           if (returnDate.isAfter(endDate)) {
