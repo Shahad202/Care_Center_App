@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project444/login.dart';
 import 'package:project444/profilePage.dart';
-import 'package:project444/inventory/inventory_admin.dart';
+// import 'package:project444/inventory/inventory_admin.dart';
 import 'package:project444/admin_dashboard.dart';
 import 'package:project444/admin_donation_details.dart';
 

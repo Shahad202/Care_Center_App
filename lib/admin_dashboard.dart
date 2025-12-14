@@ -7,8 +7,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:project444/rental_history_button.dart';
 import 'package:project444/common_drawer.dart';
 import 'admin_pending_donations.dart';
-import 'inventory/inventory_admin_new.dart';
-import 'inventory/inventory_user.dart';
+// import 'package:project444/inventory/inventory_admin_new.dart';
+// import 'package:project444/inventory/inventory_user.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});

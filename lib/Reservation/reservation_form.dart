@@ -10,8 +10,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project444/reservation/reservation_success_screen.dart';
 import 'package:project444/reservation/reservation_dates_screen.dart';
 
-
-
 class ReservationFormPage extends StatefulWidget {
   const ReservationFormPage({super.key});
 
@@ -39,119 +37,140 @@ class _ReservationFormPageState extends State<ReservationFormPage> {
     _searchController.dispose();
     super.dispose();
   }
-void _selectItem(Map<String, dynamic> item, String id) {
-  _selectedItem = {...item, 'id': id};
-  int bottomSheetQuantity = 1; 
-  final available = (item['quantity'] ?? 0) as int;
 
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    builder: (context) => FractionallySizedBox(
-      heightFactor: 0.5,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: StatefulBuilder(
-          builder: (context, setModalState) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item['name'] ?? 'Unnamed',
+  void _selectItem(Map<String, dynamic> item, String id) {
+    _selectedItem = {...item, 'id': id};
+    int bottomSheetQuantity = 1;
+    final available = (item['quantity'] ?? 0) as int;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => FractionallySizedBox(
+        heightFactor: 0.5,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: StatefulBuilder(
+            builder: (context, setModalState) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item['name'] ?? 'Unnamed',
                     style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Text(item['description'] ?? '',
-                    maxLines: 3, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 12),
-                Text('Available: $available',
-                    style: const TextStyle(fontSize: 14)),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Text('Quantity:', style: TextStyle(fontSize: 16)),
-                    const SizedBox(width: 12),
-                    IconButton(
-                      onPressed: bottomSheetQuantity > 1
-                          ? () => setModalState(() => bottomSheetQuantity--)
-                          : null,
-                      icon: const Icon(Icons.remove_circle_outline),
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
-                    Text('$bottomSheetQuantity',
-                        style: const TextStyle(fontSize: 16)),
-                    IconButton(
-                      onPressed: bottomSheetQuantity < available
-                          ? () => setModalState(() => bottomSheetQuantity++)
-                          : null,
-                      icon: const Icon(Icons.add_circle_outline),
-                    ),
-                    const SizedBox(width: 8),
-                    if (bottomSheetQuantity >= available)
-                      const Text(' (max)',
-                          style: TextStyle(color: Colors.grey)),
-                  ],
-                ),
-                const Spacer(),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: available > 0
-                        ? () {
-                            Navigator.pop(context); 
-                           
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ReservationDatesScreen(
-                                  inventoryItemId: item['id'],
-                                  itemName: item['name'],
-                                  requestedQuantity: bottomSheetQuantity,
-                                ),
-                              ),
-                            );
-                          }
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF003465)),
-                    child: const Text('Reserve this item'),
                   ),
-                ),
-              ],
-            );
-          },
+                  const SizedBox(height: 8),
+                  Text(
+                    item['description'] ?? '',
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Available: $available',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Text('Quantity:', style: TextStyle(fontSize: 16)),
+                      const SizedBox(width: 12),
+                      IconButton(
+                        onPressed: bottomSheetQuantity > 1
+                            ? () => setModalState(() => bottomSheetQuantity--)
+                            : null,
+                        icon: const Icon(Icons.remove_circle_outline),
+                      ),
+                      Text(
+                        '$bottomSheetQuantity',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      IconButton(
+                        onPressed: bottomSheetQuantity < available
+                            ? () => setModalState(() => bottomSheetQuantity++)
+                            : null,
+                        icon: const Icon(Icons.add_circle_outline),
+                      ),
+                      const SizedBox(width: 8),
+                      if (bottomSheetQuantity >= available)
+                        const Text(
+                          ' (max)',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                    ],
+                  ),
+                  const Spacer(),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: available > 0
+                          ? () {
+                              Navigator.pop(context);
+
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ReservationDatesScreen(
+                                    inventoryItemId: item['id'],
+                                    itemName: item['name'],
+                                    requestedQuantity: bottomSheetQuantity,
+                                  ),
+                                ),
+                              );
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF003465),
+                      ),
+                      child: const Text('Reserve this item'),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
-      ),
-    ),
-  );
-}
-
-
-  
+      )
+    );
+  }
 
   List<Map<String, dynamic>> _applyFilters(List<QueryDocumentSnapshot> docs) {
-    final lowerSearch = _search;
+    final lowerSearch = _search.toLowerCase();
     final sourceFilter = _filterSource;
-    final results = docs.map((d) {
-      final data = d.data()! as Map<String, dynamic>;
-      return {...data, 'id': d.id};
-    }).where((item) {
-  final rawSource = item['source'];
-  final source = (rawSource == 'donation') ? 'donation' : 'center';
-  if (sourceFilter != 'all' && source != sourceFilter) return false;
 
-  
-  if ((item['status'] ?? '').toString().toLowerCase() != 'available') return false;
+    final results = docs
+        .map((d) {
+          final data = d.data()! as Map<String, dynamic>;
+          return {...data, 'id': d.id};
+        })
+        .where((item) {
+          final rawSource = item['source'];
+          final source = (rawSource == 'donation') ? 'donation' : 'center';
 
-  
-  if (lowerSearch.isEmpty) return true;
-  final name = (item['name'] ?? '').toString().toLowerCase();
-  final desc = (item['description'] ?? '').toString().toLowerCase();
-  return name.contains(lowerSearch) || desc.contains(lowerSearch);
-})
-.toList();
+          final statusAvailable =
+              (item['status'] ?? '').toString().toLowerCase() == 'available';
+          final sourceMatches = sourceFilter == 'all' || source == sourceFilter;
 
-    results.sort((a, b) =>
-        (a['name'] ?? '').toString().compareTo((b['name'] ?? '').toString()));
+          final name = (item['name'] ?? '').toString().toLowerCase();
+          final desc = (item['description'] ?? '').toString().toLowerCase();
+          final searchMatches =
+              lowerSearch.isEmpty ||
+              name.contains(lowerSearch) ||
+              desc.contains(lowerSearch);
+
+          return statusAvailable && sourceMatches && searchMatches;
+        })
+        .toList();
+
+    results.sort(
+      (a, b) =>
+          (a['name'] ?? '').toString().compareTo((b['name'] ?? '').toString()),
+    );
+
     return results;
   }
 
@@ -190,17 +209,19 @@ void _selectItem(Map<String, dynamic> item, String id) {
                 ),
                 const Spacer(),
                 TextButton(
-                    onPressed: () {
-                      _searchController.clear();
-                    },
-                    child: const Text('Clear')),
+                  onPressed: () {
+                    _searchController.clear();
+                  },
+                  child: const Text('Clear'),
+                ),
               ],
             ),
             const SizedBox(height: 8),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream:
-                    FirebaseFirestore.instance.collection('inventory').snapshots(),
+                stream: FirebaseFirestore.instance
+                    .collection('inventory')
+                    .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
                     return Center(child: Text('Error: ${snapshot.error}'));
@@ -222,23 +243,28 @@ void _selectItem(Map<String, dynamic> item, String id) {
                       final qty = (item['quantity'] ?? 0) as int;
                       return Card(
                         child: ListTile(
-                          leading: item['imageIds'] is List &&
+                          leading:
+                              item['imageIds'] is List &&
                                   (item['imageIds'] as List).isNotEmpty
                               ? const Icon(Icons.image)
                               : const Icon(Icons.inventory),
                           title: Text(item['name'] ?? 'Unnamed'),
                           subtitle: Text(
-                              '${item['source'] == 'donation' ? 'Donated' : 'Center'} • ${item['condition'] ?? ''} • Available: $qty'),
+                            '${item['source'] == 'donation' ? 'Donated' : 'Center'} • ${item['condition'] ?? ''} • Available: $qty',
+                          ),
                           trailing: qty > 0
                               ? ElevatedButton(
-                                  onPressed: () => _selectItem(item, item['id']),
+                                  onPressed: () =>
+                                      _selectItem(item, item['id']),
                                   child: const Text('Select'),
                                   style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          const Color(0xFF1874CF)),
+                                    backgroundColor: const Color(0xFF1874CF),
+                                  ),
                                 )
-                              : const Text('Out',
-                                  style: TextStyle(color: Colors.red)),
+                              : const Text(
+                                  'Out',
+                                  style: TextStyle(color: Colors.red),
+                                ),
                           onTap: () => _selectItem(item, item['id']),
                         ),
                       );
@@ -253,25 +279,3 @@ void _selectItem(Map<String, dynamic> item, String id) {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
