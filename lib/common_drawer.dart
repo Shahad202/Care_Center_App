@@ -148,7 +148,6 @@ class CommonDrawer extends StatelessWidget {
               }
             },
           ),
-          // يظهر فقط لـ renter و admin
           if (userRole.toLowerCase() == 'renter' || userRole.toLowerCase() == 'admin')
             ListTile(
               leading: const Icon(Icons.calendar_month),
@@ -161,7 +160,6 @@ class CommonDrawer extends StatelessWidget {
                 Navigator.pushNamed(context, '/renter');
               },
             ),
-          // يظهر فقط لـ donor و admin
           if (userRole.toLowerCase() == 'donor' || userRole.toLowerCase() == 'admin')
             ListTile(
               leading: const Icon(Icons.volunteer_activism),
@@ -171,7 +169,6 @@ class CommonDrawer extends StatelessWidget {
                 Navigator.pushNamed(context, '/donor');
               },
             ),
-          // Tracking & Reports للـ admin فقط
           if (userRole.toLowerCase() == 'admin')
             ListTile(
               leading: const Icon(Icons.bar_chart),
@@ -184,8 +181,7 @@ class CommonDrawer extends StatelessWidget {
                 Navigator.pushNamed(context, '/reports');
               },
             ),
-          // Tracking للـ donor و renter فقط
-          if (userRole.toLowerCase() == 'donor' || userRole.toLowerCase() == 'renter')
+          if (userRole.toLowerCase() == 'renter')
             ListTile(
               leading: const Icon(Icons.bar_chart),
               title: const Text(
@@ -194,7 +190,6 @@ class CommonDrawer extends StatelessWidget {
               ),
               onTap: () {
                 Navigator.pop(context);
-                // استخدم RentalHistoryView مباشرة
                 Navigator.push(
                   context,
                   MaterialPageRoute(
