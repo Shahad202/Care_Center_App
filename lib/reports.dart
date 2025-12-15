@@ -618,79 +618,43 @@ Future<void> _loadInventoryData() async {
         .collection('inventory')
         .get();
 
-    Map<String, int> equipmentCounts = {};
     Map<String, int> statusCounts = {
       'available': 0,
       'rented': 0,
+      'donated': 0,
       'maintenance': 0,
     };
 
-    // First, count inventory items by their status
+    print('📦 Loading Inventory Data...');
+
+    // Count items by their status in inventory
     for (var doc in inventorySnapshot.docs) {
       final data = doc.data();
-      final itemName = (data['itemName'] ?? 'Other').toString();
       var statusValue = (data['status'] ?? 'available').toString();
       String status = statusValue.toLowerCase();
       
+      // Normalize status values
       if (status.contains('avail')) status = 'available';
       if (status.contains('rent')) status = 'rented';
       if (status.contains('maint')) status = 'maintenance';
+      if (status.contains('donat')) status = 'donated';
 
       final quantity = (data['quantity'] ?? 1) as int;
 
-      equipmentCounts[itemName] = (equipmentCounts[itemName] ?? 0) + quantity;
-
+      // Count by status
       if (statusCounts.containsKey(status)) {
         statusCounts[status] = statusCounts[status]! + quantity;
       } else {
+        // Default unknown status to available
         statusCounts['available'] = statusCounts['available']! + quantity;
       }
     }
 
-    // Count approved reservations for "rented" count
-    final approvedReservationsSnapshot = await FirebaseFirestore.instance
-        .collection('reservations')
-        .where('status', isEqualTo: 'approved')
-        .get();
-
-    int approvedRentedCount = approvedReservationsSnapshot.docs.length;
-    
-    // Count donations that need maintenance
-    final donationsSnapshot = await FirebaseFirestore.instance
-        .collection('donations')
-        .get();
-    
-    int maintenanceFromDonations = 0;
-    
-    for (var doc in donationsSnapshot.docs) {
-      final data = doc.data();
-      final needsMaintenance = data['needsMaintenance'] as bool?;
-      final condition = (data['condition'] ?? '').toString();
-      final status = (data['status'] ?? 'pending').toString().toLowerCase();
-      
-      // Count as maintenance if:
-      // 1. Explicitly marked as needsMaintenance OR
-      // 2. Condition is Fair or Needs Repair
-      // 3. AND status is pending or approved (not rejected)
-      if (status != 'rejected') {
-        if (needsMaintenance == true || 
-            condition == 'Fair' || 
-            condition == 'Needs Repair') {
-          maintenanceFromDonations++;
-        }
-      }
-    }
-    
-    // Add maintenance count from donations to total maintenance
-    statusCounts['maintenance'] = 
-        (statusCounts['maintenance'] ?? 0) + maintenanceFromDonations;
-    
-    print('Found $approvedRentedCount approved reservations');
-    print('Found $maintenanceFromDonations items needing maintenance from donations');
-    print('Total maintenance count: ${statusCounts['maintenance']}');
-
-    // Update the rented count with approved reservations
-    statusCounts['rented'] = approvedRentedCount;
+    print('Inventory Status Counts:');
+    print('   Available: ${statusCounts['available']}');
+    print('   Rented: ${statusCounts['rented']}');
+    print('   Donated: ${statusCounts['donated']}');
+    print('   Maintenance: ${statusCounts['maintenance']}');
 
     if (mounted) {
       setState(() {
@@ -706,6 +670,11 @@ Future<void> _loadInventoryData() async {
             const Color(0xFF3b82f6)
           ),
           StatusData(
+            'Donated',
+            statusCounts['donated']!,
+            const Color(0xFF9333ea),  // Purple for donated
+          ),
+          StatusData(
             'Maintenance',
             statusCounts['maintenance']!,
             const Color(0xFFf59e0b),
@@ -713,36 +682,36 @@ Future<void> _loadInventoryData() async {
         ];
 
         _maintenanceCount = statusCounts['maintenance']!;
-        _isLoading = false;
       });
     }
   } catch (e) {
     print('Error loading inventory: $e');
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
   }
 }
 
-// Replace the _loadDonationsData method with this updated version
-
 Future<void> _loadDonationsData() async {
   try {
-    final snapshot = await FirebaseFirestore.instance
+    final donationsSnapshot = await FirebaseFirestore.instance
         .collection('donations')
         .get();
 
+    final inventorySnapshot = await FirebaseFirestore.instance
+        .collection('inventory')
+        .get();
+
+    print('Loading Donations Data...');
+
     // Count ALL donations regardless of status
-    int totalDonations = snapshot.docs.length;
+    int totalDonations = donationsSnapshot.docs.length;
     
-    // Also count by status for debugging
     int pendingCount = 0;
     int approvedCount = 0;
     int rejectedCount = 0;
-    
+
+    // Count donations by item name
     Map<String, int> donationCounts = {};
 
-    for (var doc in snapshot.docs) {
+    for (var doc in donationsSnapshot.docs) {
       final data = doc.data();
       final status = (data['status'] ?? 'pending').toString().toLowerCase();
       final itemName = (data['itemName'] ?? 'Equipment').toString();
@@ -752,7 +721,10 @@ Future<void> _loadDonationsData() async {
       else if (status == 'approved') approvedCount++;
       else if (status == 'rejected') rejectedCount++;
 
-      donationCounts[itemName] = (donationCounts[itemName] ?? 0) + 1;
+      // Count by item name (only approved donations)
+      if (status == 'approved') {
+        donationCounts[itemName] = (donationCounts[itemName] ?? 0) + 1;
+      }
 
       // Only create notifications for pending donations
       if (status == 'pending') {
@@ -768,37 +740,71 @@ Future<void> _loadDonationsData() async {
           } catch (_) {}
         }
 
-        _notifications.add(
-          AppNotification(
-            id: _notifications.length + 1,
-            type: 'donation',
-            title: 'New Donation',
-            message: '$itemName donation pending approval',
-            user: donorName,
-            equipmentType: itemName,
-            condition: data['condition'] ?? 'Good',
-            time: _formatTimestamp(data['createdAt']),
-            priority: 'low',
-            details: 'Requires inspection before approval.',
-            donationId: doc.id,
-            donationData: data,
+        // Check if notification already exists
+        final existingNotification = _notifications.firstWhere(
+          (n) => n.type == 'donation' && n.donationId == doc.id,
+          orElse: () => AppNotification(
+            id: -1,
+            type: '',
+            title: '',
+            message: '',
+            user: '',
+            time: '',
+            priority: '',
+            details: '',
           ),
         );
+
+        if (existingNotification.id == -1) {
+          _notifications.add(
+            AppNotification(
+              id: _notifications.length + 1,
+              type: 'donation',
+              title: 'New Donation',
+              message: '$itemName donation pending approval',
+              user: donorName,
+              equipmentType: itemName,
+              condition: data['condition'] ?? 'Good',
+              time: _formatTimestamp(data['createdAt']),
+              priority: 'low',
+              details: 'Requires inspection before approval.',
+              donationId: doc.id,
+              donationData: data,
+            ),
+          );
+        }
       }
     }
 
-    print('📊 Donations Summary:');
+    print('Donations Summary:');
     print('   Total: $totalDonations');
     print('   Pending: $pendingCount');
     print('   Approved: $approvedCount');
     print('   Rejected: $rejectedCount');
 
-    Map<String, int> rentedCounts = await _calculateRentedCounts();
+    // Count rented items from inventory (status = Rented)
+    Map<String, int> rentedCounts = {};
+    for (var doc in inventorySnapshot.docs) {
+      final data = doc.data();
+      final status = (data['status'] ?? '').toString().toLowerCase();
+      final itemName = (data['name'] ?? 'Unknown').toString();
+      
+      if (status == 'rented') {
+        final quantity = (data['quantity'] ?? 1) as int;
+        rentedCounts[itemName] = (rentedCounts[itemName] ?? 0) + quantity;
+      }
+    }
+
+    print('Rented Items from Inventory:');
+    rentedCounts.forEach((key, value) {
+      print('   $key: $value');
+    });
 
     if (mounted) {
       setState(() {
-        _totalDonations = totalDonations; // Use total count of ALL donations
+        _totalDonations = totalDonations;
 
+        // Combine all equipment types from donations and rentals
         Set<String> allEquipmentTypes = {
           ...donationCounts.keys,
           ...rentedCounts.keys,
@@ -807,17 +813,21 @@ Future<void> _loadDonationsData() async {
         _rentalData = allEquipmentTypes.map((equipmentName) {
           return RentalData(
             equipmentName,
-            rentedCounts[equipmentName] ?? 0,
-            donationCounts[equipmentName] ?? 0,
+            rentedCounts[equipmentName] ?? 0,  // Rented count
+            donationCounts[equipmentName] ?? 0, // Donated count
           );
         }).toList();
+
+        print('Equipment Usage Chart Data:');
+        for (var item in _rentalData) {
+          print('   ${item.name}: Rented=${item.rented}, Donated=${item.donated}');
+        }
       });
     }
   } catch (e) {
     print('Error loading donations: $e');
   }
 }
-
 
 Future<Map<String, int>> _calculateRentedCounts() async {
   try {
@@ -872,7 +882,7 @@ Future<List<TrendData>> _calculateTrendData() async {
     final now = DateTime.now();
     List<TrendData> trends = [];
 
-    print('Start tracking trends with Firebase');
+    print('Calculating Trend Data...');
 
     // Loop through last 5 months
     for (int i = 4; i >= 0; i--) {
@@ -882,12 +892,12 @@ Future<List<TrendData>> _calculateTrendData() async {
 
       print('Processing month: ${_getMonthName(monthDate.month)}');
 
-      // Get all reservations that were DUE in this month
+      // Get all reservations in this month
       final reservationsSnapshot = await FirebaseFirestore.instance
           .collection('reservations')
-          .where('endDate', 
+          .where('createdAt', 
                  isGreaterThanOrEqualTo: Timestamp.fromDate(monthStart))
-          .where('endDate', 
+          .where('createdAt', 
                  isLessThanOrEqualTo: Timestamp.fromDate(monthEnd))
           .get();
 
@@ -907,13 +917,12 @@ Future<List<TrendData>> _calculateTrendData() async {
         // Count as rental
         rentals++;
 
+        // Check if overdue
         if (returnDate != null) {
-          // Was returned - check if it was late
           if (returnDate.isAfter(endDate)) {
             overdue++;
           }
         } else {
-          // Not returned yet - check if past due date
           if (endDate.isBefore(now) && 
               status != 'completed' && 
               status != 'returned') {
@@ -922,9 +931,9 @@ Future<List<TrendData>> _calculateTrendData() async {
         }
       }
 
-      // Get donations that need maintenance in this month
-      final donationsSnapshot = await FirebaseFirestore.instance
-          .collection('donations')
+      // Get inventory items added in this month with status = Maintenance
+      final inventorySnapshot = await FirebaseFirestore.instance
+          .collection('inventory')
           .where('createdAt',
                  isGreaterThanOrEqualTo: Timestamp.fromDate(monthStart))
           .where('createdAt',
@@ -933,22 +942,13 @@ Future<List<TrendData>> _calculateTrendData() async {
 
       int maintenanceThisMonth = 0;
 
-      for (var doc in donationsSnapshot.docs) {
+      for (var doc in inventorySnapshot.docs) {
         final data = doc.data();
-        final needsMaintenance = data['needsMaintenance'] as bool?;
-        final condition = (data['condition'] ?? '').toString();
-        final status = (data['status'] ?? 'pending').toString().toLowerCase();
+        final status = (data['status'] ?? '').toString().toLowerCase();
         
-        // Count as maintenance if:
-        // 1. Explicitly marked as needsMaintenance OR
-        // 2. Condition is Fair or Needs Repair
-        // 3. AND status is pending or approved (not rejected)
-        if (status != 'rejected') {
-          if (needsMaintenance == true || 
-              condition == 'Fair' || 
-              condition == 'Needs Repair') {
-            maintenanceThisMonth++;
-          }
+        if (status == 'maintenance') {
+          final quantity = (data['quantity'] ?? 1) as int;
+          maintenanceThisMonth += quantity;
         }
       }
 
@@ -960,7 +960,7 @@ Future<List<TrendData>> _calculateTrendData() async {
       trends.add(TrendData(
         _getMonthName(monthDate.month),
         rentals,
-        maintenanceThisMonth,  // Use monthly maintenance count
+        maintenanceThisMonth,
         overdue,
       ));
     }
@@ -971,13 +971,12 @@ Future<List<TrendData>> _calculateTrendData() async {
   } catch (e) {
     print('Error calculating trends: $e');
     
-    // Return empty data on error
     return [
       TrendData('Aug', 0, 0, 0),
       TrendData('Sep', 0, 0, 0),
       TrendData('Oct', 0, 0, 0),
       TrendData('Nov', 0, 0, 0),
-      TrendData('Dec', _totalRentals, _maintenanceCount, _overdueCount),
+      TrendData('Dec', 0, 0, 0),
     ];
   }
 }
