@@ -96,7 +96,7 @@ class MyApp extends StatelessWidget {
         '/admin': (c) => const AdminPage(userName: ''),
         '/login': (c) => const LoginPage(),
         '/signup': (c) => const SignupPage(),
-        "/inventory": (c) => InventoryGuest(),
+        "/inventory": (c) => UserInventoryWidget(),
         "/inventory_admin": (c) => NewinventoryWidget(),
         "/renter": (c) => const RenterPage(),
         "/reports": (c) => const CareCenter(),

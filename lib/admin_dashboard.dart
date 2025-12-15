@@ -141,7 +141,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         } else {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => InventoryGuest()),
+                            MaterialPageRoute(
+                              builder: (_) => UserInventoryWidget(),
+                            ),
                           );
                         }
                       },

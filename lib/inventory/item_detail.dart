@@ -21,7 +21,6 @@ class ItemDetailScreen extends StatefulWidget {
 }
 
 class _ItemDetailScreenState extends State<ItemDetailScreen> {
-  // 🔄 إعادة تحميل العنصر بعد التعديل
   Future<void> _reloadItem() async {
     final doc = await FirebaseFirestore.instance
         .collection('inventory')
@@ -119,7 +118,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🔹 ICON + STATUS
             Container(
               width: double.infinity,
               height: 250,
@@ -160,7 +158,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               ),
             ),
 
-            // 🔹 DETAILS
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -195,7 +192,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
                   const SizedBox(height: 32),
 
-                  // ✏️ EDIT BUTTON
                   if (!widget.isGuest)
                     SizedBox(
                       width: double.infinity,
@@ -213,7 +209,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                           );
 
                           if (r == true) {
-                            await _reloadItem(); // ✅ تحديث التفاصيل
+                            await _reloadItem();
                           }
                         },
                         icon: const Icon(Icons.edit, color: Colors.white),

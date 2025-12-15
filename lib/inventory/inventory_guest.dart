@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'item_detail.dart';
 
-class InventoryGuest extends StatefulWidget {
-  const InventoryGuest({super.key});
+class UserInventoryWidget extends StatefulWidget {
+  const UserInventoryWidget({super.key});
 
   @override
-  State<InventoryGuest> createState() => _InventoryGuestState();
+  State<UserInventoryWidget> createState() => _InventoryGuestState();
 }
 
-class _InventoryGuestState extends State<InventoryGuest> {
+class _InventoryGuestState extends State<UserInventoryWidget> {
   final CollectionReference inventoryRef = FirebaseFirestore.instance
       .collection('inventory');
 
@@ -21,7 +21,6 @@ class _InventoryGuestState extends State<InventoryGuest> {
   List<QueryDocumentSnapshot> allItems = [];
   List<QueryDocumentSnapshot> filteredItems = [];
 
-  // Filters
   List<String> selectedTypes = [];
   List<String> selectedCategories = [];
   List<String> selectedStatuses = [];
@@ -122,7 +121,6 @@ class _InventoryGuestState extends State<InventoryGuest> {
       ),
       body: Column(
         children: [
-          // 🔍 Search
           Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(
@@ -139,7 +137,6 @@ class _InventoryGuestState extends State<InventoryGuest> {
             ),
           ),
 
-          // Buttons
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -161,7 +158,6 @@ class _InventoryGuestState extends State<InventoryGuest> {
             ),
           ),
 
-          // Items
           Expanded(
             child: _isGridView
                 ? GridView.builder(
@@ -212,7 +208,6 @@ class _InventoryGuestState extends State<InventoryGuest> {
             ),
             const SizedBox(height: 12),
 
-            // ✅ الاسم مرة وحدة فقط
             Text(
               name,
               textAlign: TextAlign.center,
@@ -221,7 +216,6 @@ class _InventoryGuestState extends State<InventoryGuest> {
 
             const SizedBox(height: 6),
 
-            // ✅ الحالة مرة وحدة فقط
             Text(
               status,
               style: const TextStyle(color: Colors.grey, fontSize: 12),
@@ -269,7 +263,6 @@ class _InventoryGuestState extends State<InventoryGuest> {
     );
   }
 
-  // FILTER
   void _showFilterSheet() {
     showModalBottomSheet(
       context: context,
@@ -297,7 +290,6 @@ class _InventoryGuestState extends State<InventoryGuest> {
     );
   }
 
-  // SORT
   void _showSortSheet() {
     showModalBottomSheet(
       context: context,
