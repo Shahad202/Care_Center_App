@@ -80,7 +80,6 @@ class _EditItemScreenState extends State<EditItemScreen> {
     _tagController = TextEditingController();
     _tags = List<String>.from(widget.data['tags'] ?? []);
 
-    // ✅ ربط القيم مع الدروب داون
     _selectedType = _itemTypes.contains(widget.data['type'])
         ? widget.data['type']
         : _itemTypes.first;
@@ -109,7 +108,6 @@ class _EditItemScreenState extends State<EditItemScreen> {
     super.dispose();
   }
 
-  // ✅ SAVE
   Future<void> _saveChanges() async {
     await inventoryRef.doc(widget.itemId).update({
       'name': _nameController.text.trim(),
@@ -133,7 +131,6 @@ class _EditItemScreenState extends State<EditItemScreen> {
     );
   }
 
-  // 🗑 DELETE
   Future<void> _deleteItem() async {
     await inventoryRef.doc(widget.itemId).delete();
     Navigator.pop(context, true);
@@ -256,7 +253,6 @@ class _EditItemScreenState extends State<EditItemScreen> {
 
             const SizedBox(height: 30),
 
-            // ✅ SAVE BUTTON
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -267,7 +263,6 @@ class _EditItemScreenState extends State<EditItemScreen> {
 
             const SizedBox(height: 12),
 
-            // 🗑 DELETE BUTTON
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(

@@ -17,14 +17,14 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
   bool _isGridView = false;
   String _userRole = 'guest';
 
-  // 🔹 Filters
+  // Filters
   List<String> selectedTypes = [];
   List<String> selectedCategories = [];
   List<String> selectedStatuses = [];
   List<String> selectedConditions = [];
   String selectedLocation = 'All Locations';
 
-  // 🔹 Sort
+  // Sort
   String sortBy = 'Default';
 
   final Map<String, IconData> itemIcons = {
@@ -188,7 +188,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
       ),
       body: Column(
         children: [
-          // 🔍 Search
+          // Search
           Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(
@@ -414,7 +414,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
     );
   }
 
-  // 🔽 FILTER SHEET
+  // FILTER SHEET
   void _showFilterSheet() {
     showModalBottomSheet(
       context: context,
@@ -433,7 +433,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
     );
   }
 
-  // 🔽 SORT SHEET
+  // SORT SHEET
   void _showSortSheet() {
     showModalBottomSheet(
       context: context,
