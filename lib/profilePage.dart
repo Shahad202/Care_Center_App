@@ -1,12 +1,6 @@
-import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -21,13 +15,8 @@ class _ProfilePageState extends State<ProfilePage> {
   final _contactController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  final _picker = ImagePicker();
-  File? _pickedImageFile; // mobile file
-  Uint8List? _pickedImageBytes; // web bytes
-  String? _profileImageUrl; // URL from Firestore
   bool _loading = false;
-  String? _preferredContactMethod = 'Email'; //defualt value
-
+  String? _preferredContactMethod = 'Email'; 
   final _uid = FirebaseAuth.instance.currentUser?.uid;
 
   @override
@@ -47,10 +36,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _loadUserData() async {
     if (_uid == null) return;
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(_uid)
-          .get();
+      final doc = await FirebaseFirestore.instance.collection('users').doc(_uid).get();
       if (doc.exists) {
         final data = doc.data()!;
         _nameController.text = (data['name'] ?? '') as String;
@@ -58,178 +44,57 @@ class _ProfilePageState extends State<ProfilePage> {
         _contactController.text = (data['contact'] ?? '') as String;
         _preferredContactMethod = (data['preferredContactMethod'] ?? 'Email') as String;
         setState(() {
-          _profileImageUrl = (data['profilePicture'] ?? null) as String?;
+
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to load profile')));
-    }
-  }
-
-  // Pick image (camera or gallery)
-  Future<void> _pickImage(ImageSource source) async {
-    final picked = await _picker.pickImage(
-      source: source,
-      maxWidth: 1200,
-      imageQuality: 80,
-    );
-    if (picked == null) return;
-
-    if (kIsWeb) {
-      final bytes = await picked.readAsBytes();
-      setState(() {
-        _pickedImageBytes = bytes;
-        _pickedImageFile = null;
-      });
-    } else {
-      setState(() {
-        _pickedImageFile = File(picked.path);
-        _pickedImageBytes = null;
-      });
-    }
-  }
-
-Future<String> _uploadImageAndGetUrl() async {
-  if (_uid == null) throw Exception('Not authenticated');
-
-  final storageRef = FirebaseStorage.instance
-      .ref()
-      .child('profilePictures')
-      .child('$_uid.jpg');
-
-  try {
-    if (kIsWeb) {
-      if (_pickedImageBytes == null) throw Exception('No image bytes');
-      await storageRef.putData(
-        _pickedImageBytes!,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
-    } else {
-      if (_pickedImageFile == null) throw Exception('No file selected');
-      await storageRef.putFile(
-        _pickedImageFile!,
-        SettableMetadata(contentType: 'image/jpeg'),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to load profile')),
       );
     }
-
-    final url = await storageRef.getDownloadURL();
-    // add cache-buster to avoid old image showing
-    return '$url?v=${DateTime.now().millisecondsSinceEpoch}';
-  } catch (e) {
-    throw Exception('Image upload failed: $e');
   }
-}
 
-  
-Future<void> _saveProfile() async {
-  if (!_formKey.currentState!.validate()) return;
-  if (_uid == null) return;
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_uid == null) return;
 
-  setState(() => _loading = true);
+    setState(() => _loading = true);
 
-  try {
-    String? newImageUrl;
-    if (_pickedImageBytes != null || _pickedImageFile != null) {
-      newImageUrl = await _uploadImageAndGetUrl();
+    try {
+      final updateData = {
+        'name': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'contact': _contactController.text.trim(),
+        'preferredContactMethod': _preferredContactMethod,
+      };
+
+      await FirebaseFirestore.instance.collection('users').doc(_uid).update(updateData);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully')),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Update failed: $e')),
+      );
+    } finally {
+      setState(() => _loading = false);
     }
-
-    final updateData = {
-      'name': _nameController.text.trim(),
-      'email': _emailController.text.trim(),
-      'contact': _contactController.text.trim(),
-      'preferredContactMethod': _preferredContactMethod,
-    };
-
-    if (newImageUrl != null) updateData['profilePicture'] = newImageUrl;
-
-    await FirebaseFirestore.instance.collection('users').doc(_uid).update(updateData);
-
-    // update local state AFTER Firestore success
-    if (newImageUrl != null) _profileImageUrl = newImageUrl;
-    _pickedImageBytes = null;
-    _pickedImageFile = null;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Profile updated successfully')),
-    );
-    Navigator.pop(context);
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Update failed: $e')),
-    );
-  } finally {
-    setState(() => _loading = false);
   }
-}
-
-
 
   Widget _buildAvatar() {
-    // priority: preview picked image > stored URL > default asset
-    if (_pickedImageBytes != null) {
-      return CircleAvatar(
-        radius: 55,
-        backgroundImage: MemoryImage(_pickedImageBytes!),
-      );
-    } else if (_pickedImageFile != null) {
-      return CircleAvatar(
-        radius: 55,
-        backgroundImage: FileImage(_pickedImageFile!),
-      );
-    } else if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
-      return CircleAvatar(
-        radius: 55,
-        backgroundImage: NetworkImage(_profileImageUrl!),
-      );
-    } else {
-      return CircleAvatar(
-        radius: 55,
-        backgroundColor: Colors.grey.shade300,
-        child: const Icon(Icons.person, size: 60, color: Colors.grey),
-      );
-    }
-  }
+  return CircleAvatar(
+    radius: 55,
+    backgroundColor: Colors.grey.shade300,
+    child: const Icon(Icons.person, size: 60, color: Colors.grey),
+  );
+}
 
-  void _showImageSourceActionSheet() {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Choose from gallery'),
-              onTap: () {
-                Navigator.of(context).pop();
-                _pickImage(ImageSource.gallery);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Take a photo'),
-              onTap: () {
-                Navigator.of(context).pop();
-                _pickImage(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.close),
-              title: const Text('Cancel'),
-              onTap: () => Navigator.of(context).pop(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
-    // colors from your theme / earlier examples
     const headerColor = Color(0xFF003465);
-    const accentColor = Color(0xFF11497C);
     const dangerColor = Color(0xFFE65D57);
 
     return Scaffold(
@@ -247,31 +112,7 @@ Future<void> _saveProfile() async {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // avatar + edit icon
-            Center(
-              child: Stack(
-                children: [
-                  _buildAvatar(),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: GestureDetector(
-                      onTap: _showImageSourceActionSheet,
-                      child: CircleAvatar(
-                        radius: 16,
-                        backgroundColor: accentColor,
-                        child: const Icon(
-                          Icons.edit,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
+            Center(child: _buildAvatar()),
             const SizedBox(height: 28),
             const Text(
               'Edit Profile',
@@ -282,7 +123,6 @@ Future<void> _saveProfile() async {
               ),
             ),
             const SizedBox(height: 16),
-
             Form(
               key: _formKey,
               child: Column(
@@ -297,16 +137,10 @@ Future<void> _saveProfile() async {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
-                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Please enter name'
-                        : null,
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter name' : null,
                   ),
-
                   const SizedBox(height: 16),
                   const Text('Email'),
                   const SizedBox(height: 6),
@@ -317,23 +151,15 @@ Future<void> _saveProfile() async {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
-                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty)
-                        return 'Please enter email';
-                      final emailRegex = RegExp(
-                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                      );
-                      if (!emailRegex.hasMatch(v.trim()))
-                        return 'Enter valid email';
+                      if (v == null || v.trim().isEmpty) return 'Please enter email';
+                      final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                      if (!emailRegex.hasMatch(v.trim())) return 'Enter valid email';
                       return null;
                     },
                   ),
-
                   const SizedBox(height: 16),
                   const Text('Phone Number'),
                   const SizedBox(height: 6),
@@ -345,23 +171,16 @@ Future<void> _saveProfile() async {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
-                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty)
-                        return 'Please enter contact';
+                      if (v == null || v.trim().isEmpty) return 'Please enter contact';
                       final contactRegex = RegExp(r'^[0-9+\s-]{6,20}$');
-                      if (!contactRegex.hasMatch(v.trim()))
-                        return 'Enter valid phone';
+                      if (!contactRegex.hasMatch(v.trim())) return 'Enter valid phone';
                       return null;
                     },
                   ),
-
                   const SizedBox(height: 26),
-
                   const Text('Preferred Contact Method'),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
@@ -379,20 +198,10 @@ Future<void> _saveProfile() async {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
-                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
                   ),
-
-
-
                   const SizedBox(height: 26),
-
-
-
-                  // buttons
                   Row(
                     children: [
                       Expanded(
@@ -423,9 +232,6 @@ Future<void> _saveProfile() async {
                           onPressed: _loading
                               ? null
                               : () {
-                                  // reset picked image preview and inputs to last saved values
-                                  _pickedImageBytes = null;
-                                  _pickedImageFile = null;
                                   _loadUserData();
                                   Navigator.pop(context, true);
                                   setState(() {});
@@ -442,7 +248,6 @@ Future<void> _saveProfile() async {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 20),
                 ],
               ),
