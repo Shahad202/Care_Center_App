@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'add_item.dart';
 import 'item_detail.dart';
+import 'package:project444/common_drawer.dart';
 
 class NewinventoryWidget extends StatefulWidget {
   @override
@@ -9,12 +11,11 @@ class NewinventoryWidget extends StatefulWidget {
 }
 
 class _NewinventoryWidgetState extends State<NewinventoryWidget> {
-  final CollectionReference inventoryRef = FirebaseFirestore.instance
-      .collection('inventory');
-
+  final CollectionReference inventoryRef = FirebaseFirestore.instance.collection('inventory');
   final TextEditingController _searchController = TextEditingController();
 
   bool _isGridView = false;
+  String _userRole = 'guest';
 
   // Filters
   List<String> selectedTypes = [];
@@ -25,9 +26,6 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
 
   // Sort
   String sortBy = 'Default';
-
-  List<QueryDocumentSnapshot> allItems = [];
-  List<QueryDocumentSnapshot> filteredItems = [];
 
   final Map<String, IconData> itemIcons = {
     'wheelchair': Icons.wheelchair_pickup,
@@ -41,22 +39,37 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
   @override
   void initState() {
     super.initState();
-    _loadItems();
-    _searchController.addListener(_applyFilters);
+    _searchController.addListener(() => setState(() {}));
+    _loadUserRole();
   }
 
-  Future<void> _loadItems() async {
-    final snap = await inventoryRef.get();
-    setState(() {
-      allItems = snap.docs;
-      filteredItems = snap.docs;
-    });
+  Future<void> _loadUserRole() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      final role = (snap.data()?['role'] ?? 'user').toString();
+      if (mounted) setState(() => _userRole = role);
+    } catch (_) {}
   }
 
-  void _applyFilters() {
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Stream<QuerySnapshot> _getInventoryStream() {
+    return inventoryRef.snapshots();
+  }
+
+  List<QueryDocumentSnapshot> _applyFilters(List<QueryDocumentSnapshot> allItems) {
     final search = _searchController.text.toLowerCase();
 
-    filteredItems = allItems.where((doc) {
+    var filtered = allItems.where((doc) {
       final d = doc.data() as Map<String, dynamic>;
       bool matchSearch =
           d['name'].toString().toLowerCase().contains(search) ||
@@ -99,29 +112,27 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
           matchLocation;
     }).toList();
 
-    _applySort();
-    setState(() {});
-  }
-
-  void _applySort() {
+    // Apply sorting
     switch (sortBy) {
       case 'NameAZ':
-        filteredItems.sort(
-          (a, b) => a['name'].toString().compareTo(b['name'].toString()),
+        filtered.sort(
+          (a, b) => (a.data() as Map)['name'].toString().compareTo((b.data() as Map)['name'].toString()),
         );
         break;
       case 'NameZA':
-        filteredItems.sort(
-          (a, b) => b['name'].toString().compareTo(a['name'].toString()),
+        filtered.sort(
+          (a, b) => (b.data() as Map)['name'].toString().compareTo((a.data() as Map)['name'].toString()),
         );
         break;
       case 'QtyLow':
-        filteredItems.sort((a, b) => a['quantity'].compareTo(b['quantity']));
+        filtered.sort((a, b) => (a.data() as Map)['quantity'].compareTo((b.data() as Map)['quantity']));
         break;
       case 'QtyHigh':
-        filteredItems.sort((a, b) => b['quantity'].compareTo(a['quantity']));
+        filtered.sort((a, b) => (b.data() as Map)['quantity'].compareTo((a.data() as Map)['quantity']));
         break;
     }
+
+    return filtered;
   }
 
   Color _statusColor(String status) {
@@ -143,11 +154,25 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
+      drawer: CommonDrawer(
+        userRole: _userRole,
+        onRoleUpdated: () {
+          setState(() {
+            _loadUserRole();
+          });
+        },
+      ),
       appBar: AppBar(
         backgroundColor: const Color(0xFF155DFC),
-        title: Text(
-          'Inventory Management (${filteredItems.length})',
-          style: const TextStyle(color: Colors.white),
+        title: StreamBuilder<QuerySnapshot>(
+          stream: _getInventoryStream(),
+          builder: (context, snapshot) {
+            final count = snapshot.hasData ? _applyFilters(snapshot.data!.docs).length : 0;
+            return Text(
+              'Inventory Management ($count)',
+              style: const TextStyle(color: Colors.white),
+            );
+          },
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -155,11 +180,10 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
         icon: const Icon(Icons.add),
         label: const Text('Add Item'),
         onPressed: () async {
-          final r = await Navigator.push(
+          await Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const AddItemScreen()),
           );
-          if (r == true) _loadItems();
         },
       ),
       body: Column(
@@ -181,7 +205,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
             ),
           ),
 
-          //  Buttons Row
+          // Buttons Row
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -203,39 +227,66 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
             ),
           ),
 
-          //  Items
+          // StreamBuilder
           Expanded(
-            child: filteredItems.isEmpty
-                ? const Center(child: Text('No items found'))
-                : _isGridView
-                ? GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _getInventoryStream(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation(Color(0xFF155DFC)),
+                    ),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Error: ${snapshot.error}'),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text('No items found'));
+                }
+
+                final filteredItems = _applyFilters(snapshot.data!.docs);
+
+                if (filteredItems.isEmpty) {
+                  return const Center(child: Text('No items match your filters'));
+                }
+
+                return _isGridView
+                    ? GridView.builder(
+                        padding: const EdgeInsets.all(16),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
                           mainAxisSpacing: 16,
                           crossAxisSpacing: 16,
                           childAspectRatio: 0.65,
                         ),
-                    itemCount: filteredItems.length,
-                    itemBuilder: (_, i) => _buildCard(filteredItems[i]),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filteredItems.length,
-                    itemBuilder: (_, i) {
-                      final doc = filteredItems[i];
-                      final data = doc.data() as Map<String, dynamic>;
-                      return _buildListTile(data, doc.id);
-                    },
-                  ),
+                        itemCount: filteredItems.length,
+                        itemBuilder: (_, i) => _buildCard(filteredItems[i]),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: filteredItems.length,
+                        itemBuilder: (_, i) {
+                          final doc = filteredItems[i];
+                          final data = doc.data() as Map<String, dynamic>;
+                          return _buildListTile(data, doc.id);
+                        },
+                      );
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  //  Card
+  // Card
   Widget _buildCard(QueryDocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
 
@@ -267,7 +318,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
               // ICON
               Center(
                 child: Icon(
-                  itemIcons[type] ?? Icons.inventory_2,
+                  itemIcons[type.toLowerCase()] ?? Icons.inventory_2,
                   size: 50,
                   color: const Color.fromARGB(255, 79, 80, 81),
                 ),
@@ -330,7 +381,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: Icon(itemIcons[type] ?? Icons.inventory_2),
+        leading: Icon(itemIcons[type.toLowerCase()] ?? Icons.inventory_2),
         title: Text(name),
         subtitle: Text(category),
         trailing: Container(
@@ -370,12 +421,13 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
       isScrollControlled: true,
       builder: (_) => FilterSheet(
         onApply: (types, cats, stats, conds, loc) {
-          selectedTypes = types;
-          selectedCategories = cats;
-          selectedStatuses = stats;
-          selectedConditions = conds;
-          selectedLocation = loc;
-          _applyFilters();
+          setState(() {
+            selectedTypes = types;
+            selectedCategories = cats;
+            selectedStatuses = stats;
+            selectedConditions = conds;
+            selectedLocation = loc;
+          });
         },
       ),
     );
@@ -402,8 +454,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
       title: Text(label),
       trailing: sortBy == value ? const Icon(Icons.check) : null,
       onTap: () {
-        sortBy = value;
-        _applyFilters();
+        setState(() => sortBy = value);
         Navigator.pop(context);
       },
     );
@@ -417,8 +468,7 @@ class FilterSheet extends StatefulWidget {
     List<String> statuses,
     List<String> conditions,
     String location,
-  )
-  onApply;
+  ) onApply;
 
   const FilterSheet({super.key, required this.onApply});
 

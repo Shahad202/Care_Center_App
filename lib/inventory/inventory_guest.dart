@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'item_detail.dart';
+import 'package:project444/common_drawer.dart';
 
 class UserInventoryWidget extends StatefulWidget {
   const UserInventoryWidget({super.key});
@@ -17,6 +19,7 @@ class _InventoryGuestState extends State<UserInventoryWidget> {
 
   bool _isGridView = true;
   String sortBy = 'Default';
+  String _userRole = 'guest';
 
   List<QueryDocumentSnapshot> allItems = [];
   List<QueryDocumentSnapshot> filteredItems = [];
@@ -39,7 +42,14 @@ class _InventoryGuestState extends State<UserInventoryWidget> {
   void initState() {
     super.initState();
     _loadItems();
+    _loadUserRole();
     _searchController.addListener(_applyFilters);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadItems() async {
@@ -48,6 +58,19 @@ class _InventoryGuestState extends State<UserInventoryWidget> {
       allItems = snap.docs;
       filteredItems = snap.docs;
     });
+  }
+
+  Future<void> _loadUserRole() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      final role = (snap.data()?['role'] ?? 'user').toString();
+      if (mounted) setState(() => _userRole = role);
+    } catch (_) {}
   }
 
   void _applyFilters() {
@@ -90,6 +113,21 @@ class _InventoryGuestState extends State<UserInventoryWidget> {
     setState(() {});
   }
 
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'Available':
+        return const Color.fromRGBO(0, 201, 80, 1);
+      case 'Rented':
+        return const Color.fromRGBO(255, 105, 0, 1);
+      case 'Donated':
+        return const Color.fromRGBO(173, 59, 183, 1);
+      case 'Maintenance':
+        return const Color.fromRGBO(106, 114, 130, 1);
+      default:
+        return const Color.fromRGBO(170, 192, 235, 1);
+    }
+  }
+
   void _applySort() {
     switch (sortBy) {
       case 'NameAZ':
@@ -115,6 +153,14 @@ class _InventoryGuestState extends State<UserInventoryWidget> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
+      drawer: CommonDrawer(
+        userRole: _userRole,
+        onRoleUpdated: () {
+          setState(() {
+            _loadUserRole();
+          });
+        },
+      ),
       appBar: AppBar(
         backgroundColor: const Color(0xFF155DFC),
         title: const Text('Inventory', style: TextStyle(color: Colors.white)),
@@ -216,9 +262,20 @@ class _InventoryGuestState extends State<UserInventoryWidget> {
 
             const SizedBox(height: 6),
 
-            Text(
-              status,
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _statusColor(status),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                status,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         ),
@@ -241,9 +298,20 @@ class _InventoryGuestState extends State<UserInventoryWidget> {
         leading: Icon(itemIcons[type] ?? Icons.inventory_2, color: Colors.grey),
         title: Text(name),
         subtitle: Text(category),
-        trailing: Text(
-          status,
-          style: const TextStyle(fontWeight: FontWeight.w600),
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: _statusColor(status),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            status,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
       ),
     );
@@ -266,14 +334,89 @@ class _InventoryGuestState extends State<UserInventoryWidget> {
   void _showFilterSheet() {
     showModalBottomSheet(
       context: context,
-      builder: (_) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _filterTile('Available', selectedStatuses),
-          _filterTile('Rented', selectedStatuses),
-          _filterTile('Donated', selectedStatuses),
-        ],
-      ),
+      isScrollControlled: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, sheetSetState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          'Filter by Status',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    Wrap(
+                      spacing: 8,
+                      children:
+                          ['Available', 'Rented', 'Donated', 'Maintenance'].map(
+                            (status) {
+                              final isSelected = selectedStatuses.contains(
+                                status,
+                              );
+
+                              return ChoiceChip(
+                                label: Text(status),
+                                selected: isSelected,
+                                onSelected: (_) {
+                                  sheetSetState(() {
+                                    isSelected
+                                        ? selectedStatuses.remove(status)
+                                        : selectedStatuses.add(status);
+                                  });
+                                },
+                              );
+                            },
+                          ).toList(),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    Row(
+                      children: [
+                        TextButton(
+                          onPressed: () {
+                            sheetSetState(() {
+                              selectedStatuses.clear();
+                            });
+                          },
+                          child: const Text('Reset'),
+                        ),
+                        const Spacer(),
+                        ElevatedButton(
+                          onPressed: () {
+                            _applyFilters();
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Apply'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

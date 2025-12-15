@@ -21,6 +21,8 @@ import 'reservation/reservation_success_screen.dart' as success_screen;
 import 'Reservation/reservation_tabs.dart';
 import 'profilePage.dart';
 import 'package:project444/rental_history_button.dart';
+import 'package:project444/common_drawer.dart';
+import 'package:project444/rental_history_view.dart';
 
 final ColorScheme colorScheme = ColorScheme.fromSeed(seedColor: Colors.blue);
 final _AppColors appColors = const _AppColors();
@@ -104,6 +106,7 @@ class MyApp extends StatelessWidget {
         "/confirm": (c) => const Placeholder(),
         "/success": (c) => const success_screen.ReservationSuccessScreen(),
         "/tracking": (c) => const TrackingPage(),
+        "/tracking_user": (c) => const RentalHistoryButton(),
       },
     );
   }
@@ -274,191 +277,13 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
         ),
       ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: const BoxDecoration(color: Color(0xFF003465)),
-              child: FirebaseAuth.instance.currentUser == null
-                  ? Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        GestureDetector(
-                          onTap: () async {
-                            Navigator.pop(context);
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const LoginPage(),
-                              ),
-                            );
-                            if (result == true && mounted) {
-                              setState(() {});
-                            }
-                          },
-                          child: const CircleAvatar(
-                            radius: 35,
-                            backgroundImage: AssetImage(
-                              'lib/images/default_profile.png',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          "Welcome, Guest!",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    )
-                  : FutureBuilder<DocumentSnapshot>(
-                      future: FirebaseFirestore.instance
-                          .collection("users")
-                          .doc(FirebaseAuth.instance.currentUser!.uid)
-                          .get(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                            ),
-                          );
-                        }
-
-                        var data =
-                            snapshot.data!.data() as Map<String, dynamic>;
-                        String name = (data["name"] ?? "User").toString();
-                        String? imageUrl = data["profileImage"] as String?;
-                        _userRole = (data['role'] ?? 'user').toString();
-
-                        return Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            GestureDetector(
-                              onTap: () async {
-                                Navigator.pop(context);
-                                final updated = await Navigator.push<bool?>(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const ProfilePage(),
-                                  ),
-                                );
-                                if (updated == true && mounted) {
-                                  setState(() {});
-                                }
-                              },
-                              child: CircleAvatar(
-                                radius: 35,
-                                backgroundImage:
-                                    (imageUrl != null && imageUrl.isNotEmpty)
-                                    ? NetworkImage(imageUrl)
-                                    : const AssetImage(
-                                            'lib/images/default_profile.png',
-                                          )
-                                          as ImageProvider,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              "Welcome, $name!",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.home),
-              title: const Text('Home'),
-              onTap: () {
-                Navigator.pop(context);
-                final role = _userRole.toLowerCase();
-                if (role == 'admin') {
-                  Navigator.pushReplacementNamed(context, '/admin');
-                } else {
-                  Navigator.pushReplacementNamed(context, '/home');
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.inventory),
-              title: const Text(
-                'Inventory Management',
-                style: TextStyle(fontSize: 14),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                final role = _userRole.toLowerCase();
-                if (role == 'admin') {
-                  Navigator.pushReplacementNamed(context, '/inventory_admin');
-                } else {
-                  Navigator.pushReplacementNamed(context, '/inventory');
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.calendar_month),
-              title: const Text(
-                'Reservation & Rental',
-                style: TextStyle(fontSize: 14),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/renter');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.volunteer_activism),
-              title: const Text('Donations', style: TextStyle(fontSize: 14)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/donor');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.bar_chart),
-              title: const Text(
-                'Tracking & Reports',
-                style: TextStyle(fontSize: 14),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/reports');
-              },
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: FirebaseAuth.instance.currentUser != null
-                  ? ListTile(
-                      leading: const Icon(Icons.logout, color: Colors.red),
-                      title: const Text(
-                        "Logout",
-                        style: TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      onTap: () async {
-                        await FirebaseAuth.instance.signOut();
-                        if (mounted) {
-                          Navigator.pop(context);
-                          Navigator.pushReplacementNamed(context, '/home');
-                        }
-                      },
-                    )
-                  : const SizedBox(),
-            ),
-          ],
-        ),
+      drawer: CommonDrawer(
+        userRole: _userRole,
+        onRoleUpdated: () {
+          setState(() {
+            _loadUserRole();
+          });
+        },
       ),
       body: Container(
         color: const Color(0xFFF7FBFF),

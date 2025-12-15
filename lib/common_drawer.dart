@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'login.dart';
 import 'profilePage.dart';
+import 'package:project444/rental_history_button.dart';
+import 'package:project444/rental_history_view.dart';
 
 /// Reusable drawer widget that can be used across all pages
 /// Automatically updates based on user role and authentication state
@@ -146,36 +148,56 @@ class CommonDrawer extends StatelessWidget {
               }
             },
           ),
-          ListTile(
-            leading: const Icon(Icons.calendar_month),
-            title: const Text(
-              'Reservation & Rental',
-              style: TextStyle(fontSize: 14),
+          if (userRole.toLowerCase() == 'renter' || userRole.toLowerCase() == 'admin')
+            ListTile(
+              leading: const Icon(Icons.calendar_month),
+              title: const Text(
+                'Reservation & Rental',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/renter');
+              },
             ),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/renter');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.volunteer_activism),
-            title: const Text('Donations', style: TextStyle(fontSize: 14)),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/donor');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.bar_chart),
-            title: const Text(
-              'Tracking & Reports',
-              style: TextStyle(fontSize: 14),
+          if (userRole.toLowerCase() == 'donor' || userRole.toLowerCase() == 'admin')
+            ListTile(
+              leading: const Icon(Icons.volunteer_activism),
+              title: const Text('Donations', style: TextStyle(fontSize: 14)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/donor');
+              },
             ),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/reports');
-            },
-          ),
+          if (userRole.toLowerCase() == 'admin')
+            ListTile(
+              leading: const Icon(Icons.bar_chart),
+              title: const Text(
+                'Tracking & Reports',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/reports');
+              },
+            ),
+          if (userRole.toLowerCase() == 'renter')
+            ListTile(
+              leading: const Icon(Icons.bar_chart),
+              title: const Text(
+                'My Rentals',
+                style: TextStyle(fontSize: 14),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const RentalHistoryView(showUserOnly: true),
+                  ),
+                );
+              },
+            ),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: FirebaseAuth.instance.currentUser != null
