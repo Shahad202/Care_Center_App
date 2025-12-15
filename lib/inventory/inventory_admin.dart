@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'add_item.dart';
 import 'item_detail.dart';
+import 'package:project444/common_drawer.dart';
 
 class NewinventoryWidget extends StatefulWidget {
   @override
@@ -9,12 +11,11 @@ class NewinventoryWidget extends StatefulWidget {
 }
 
 class _NewinventoryWidgetState extends State<NewinventoryWidget> {
-  final CollectionReference inventoryRef = FirebaseFirestore.instance
-      .collection('inventory');
-
+  final CollectionReference inventoryRef = FirebaseFirestore.instance.collection('inventory');
   final TextEditingController _searchController = TextEditingController();
 
   bool _isGridView = false;
+  String _userRole = 'guest';
 
   // 🔹 Filters
   List<String> selectedTypes = [];
@@ -39,6 +40,20 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
   void initState() {
     super.initState();
     _searchController.addListener(() => setState(() {}));
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      final role = (snap.data()?['role'] ?? 'user').toString();
+      if (mounted) setState(() => _userRole = role);
+    } catch (_) {}
   }
 
   @override
@@ -47,7 +62,6 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
     super.dispose();
   }
 
-  // ✅ تحويل لـ Stream بدل من Future
   Stream<QuerySnapshot> _getInventoryStream() {
     return inventoryRef.snapshots();
   }
@@ -140,6 +154,14 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
+      drawer: CommonDrawer(
+        userRole: _userRole,
+        onRoleUpdated: () {
+          setState(() {
+            _loadUserRole();
+          });
+        },
+      ),
       appBar: AppBar(
         backgroundColor: const Color(0xFF155DFC),
         title: StreamBuilder<QuerySnapshot>(
@@ -162,7 +184,6 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
             context,
             MaterialPageRoute(builder: (_) => const AddItemScreen()),
           );
-          // لا حاجة لـ _loadItems() لأن StreamBuilder يتحدث تلقائياً
         },
       ),
       body: Column(
@@ -206,7 +227,7 @@ class _NewinventoryWidgetState extends State<NewinventoryWidget> {
             ),
           ),
 
-          // StreamBuilder للاستماع للتغييرات الحية
+          // StreamBuilder
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: _getInventoryStream(),
@@ -447,8 +468,7 @@ class FilterSheet extends StatefulWidget {
     List<String> statuses,
     List<String> conditions,
     String location,
-  )
-  onApply;
+  ) onApply;
 
   const FilterSheet({super.key, required this.onApply});
 
