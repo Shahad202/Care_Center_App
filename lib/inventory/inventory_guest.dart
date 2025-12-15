@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'item_detail.dart';
+import 'package:project444/common_drawer.dart';
 
 class InventoryGuest extends StatefulWidget {
   const InventoryGuest({super.key});
@@ -17,6 +19,7 @@ class _InventoryGuestState extends State<InventoryGuest> {
 
   bool _isGridView = true;
   String sortBy = 'Default';
+  String _userRole = 'guest';
 
   List<QueryDocumentSnapshot> allItems = [];
   List<QueryDocumentSnapshot> filteredItems = [];
@@ -40,7 +43,14 @@ class _InventoryGuestState extends State<InventoryGuest> {
   void initState() {
     super.initState();
     _loadItems();
+    _loadUserRole();
     _searchController.addListener(_applyFilters);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadItems() async {
@@ -49,6 +59,19 @@ class _InventoryGuestState extends State<InventoryGuest> {
       allItems = snap.docs;
       filteredItems = snap.docs;
     });
+  }
+
+  Future<void> _loadUserRole() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      final role = (snap.data()?['role'] ?? 'user').toString();
+      if (mounted) setState(() => _userRole = role);
+    } catch (_) {}
   }
 
   void _applyFilters() {
@@ -116,6 +139,14 @@ class _InventoryGuestState extends State<InventoryGuest> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
+      drawer: CommonDrawer(
+        userRole: _userRole,
+        onRoleUpdated: () {
+          setState(() {
+            _loadUserRole();
+          });
+        },
+      ),
       appBar: AppBar(
         backgroundColor: const Color(0xFF155DFC),
         title: const Text('Inventory', style: TextStyle(color: Colors.white)),
