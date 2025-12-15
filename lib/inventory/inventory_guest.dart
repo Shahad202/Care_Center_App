@@ -54,10 +54,8 @@ class _InventoryGuestState extends State<UserInventoryWidget> {
 
   Future<void> _loadItems() async {
     final snap = await inventoryRef.get();
-    setState(() {
-      allItems = snap.docs;
-      filteredItems = snap.docs;
-    });
+    allItems = snap.docs;
+    _applyFilters();
   }
 
   Future<void> _loadUserRole() async {
@@ -94,9 +92,12 @@ class _InventoryGuestState extends State<UserInventoryWidget> {
       bool matchCategory =
           selectedCategories.isEmpty ||
           selectedCategories.contains(d['category'] ?? 'Other');
-      bool matchStatus =
-          selectedStatuses.isEmpty ||
-          selectedStatuses.contains(d['status'] ?? 'Available');
+
+      final allowedGuestStatuses = ['Available', 'Donated'];
+
+      bool matchStatus = selectedStatuses.isNotEmpty
+          ? selectedStatuses.contains(status)
+          : allowedGuestStatuses.contains(status);
 
       bool matchCondition =
           selectedConditions.isEmpty ||
@@ -117,12 +118,8 @@ class _InventoryGuestState extends State<UserInventoryWidget> {
     switch (status) {
       case 'Available':
         return const Color.fromRGBO(0, 201, 80, 1);
-      case 'Rented':
-        return const Color.fromRGBO(255, 105, 0, 1);
       case 'Donated':
         return const Color.fromRGBO(173, 59, 183, 1);
-      case 'Maintenance':
-        return const Color.fromRGBO(106, 114, 130, 1);
       default:
         return const Color.fromRGBO(170, 192, 235, 1);
     }
@@ -366,26 +363,21 @@ class _InventoryGuestState extends State<UserInventoryWidget> {
 
                     Wrap(
                       spacing: 8,
-                      children:
-                          ['Available', 'Rented', 'Donated', 'Maintenance'].map(
-                            (status) {
-                              final isSelected = selectedStatuses.contains(
-                                status,
-                              );
+                      children: ['Available', 'Donated'].map((status) {
+                        final isSelected = selectedStatuses.contains(status);
 
-                              return ChoiceChip(
-                                label: Text(status),
-                                selected: isSelected,
-                                onSelected: (_) {
-                                  sheetSetState(() {
-                                    isSelected
-                                        ? selectedStatuses.remove(status)
-                                        : selectedStatuses.add(status);
-                                  });
-                                },
-                              );
-                            },
-                          ).toList(),
+                        return ChoiceChip(
+                          label: Text(status),
+                          selected: isSelected,
+                          onSelected: (_) {
+                            sheetSetState(() {
+                              isSelected
+                                  ? selectedStatuses.remove(status)
+                                  : selectedStatuses.add(status);
+                            });
+                          },
+                        );
+                      }).toList(),
                     ),
 
                     const SizedBox(height: 20),
@@ -416,19 +408,6 @@ class _InventoryGuestState extends State<UserInventoryWidget> {
             );
           },
         );
-      },
-    );
-  }
-
-  Widget _filterTile(String v, List<String> list) {
-    return CheckboxListTile(
-      title: Text(v),
-      value: list.contains(v),
-      onChanged: (c) {
-        setState(() {
-          c! ? list.add(v) : list.remove(v);
-          _applyFilters();
-        });
       },
     );
   }
